@@ -127,11 +127,15 @@ final class ScreenPhotoTests: XCTestCase {
     private func shoot<V: View>(_ name: String, _ view: V) throws {
         let dir = try XCTUnwrap(ProcessInfo.processInfo.environment["FOTO_DIR"], "FOTO_DIR not set")
         let controller = UIHostingController(rootView: view)
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.lazy.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        window.backgroundColor = .systemBackground
         window.rootViewController = controller
         window.makeKeyAndVisible()
         defer { window.isHidden = true }
-        RunLoop.main.run(until: Date().addingTimeInterval(1))
+        RunLoop.main.run(until: Date().addingTimeInterval(2))
+        controller.view.layoutIfNeeded()
         let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
             window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
         }
