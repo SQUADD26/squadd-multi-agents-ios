@@ -20,4 +20,9 @@ enum StreamingRevealGate {
         let boundary = pending.index(after: lastWhitespace)
         return (String(pending[..<boundary]), String(pending[boundary...]))
     }
+
+    /// Whether a tick would show anything of `pending`.
+    static func showsSomething(_ pending: String, heldPreviousTick: Bool) -> Bool {
+        !cut(pending, heldPreviousTick: heldPreviousTick).shown.isEmpty
+    }
 }
