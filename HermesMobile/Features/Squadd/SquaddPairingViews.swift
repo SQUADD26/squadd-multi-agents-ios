@@ -98,16 +98,16 @@ struct SquaddDebugAddServerView: View {
     var body: some View {
         Form {
             Section {
-                TextField(text: $address, prompt: Text(verbatim: "http://192.168.1.10:8810")) { Text("Address") }
+                TextField(text: $address, prompt: Text(verbatim: "http://192.168.1.10:8810")) { Text(verbatim: "Address") }
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                TextField("Pairing code", text: $code)
+                TextField(text: $code) { Text(verbatim: "Pairing code") }
                     .keyboardType(.numberPad)
             } footer: {
                 if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
             }
-            Button("Pair") { pair() }
+            Button { pair() } label: { Text(verbatim: "Pair") }
                 .disabled(address.isEmpty || code.isEmpty || isPairing)
         }
         .navigationTitle(Text(verbatim: "Add Squadd Server (Debug)"))
