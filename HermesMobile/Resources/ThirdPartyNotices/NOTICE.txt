@@ -1,8 +1,10 @@
-Hermex third-party notices
+Squadd Multi-Agents third-party notices
 
 This folder contains license notices for third-party code and assets bundled
 with the iOS app.
 
+- Hermex (the open-source iPhone app this app is built on)
+  See Hermex-LICENSE.txt.
 - LDSwiftEventSource / swift-eventsource 3.4.0
   See LDSwiftEventSource-LICENSE.txt.
 - MarkdownUI / swift-markdown-ui 2.4.1
@@ -11,6 +13,8 @@ with the iOS app.
   See Splash-LICENSE.txt.
 - Highlightr 2.3.0
   See Highlightr-LICENSE.txt.
+- highlight.js (bundled inside Highlightr)
+  See highlight.js-LICENSE.txt.
 - SwiftMath 1.7.3
   See SwiftMath-LICENSE.txt.
 - KeychainAccess 4.2.2
