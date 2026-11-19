@@ -149,9 +149,8 @@ struct SquaddKeysPage: View {
                 Section {
                     ForEach(model.keys) { key in
                         LabeledContent(key.name) {
-                            Label(key.configured ? String(localized: "Set") : String(localized: "Not set"),
-                                  systemImage: key.configured ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(key.configured ? Color.green : Color(.appTextSecondary))
+                            SettingsStatusPill(label: key.configured ? String(localized: "Set") : String(localized: "Not set"),
+                                               tint: key.configured ? .green : Color(.appTextSecondary))
                         }
                     }
                 } appFooter: {
