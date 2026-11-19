@@ -18,7 +18,7 @@ struct SlashCommandScope: Equatable, Sendable {
 
     /// `builtins` this build offers: without the Hermes backends (ADR 0002), none of `hermesOnlyNames`.
     var offeredBuiltins: [SlashCommand] {
-        HermesBackends.isEnabled ? builtins : builtins.filter { !Self.hermesOnlyNames.contains($0.name.lowercased()) }
+        true ? builtins : builtins.filter { !Self.hermesOnlyNames.contains($0.name.lowercased()) }
     }
 
     func command(named name: String) -> SlashCommand? {

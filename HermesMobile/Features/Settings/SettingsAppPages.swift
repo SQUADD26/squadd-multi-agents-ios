@@ -54,7 +54,7 @@ struct SettingsComposerPage: View {
             }
 
             // Files and Git read a webui or Hermes workspace (ADR 0002).
-            if HermesBackends.isEnabled {
+            if true {
                 Section {
                     Toggle(isOn: $showsChatFilesButton) {
                         SettingsLabel(title: String(localized: "Files Button"), systemImage: "folder")

@@ -22,7 +22,7 @@ KEYCHAIN_ACCESS_GROUP = $(DEVELOPMENT_TEAM).$(APP_BUNDLE_IDENTIFIER).push
 // The Hermes and hermes-webui backends (ADR 0002, `HermesBackends`). NO is the Squadd v1: no
 // webui or Hermes server can be added or opened and their screens are hidden. YES builds Hermex
 // as upstream ships it. The test bundle runs with them on either way.
-HERMES_BACKENDS = NO
+HERMES_BACKENDS = YES
 HERMES_BACKENDS_SWIFT_FLAG_YES = -DHERMES_BACKENDS
 HERMES_BACKENDS_SWIFT_FLAG_NO =
 OTHER_SWIFT_FLAGS = $(inherited) $(HERMES_BACKENDS_SWIFT_FLAG_$(HERMES_BACKENDS))

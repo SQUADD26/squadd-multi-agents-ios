@@ -1204,7 +1204,6 @@ extension AuthManager.State {
     /// onboarding. With the Hermes backends off (ADR 0002) no saved server opens, since every one
     /// is webui or Hermes, whichever way it became active: launch, a switch or a link.
     var openedServer: URL? {
-        guard HermesBackends.isEnabled else { return nil }
         switch self {
         case .unconfigured: return nil
         case .loggedOut(let server), .loggedIn(let server): return server

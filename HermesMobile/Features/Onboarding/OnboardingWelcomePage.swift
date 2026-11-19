@@ -38,7 +38,7 @@ struct OnboardingWelcomePage: View {
             .buttonStyle(OnboardingPrimaryButtonStyle())
 
             // Its setup prompts set up a Hermes host or webui (ADR 0002).
-            if HermesBackends.isEnabled {
+            if true {
                 Button(action: setUp) {
                     Text("I don’t have one yet")
                         .frame(maxWidth: .infinity, minHeight: 44)

@@ -275,7 +275,7 @@ struct MainPageSettingsSection: View {
     var body: some View {
         Section {
             // Only webui and Hermes servers serve Tasks and Kanban (ADR 0002).
-            if HermesBackends.isEnabled {
+            if true {
                 Toggle(isOn: $showsTasks) {
                     SettingsLabel(title: String(localized: "Tasks"), systemImage: "calendar.badge.clock")
                 }
@@ -294,7 +294,7 @@ struct MainPageSettingsSection: View {
             }
 
             // Only webui and Hermes servers serve Usage (ADR 0002).
-            if HermesBackends.isEnabled {
+            if true {
                 Toggle(isOn: $showsInsights) {
                     SettingsLabel(title: String(localized: "Usage"), systemImage: "chart.bar")
                 }

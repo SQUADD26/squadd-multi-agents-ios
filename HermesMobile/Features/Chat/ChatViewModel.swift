@@ -602,7 +602,6 @@ final class ChatViewModel {
     /// A Hermes session shows it unless the host marks the model `reasoning: false` (#1016).
     var showsReasoningEffortControl: Bool {
         // Thinking is a webui and Hermes control (ADR 0002).
-        guard HermesBackends.isEnabled else { return false }
         if let hermesSettings { return hermesSettings.showsEffort }
         return ReasoningEffortOption.showsEffortControl(
             supportsReasoningEffort: supportsReasoningEffort,
@@ -1052,7 +1051,7 @@ final class ChatViewModel {
     var composerSentReasoningEffort: String? { hermesSettings?.sentEffort }
 
     /// A Hermes session's Fast mode (#1142); nil hides its row, as on a webui session.
-    var composerFastMode: Bool? { HermesBackends.isEnabled ? hermesSettings?.fast : nil }
+    var composerFastMode: Bool? { hermesSettings?.fast }
 
     /// Whether that Fast mode can change now (#1142).
     var composerMayChangeFastMode: Bool { hermesSettings?.mayChangeFast == true }
