@@ -139,7 +139,7 @@ Per ogni chiamata di rete di `HermesMobile/Networking`, la route del companion c
 | POST /api/session/truncate | HermesMobile/Networking/APIClient+Sessions.swift:172 | POST /api/bots/:id/messages/:m/edit | routes.ts:112 |
 | POST /api/session/update | HermesMobile/Networking/APIClient+Sessions.swift:185 | PATCH /api/bots/:id/model | routes.ts:153 |
 | POST /api/session/move | HermesMobile/Networking/APIClient+Sessions.swift:198 | PATCH task con `projectId` | routes.ts:126 |
-| GET e POST /api/session/yolo | HermesMobile/Networking/APIClient+Sessions.swift:205 | PATCH task con `approvalMode` | routes.ts:126 |
+| GET e POST /api/session/yolo | HermesMobile/Networking/APIClient+Sessions.swift:205 | PATCH task con `approvalMode` | routes.ts:126; server/routes/tasks.ts:268 |
 | GET /api/session/export | HermesMobile/Networking/APIClient+SessionExport.swift:39 | GET /api/threads/:id/export | routes.ts:187 |
 | GET /api/projects | HermesMobile/Networking/APIClient+Projects.swift:5 | manca: le cartelle arrivano dentro `GET /api/bots` | — |
 | POST /api/projects/create | HermesMobile/Networking/APIClient+Projects.swift:10 | POST /api/sidebar-sections | routes.ts:103 |
@@ -257,41 +257,41 @@ Per ogni chiamata di rete di `HermesMobile/Networking`, la route del companion c
 
 | Metodi di Hermex | Hermex file:riga | Companion | Companion file:riga |
 |---|---|---|---|
-| profiles.list, .describe, .get_asset, .set_asset, .configure, .create | HermesMobile/Networking/Hermes/HermesCall.swift:534 | GET, POST, PATCH /api/bots; profile; avatar | routes.ts:94-95, :151, :154 |
-| plugins.manage | HermesMobile/Networking/Hermes/HermesCall.swift:534 | manca | — |
-| connectors.catalog, .list, .connect, .accounts, .accounts.remove | HermesMobile/Networking/Hermes/HermesCall.swift:534 | /api/connectors (catalog, connected, authorize, accounts) | routes.ts:245-249 |
-| connectors.operation.wake, connection.respond | HermesMobile/Networking/Hermes/HermesCall.swift:534 | connector-cards authorize, resume, dismiss | routes.ts:252 |
-| session.list, .most_recent, .active_list | HermesMobile/Networking/Hermes/HermesCall.swift:534 | GET /api/bots | routes.ts:94 |
-| session.create, .title, .close, .delete | HermesMobile/Networking/Hermes/HermesCall.swift:534 | /api/bots/:id/tasks (POST, PATCH, DELETE) | routes.ts:124-127 |
-| session.branch | HermesMobile/Networking/Hermes/HermesCall.swift:534 | manca (fork non aperto) | — |
-| session.workspace.move, .cwd.set | HermesMobile/Networking/Hermes/HermesCall.swift:534 | manca | — |
-| session.resume, .events.since, .detach | HermesMobile/Networking/Hermes/HermesCall.swift:534 | SSE /api/events con `Last-Event-ID` | routes.ts:85 |
-| session.steer, .redirect | HermesMobile/Networking/Hermes/HermesCall.swift:534 | POST /api/bots/:id/queue/:q/steer | routes.ts:109 |
-| session.interrupt | HermesMobile/Networking/Hermes/HermesCall.swift:534 | POST /api/bots/:id/interrupt | routes.ts:108 |
-| session.mutate, .undo | HermesMobile/Networking/Hermes/HermesCall.swift:534 | edit e active-branch; undo manca | routes.ts:112, :119 |
-| session.compress | HermesMobile/Networking/Hermes/HermesCall.swift:534 | POST /api/bots/:id/compact | routes.ts:120 |
-| session.control.read, .control | HermesMobile/Networking/Hermes/HermesCall.swift:534 | manca | — |
-| projects.tree, .create, .update, .delete | HermesMobile/Networking/Hermes/HermesCall.swift:534 | solo POST /api/sidebar-sections | routes.ts:103 |
-| prompt.submit | HermesMobile/Networking/Hermes/HermesCall.swift:534 | POST /api/bots/:id/messages | routes.ts:104 |
-| prompt.cancel, .resolve_unknown | HermesMobile/Networking/Hermes/HermesCall.swift:534 | POST /api/bots/:id/interrupt; DELETE queue | routes.ts:107-108 |
-| prompt.btw, prompt.background | HermesMobile/Networking/Hermes/HermesCall.swift:534 | manca | — |
-| approval.pending, approval.respond | HermesMobile/Networking/Hermes/HermesCall.swift:534 | POST /api/bots/:id/respond | routes.ts:106 |
-| clarify.respond, clarify.lock, request.answer | HermesMobile/Networking/Hermes/HermesCall.swift:534 | POST /api/threads/:id/respond; PATCH cards | routes.ts:188, :105 |
-| rollback.list, .diff, .restore | HermesMobile/Networking/Hermes/HermesCall.swift:534 | manca | — |
-| file.attach | HermesMobile/Networking/Hermes/HermesCall.swift:534 | POST /api/attachments | routes.ts:193 |
-| model.options, config.set | HermesMobile/Networking/Hermes/HermesCall.swift:534 | GET /api/instances; PATCH /api/bots/:id/model | routes.ts:86, :153 |
-| commands.catalog, command.dispatch, complete.slash, slash.exec | HermesMobile/Networking/Hermes/HermesCall.swift:534 | manca; lo slash va come testo | routes.ts:104 |
-| complete.path | HermesMobile/Networking/Hermes/HermesCall.swift:534 | manca | — |
-| insights.get | HermesMobile/Networking/Hermes/HermesCall.swift:534 | manca | — |
-| llm.oneshot | HermesMobile/Networking/Hermes/HermesCall.swift:534 | manca | — |
-| client.capabilities | HermesMobile/Networking/Hermes/HermesCall.swift:534 | frame `hello` dello stream | packages/phone-protocol/src/wire.ts:931 |
-| display.status, .observe, .lease.acquire, .lease.release, .start, .stop | HermesMobile/Networking/Hermes/HermesCall.swift:534 | join e control del desktop, permesso per device | routes.ts:156-158; companion/src/proxy.ts:438 |
-| subagent.list, .roster, .tail, .interrupt | HermesMobile/Networking/Hermes/HermesCall.swift:534 | manca | — |
-| groups.capabilities, .list, .state, .log | HermesMobile/Networking/Hermes/HermesCall.swift:534 | frame `group` dello stream; GET messaggi del thread | packages/phone-protocol/src/wire.ts:931; routes.ts:177 |
-| groups.send, .stop | HermesMobile/Networking/Hermes/HermesCall.swift:534 | POST /api/groups/:id/messages, /interrupt | routes.ts:167-168 |
-| groups.create | HermesMobile/Networking/Hermes/HermesCall.swift:534 | POST /api/groups | routes.ts:166 |
-| groups.approve, .retry, .discard | HermesMobile/Networking/Hermes/HermesCall.swift:534 | steer e DELETE della coda di gruppo | routes.ts:169-170 |
-| groups.rename, .disband | HermesMobile/Networking/Hermes/HermesCall.swift:534 | manca | — |
+| profiles.list, .describe, .get_asset, .set_asset, .configure, .create | HermesMobile/Networking/Hermes/HermesCall.swift:536-541 | GET, POST, PATCH /api/bots; profile; avatar | routes.ts:94-95, :151, :154 |
+| plugins.manage | HermesMobile/Networking/Hermes/HermesCall.swift:542 | manca | — |
+| connectors.catalog, .list, .connect, .accounts, .accounts.remove | HermesMobile/Networking/Hermes/HermesCall.swift:543-549 | /api/connectors (catalog, connected, authorize, accounts) | routes.ts:245-249 |
+| connectors.operation.wake, connection.respond | HermesMobile/Networking/Hermes/HermesCall.swift:546, :547, :593 | connector-cards authorize, resume, dismiss | routes.ts:252 |
+| session.list, .most_recent, .active_list | HermesMobile/Networking/Hermes/HermesCall.swift:550, :565, :567 | GET /api/bots | routes.ts:94 |
+| session.create, .title, .close, .delete | HermesMobile/Networking/Hermes/HermesCall.swift:551-555 | /api/bots/:id/tasks (POST, PATCH, DELETE) | routes.ts:124-127 |
+| session.branch | HermesMobile/Networking/Hermes/HermesCall.swift:556 | manca (fork non aperto) | — |
+| session.workspace.move, .cwd.set | HermesMobile/Networking/Hermes/HermesCall.swift:557, :596 | manca | — |
+| session.resume, .events.since, .detach | HermesMobile/Networking/Hermes/HermesCall.swift:562-564 | SSE /api/events con `Last-Event-ID` | routes.ts:85 |
+| session.steer, .redirect | HermesMobile/Networking/Hermes/HermesCall.swift:575-576 | POST /api/bots/:id/queue/:q/steer | routes.ts:109 |
+| session.interrupt | HermesMobile/Networking/Hermes/HermesCall.swift:577 | POST /api/bots/:id/interrupt | routes.ts:108 |
+| session.mutate, .undo | HermesMobile/Networking/Hermes/HermesCall.swift:581-582 | edit e active-branch; undo manca | routes.ts:112, :119 |
+| session.compress | HermesMobile/Networking/Hermes/HermesCall.swift:583 | POST /api/bots/:id/compact | routes.ts:120 |
+| session.control.read, .control | HermesMobile/Networking/Hermes/HermesCall.swift:597-598 | manca | — |
+| projects.tree, .create, .update, .delete | HermesMobile/Networking/Hermes/HermesCall.swift:558-561 | solo POST /api/sidebar-sections | routes.ts:103 |
+| prompt.submit | HermesMobile/Networking/Hermes/HermesCall.swift:574 | POST /api/bots/:id/messages | routes.ts:104 |
+| prompt.cancel, .resolve_unknown | HermesMobile/Networking/Hermes/HermesCall.swift:578-579 | POST /api/bots/:id/interrupt; DELETE queue | routes.ts:107-108 |
+| prompt.btw, prompt.background | HermesMobile/Networking/Hermes/HermesCall.swift:588-589 | manca | — |
+| approval.pending, approval.respond | HermesMobile/Networking/Hermes/HermesCall.swift:566, :590 | POST /api/bots/:id/respond | routes.ts:106 |
+| clarify.respond, clarify.lock, request.answer | HermesMobile/Networking/Hermes/HermesCall.swift:580, :591, :592 | POST /api/threads/:id/respond; PATCH cards | routes.ts:188, :105 |
+| rollback.list, .diff, .restore | HermesMobile/Networking/Hermes/HermesCall.swift:584-586 | manca | — |
+| file.attach | HermesMobile/Networking/Hermes/HermesCall.swift:587 | POST /api/attachments | routes.ts:193 |
+| model.options, config.set | HermesMobile/Networking/Hermes/HermesCall.swift:594-595 | GET /api/instances; PATCH /api/bots/:id/model | routes.ts:86, :153 |
+| commands.catalog, command.dispatch, complete.slash, slash.exec | HermesMobile/Networking/Hermes/HermesCall.swift:599-603 | manca; lo slash va come testo | routes.ts:104 |
+| complete.path | HermesMobile/Networking/Hermes/HermesCall.swift:601 | manca | — |
+| insights.get | HermesMobile/Networking/Hermes/HermesCall.swift:604 | manca | — |
+| llm.oneshot | HermesMobile/Networking/Hermes/HermesCall.swift:605 | manca | — |
+| client.capabilities | HermesMobile/Networking/Hermes/HermesCall.swift:622 | frame `hello` dello stream | packages/phone-protocol/src/wire.ts:931 |
+| display.status, .observe, .lease.acquire, .lease.release, .start, .stop | HermesMobile/Networking/Hermes/HermesCall.swift:568-573 | join e control del desktop, permesso per device | routes.ts:156-158; companion/src/proxy.ts:438 |
+| subagent.list, .roster, .tail, .interrupt | HermesMobile/Networking/Hermes/HermesCall.swift:606-609 | manca | — |
+| groups.capabilities, .list, .state, .log | HermesMobile/Networking/Hermes/HermesCall.swift:610-613 | frame `group` dello stream; GET messaggi del thread | packages/phone-protocol/src/wire.ts:931; routes.ts:177 |
+| groups.send, .stop | HermesMobile/Networking/Hermes/HermesCall.swift:614-615 | POST /api/groups/:id/messages, /interrupt | routes.ts:167-168 |
+| groups.create | HermesMobile/Networking/Hermes/HermesCall.swift:619 | POST /api/groups | routes.ts:166 |
+| groups.approve, .retry, .discard | HermesMobile/Networking/Hermes/HermesCall.swift:616-618 | steer e DELETE della coda di gruppo | routes.ts:169-170 |
+| groups.rename, .disband | HermesMobile/Networking/Hermes/HermesCall.swift:620-621 | manca | — |
 
 ### Fuori dal server dell'utente
 
