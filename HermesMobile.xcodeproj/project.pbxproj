@@ -384,6 +384,9 @@
 		E1075000000000000000A005 /* HermesUpdateCallout.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1075000000000000000A006 /* HermesUpdateCallout.swift */; };
 		E1075000000000000000A003 /* HermesUpdateMachine.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1075000000000000000A004 /* HermesUpdateMachine.swift */; };
 		1A2B3C4D5E6F7000000000F8 /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7000000000F9 /* AppConfig.swift */; };
+		C0030000000000000000F001 /* HermesBackends.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000000F002 /* HermesBackends.swift */; };
+		C0030000000000000000F003 /* HermesBackends.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000000F002 /* HermesBackends.swift */; };
+		C0030000000000000000F004 /* HermesBackendsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0030000000000000000F005 /* HermesBackendsTests.swift */; };
 		532000000000000000000001 /* RatingPromptState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 532000000000000000000002 /* RatingPromptState.swift */; };
 		5320000000000000000000D1 /* DevAutoLogin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5320000000000000000000D2 /* DevAutoLogin.swift */; };
 		531000000000000000000001 /* SessionListCardState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 531000000000000000000002 /* SessionListCardState.swift */; };
@@ -1147,6 +1150,8 @@
 		E1075000000000000000A006 /* HermesUpdateCallout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesUpdateCallout.swift; sourceTree = "<group>"; };
 		E1075000000000000000A004 /* HermesUpdateMachine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesUpdateMachine.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F7000000000F9 /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		C0030000000000000000F002 /* HermesBackends.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesBackends.swift; sourceTree = "<group>"; };
+		C0030000000000000000F005 /* HermesBackendsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HermesBackendsTests.swift; sourceTree = "<group>"; };
 		532000000000000000000002 /* RatingPromptState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RatingPromptState.swift; sourceTree = "<group>"; };
 		5320000000000000000000D2 /* DevAutoLogin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevAutoLogin.swift; sourceTree = "<group>"; };
 		531000000000000000000002 /* SessionListCardState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionListCardState.swift; sourceTree = "<group>"; };
@@ -1751,6 +1756,7 @@
 				C13730000000000000000003 /* DelayedStatusTests.swift */,
 				C03900000000000000000019 /* SessionRowAttentionStateTests.swift */,
 				A10900000000000000000012 /* SessionNavigationStateTests.swift */,
+				C0030000000000000000F005 /* HermesBackendsTests.swift */,
 				E1046000000000000000A006 /* HermesSessionListTests.swift */,
 				E1048000000000000000A004 /* HermesSessionActionsTests.swift */,
 				E1052000000000000000A004 /* HermesProjectsTests.swift */,
@@ -2398,6 +2404,7 @@
 			isa = PBXGroup;
 			children = (
 				1A2B3C4D5E6F7000000000F9 /* AppConfig.swift */,
+				C0030000000000000000F002 /* HermesBackends.swift */,
 				532000000000000000000002 /* RatingPromptState.swift */,
 				5320000000000000000000D2 /* DevAutoLogin.swift */,
 				531000000000000000000002 /* SessionListCardState.swift */,
@@ -3026,6 +3033,7 @@
 				E1582000000000000000A013 /* PluginDiscoverView.swift in Sources */,
 				19C1150000000000000000A1 /* CliSessionsSyncModel.swift in Sources */,
 				1A2B3C4D5E6F7000000000F8 /* AppConfig.swift in Sources */,
+				C0030000000000000000F001 /* HermesBackends.swift in Sources */,
 				532000000000000000000001 /* RatingPromptState.swift in Sources */,
 				5320000000000000000000D1 /* DevAutoLogin.swift in Sources */,
 				531000000000000000000001 /* SessionListCardState.swift in Sources */,
@@ -3353,6 +3361,7 @@
 				C13730000000000000000004 /* DelayedStatusTests.swift in Sources */,
 				C03910000000000000000019 /* SessionRowAttentionStateTests.swift in Sources */,
 				A10900000000000000000002 /* SessionNavigationStateTests.swift in Sources */,
+				C0030000000000000000F004 /* HermesBackendsTests.swift in Sources */,
 				E1046000000000000000A005 /* HermesSessionListTests.swift in Sources */,
 				E1048000000000000000A003 /* HermesSessionActionsTests.swift in Sources */,
 				E1052000000000000000A003 /* HermesProjectsTests.swift in Sources */,
@@ -3513,6 +3522,7 @@
 				D14090000000000000000012 /* ProviderLimitsSnapshot.swift in Sources */,
 				A04500000000000000000006 /* AgentRunLiveActivityWidget.swift in Sources */,
 				D14090000000000000000014 /* ProviderLimitsWidget.swift in Sources */,
+				C0030000000000000000F003 /* HermesBackends.swift in Sources */,
 				D16430000000000000000012 /* BotWidgetSnapshot.swift in Sources */,
 				D16430000000000000000014 /* BotWidgetIntent.swift in Sources */,
 				D16430000000000000000016 /* BotWidget.swift in Sources */,
