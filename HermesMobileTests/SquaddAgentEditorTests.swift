@@ -240,11 +240,27 @@ final class SquaddAgentPhotoTests: XCTestCase {
         window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
         window.makeKeyAndVisible()
         self.window = window
-        try steadyPhoto(of: window).write(to: dir.appendingPathComponent("\(name).png"))
+        try await steadyPhoto(of: window).write(to: dir.appendingPathComponent("\(name).png"))
     }
 
     private nonisolated static func fixture(_ name: String) -> Data {
         try! Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .appendingPathComponent("Fixtures/Squadd/\(name)"))
     }
+}
+
+/// The window's PNG once it stops changing: three equal frames 100 ms apart, at most `limit`.
+/// A photo for review, never an assertion.
+@MainActor func steadyPhoto(of window: UIWindow, limit: Duration = .seconds(3)) async throws -> Data {
+    let renderer = UIGraphicsImageRenderer(bounds: window.bounds)
+    let frame = { renderer.image { _ in window.drawHierarchy(in: window.bounds, afterScreenUpdates: true) }.pngData() }
+    var last = frame(), same = 0
+    let end = ContinuousClock.now + limit
+    while same < 3, ContinuousClock.now < end {
+        try await Task.sleep(for: .milliseconds(100)) // test-wait: frame sampling for a photo
+        let now = frame()
+        same = now == last ? same + 1 : 0
+        last = now
+    }
+    return try XCTUnwrap(last)
 }

@@ -234,7 +234,7 @@ final class SquaddScreenPhotoTests: XCTestCase {
         }
         check(100)
         await fulfillment(of: [landed], timeout: 10)
-        try steadyPhoto(of: window).write(to: dir.appendingPathComponent("\(name).png"))
+        try await steadyPhoto(of: window).write(to: dir.appendingPathComponent("\(name).png"))
     }
 
     private nonisolated static func fixture(_ name: String) throws -> Data {

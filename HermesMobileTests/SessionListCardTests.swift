@@ -134,8 +134,14 @@ final class ScreenPhotoTests: XCTestCase {
         window.rootViewController = controller
         window.makeKeyAndVisible()
         defer { window.isHidden = true }
+        // test-wait: photo runs only (skipped without FOTO_DIR); lets SwiftUI lay out before the capture
+        RunLoop.main.run(until: Date().addingTimeInterval(2))
+        controller.view.layoutIfNeeded()
+        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-        try steadyPhoto(of: window).write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))
+        try XCTUnwrap(image.pngData()).write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))
     }
 
     func testPhotoSettingsAboutAndSessionListCardSlot() throws {
