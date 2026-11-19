@@ -38,6 +38,7 @@ extension AuthManager {
         if let existing, existing.kind != .squadd { throw SquaddAddError.alreadyConfigured }
         let reply = try await SquaddCompanionClient.pair(
             server: invite.server, credential: invite.credential, deviceName: deviceName,
+            // No token after a revocation: the computer already dropped that device, so nothing to replace.
             replacesToken: existing == nil ? nil : squaddToken(for: invite.server), session: session)
         guard let existing else {
             try addSquaddServer(address: invite.server, token: reply.token)
