@@ -153,7 +153,7 @@ final class SquaddAgentListModel {
             _ = try await client.patchTask(botId: botId, threadId: threadId, changes)
             return true
         } catch {
-            // Put back only this thread's fields, so a change to another thread in flight stays.
+            // Put back only this thread, so a change to another thread in flight stays.
             replace(before, botId)
             _ = handled(error)
             return false
