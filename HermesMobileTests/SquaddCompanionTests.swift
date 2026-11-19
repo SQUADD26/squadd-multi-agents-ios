@@ -109,6 +109,7 @@ final class SquaddCompanionTests: XCTestCase {
 
 /// Answers every request with `handler`'s status and body.
 final class SquaddHTTPFixture: URLProtocol {
+    // The system builds the protocol instances; tests set this before a request and tearDown clears it.
     nonisolated(unsafe) static var handler: ((URLRequest) -> (Int, Data))?
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }

@@ -33,7 +33,7 @@ struct SquaddCompanionClient {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(["code": code, "deviceName": deviceName])
-        return try JSONDecoder().decode(SquaddPairResponse.self, from: send(request, session: session))
+        return try JSONDecoder().decode(SquaddPairResponse.self, from: await send(request, session: session))
     }
 
     private static func send(_ request: URLRequest, session: URLSession) async throws -> Data {
