@@ -18,6 +18,6 @@ enum StreamingRevealGate {
             return heldPreviousTick ? (pending, "") : ("", pending)
         }
         let boundary = pending.index(after: lastWhitespace)
-        return (String(pending[..<boundary]), String(pending[boundary...]))
+        return (String(pending.prefix(upTo: boundary)), String(pending.suffix(from: boundary)))
     }
 }
