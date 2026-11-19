@@ -86,6 +86,7 @@ struct SupportReport {
         switch serverKind {
         case .hermes: "Hermes"
         case .webui: "webui"
+        case .squadd: "Squadd"
         case nil: nil
         }
     }
