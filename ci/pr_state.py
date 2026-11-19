@@ -4,7 +4,7 @@
 The runner builds in one fixed place (the workspace and _work/DerivedData: DerivedData keeps absolute
 paths). Between runs each branch's checkout and DerivedData are parked in _work/pr-states/<branch>/ by
 renaming, which is instant. A branch seen for the first time starts from an APFS clone (copy-on-write,
-~2 s) of the parked state closest to its head: the fewest app files to recompile, and never one that
+~0.1 s) of the parked state closest to its head: the fewest app files to recompile, and never one that
 would delete Swift files (a deleted input makes the Swift driver rebuild the whole module).
 
     python3 ci/pr_state.py <branch> <head sha>
@@ -12,6 +12,7 @@ would delete Swift files (a deleted input makes the Swift driver rebuild the who
 Runs before the checkout; the workspace it leaves holds some earlier commit that the job then fetches over.
 """
 
+import ctypes
 import os
 import re
 import shutil
@@ -24,6 +25,13 @@ KEEP = 8  # parked states; the oldest beyond this are deleted (each is up to ~2 
 
 def git(repo, *args):
     return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True)
+
+
+def clone(src, dst):
+    """One APFS clonefile(2) of a whole tree, file dates kept: 0.1 s where `cp -c -pR` takes 2 s on DerivedData."""
+    libc = ctypes.CDLL("libc.dylib", use_errno=True)
+    if libc.clonefile(os.fsencode(src), os.fsencode(dst), 0):
+        raise OSError(ctypes.get_errno(), f"clonefile {src} -> {dst}")
 
 
 def cost(name_status):
@@ -73,8 +81,8 @@ def main(branch, head):
         candidates = [(p.name, git(p / "src", "rev-parse", "HEAD").stdout.strip())
                       for p in states.iterdir() if (p / "dd").is_dir() and (p / "src").is_dir()]
         base = closest(parked / "src", head, sorted(candidates, key=lambda c: c[0] != current))
-        subprocess.run(["cp", "-c", "-pR", str(states / base / "src"), str(workspace)], check=True)
-        subprocess.run(["cp", "-c", "-pR", str(states / base / "dd"), str(derived)], check=True)
+        clone(states / base / "src", workspace)
+        clone(states / base / "dd", derived)
         # The clone has new inodes: without this the checkout rewrites every file and the build starts over.
         git(workspace, "update-index", "-q", "--refresh")
         print(f"Build state: {mine}, new, cloned from {base}")
