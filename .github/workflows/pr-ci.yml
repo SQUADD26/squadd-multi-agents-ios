@@ -186,6 +186,25 @@ jobs:
             -collect-test-diagnostics never \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee "${CI_LOG_DIR}/tests.log"
 
+      - name: Export kept test screenshots
+        # Images a test keeps as evidence (`XCTAttachment.lifetime = .keepAlways`), such as
+        # HermesBackendsTests' screens with the Hermes backends off and on.
+        if: ${{ !cancelled() && steps.tests.outcome != 'skipped' }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          xcrun xcresulttool export attachments --path "${RESULT_BUNDLE_PATH}" --output-path test-screenshots
+          ls test-screenshots
+
+      - name: Upload screenshots artifact
+        if: ${{ !cancelled() && steps.tests.outcome != 'skipped' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-screenshots
+          path: test-screenshots
+          if-no-files-found: ignore
+
       - name: Check String Catalog coverage
         # Reads the .stringsdata the build step already wrote; no extra build.
         # Runs after failed tests too, so a flake can't hide a missing key,

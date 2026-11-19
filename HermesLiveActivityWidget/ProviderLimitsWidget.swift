@@ -15,7 +15,8 @@ struct ProviderLimitsWidget: Widget {
         }
         .configurationDisplayName("Limits")
         .description("Subscription limits from Usage in Hermex.")
-        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular])
+        // No family keeps it out of the widget gallery: its limits come from a Hermes host (ADR 0002).
+        .supportedFamilies(HermesBackends.isEnabled ? [.systemSmall, .systemMedium, .accessoryRectangular] : [])
     }
 }
 
