@@ -43,6 +43,15 @@ struct SquaddServerHome: View {
             content
                 .navigationTitle(authManager.activeServer?.displayName ?? server.host() ?? "")
                 .toolbar {
+                    #if DEBUG
+                    ToolbarItem(placement: .topBarLeading) {
+                        // Debug only: a second companion, for checking two Squadd servers stay apart.
+                        NavigationLink { SquaddDebugAddServerView(authManager: authManager) } label: {
+                            Image(systemName: "plus")
+                        }
+                        .accessibilityLabel(Text(verbatim: "Add Squadd Server (Debug)"))
+                    }
+                    #endif
                     ToolbarItem(placement: .topBarTrailing) {
                         Button { isShowingSettings = true } label: { Image(systemName: "gearshape") }
                             .accessibilityLabel("Settings")
