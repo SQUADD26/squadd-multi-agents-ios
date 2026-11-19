@@ -1,0 +1,51 @@
+{
+  "avatarUrl": "/api/attachments/89144ba5-f349-4d34-87df-24def160fa8f.png",
+  "bot": {
+    "id": "af826fb0-10ae-4abb-abeb-8a5a99be727f",
+    "threadId": "ad9bf72a-3ab3-4f73-8943-bf081c05ddc4",
+    "name": "Ricerche",
+    "title": "Analista senior",
+    "description": "Cerca, legge e riassume",
+    "soul": "Rispondi breve, in italiano.",
+    "soulHash": "a31f7fdb1e35480e39df9334a6b622557aeeba1a891a5dbcfb1af0fc3e541896",
+    "notifications": true,
+    "color": "purple",
+    "mascotBody": "cursor",
+    "unread": false,
+    "modelSelection": {
+      "instanceId": "claude",
+      "model": "claude-opus-5-5"
+    },
+    "createdAt": 1795120560947,
+    "avatarUrl": "/api/attachments/89144ba5-f349-4d34-87df-24def160fa8f.png",
+    "autoApprove": false,
+    "profileEditedAt": {
+      "title": 1795120560982,
+      "description": 1795120560982,
+      "soul": 1795120560982
+    },
+    "soulDrift": false,
+    "avatarCrop": "circle",
+    "approvalMode": "full",
+    "waitingForTeammates": false,
+    "mainThreadId": "ad9bf72a-3ab3-4f73-8943-bf081c05ddc4",
+    "tasks": [
+      {
+        "threadId": "ad9bf72a-3ab3-4f73-8943-bf081c05ddc4",
+        "title": "New thread",
+        "createdAt": 1795120560947,
+        "updatedAt": 1795120560948,
+        "unread": false,
+        "activity": "idle",
+        "busy": false,
+        "lastThreadOrderAt": 1795120560948,
+        "modelSelection": {
+          "instanceId": "claude",
+          "model": "claude-opus-5-5"
+        },
+        "followsBotModel": true,
+        "waitingForTeammates": false
+      }
+    ]
+  }
+}
