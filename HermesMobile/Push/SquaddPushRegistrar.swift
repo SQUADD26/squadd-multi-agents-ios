@@ -29,7 +29,8 @@ import UserNotifications
     private var tokenWaiters: [CheckedContinuation<String, any Error>] = []
 
     init(
-        remoteNotifications: any RemoteNotificationRegistering = UIApplicationRemoteNotificationRegistrar(),
+        // Built in the body: a default argument would be evaluated outside the main actor.
+        remoteNotifications: (any RemoteNotificationRegistering)? = nil,
         requestAuthorization: @escaping @MainActor () async -> Bool = {
             (try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])) ?? false
         },
@@ -39,7 +40,7 @@ import UserNotifications
         clients: @escaping @MainActor () -> [URL: SquaddCompanionClient] = SquaddPushRegistrar.pairedClients,
         environment: PushEnvironment? = PushEnvironment.current()
     ) {
-        self.remoteNotifications = remoteNotifications
+        self.remoteNotifications = remoteNotifications ?? UIApplicationRemoteNotificationRegistrar()
         self.requestAuthorization = requestAuthorization
         self.isAuthorized = isAuthorized
         self.clients = clients
