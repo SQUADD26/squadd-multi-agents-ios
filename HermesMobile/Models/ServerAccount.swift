@@ -4,10 +4,10 @@ import os
 /// What a configured server is (#899). A webui server is a `hermes-webui` instance, signed in
 /// through `AuthManager` with its own cookie; a Hermes server is a Hermes dashboard Hermex reaches
 /// directly, whose sign-in is the `BotConnection` saved under its own URL and whose home is the
-/// Bots inbox. A missing or unknown value reads as `webui`, the only kind before #899.
+/// Bots inbox. A squadd server is a Squadd companion (`Networking/Squadd/`, ADR 0001) signed in with a
+/// device token. A missing or unknown value reads as `webui`, the only kind before #899.
 enum ServerKind: String, Codable, Sendable {
-    case webui
-    case hermes
+    case webui, hermes, squadd
 }
 
 /// Which door a Hermes server's sign-in came through (#1724): the dashboard, or a gateway's
