@@ -97,7 +97,7 @@ final class AppColorTests: XCTestCase {
 
     /// Teal is the swatch the server color's luminance rule would label white, at 2.39:1.
     func testPrimaryActionsUseTheAccentWithAReadableLabel() {
-        let tint = PrimaryActionTintSettings.colors(accentHex: "#30B8C4", serverHex: "#FFD700")
+        let tint = PrimaryActionTintSettings.colors(accentHex: "#30B8C4", serverHex: "#C9CED6")
         let appearance = AppAppearance(lightTheme: .default, darkTheme: .default, accentHex: "#30B8C4")
         for isDark in [false, true] {
             let traits = UITraitCollection { $0[AppAppearanceTrait.self] = appearance; $0.userInterfaceStyle = isDark ? .dark : .light }
