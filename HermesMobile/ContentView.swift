@@ -118,6 +118,9 @@ struct ContentView: View {
         switch authManager.state {
         case .unconfigured:
             OnboardingView(authManager: authManager)
+        // Every saved server is webui or Hermes (ADR 0002).
+        case .loggedOut where !HermesBackends.isEnabled, .loggedIn where !HermesBackends.isEnabled:
+            OnboardingView(authManager: authManager)
         case .loggedOut(let server) where authManager.kind(of: server) == .hermes:
             HermesServerSignIn(authManager: authManager, server: server)
                 .id(server)
@@ -225,7 +228,7 @@ struct ContentView: View {
         // limits were read through (#1409), never switching servers; anything else opens the app as is.
         if let usage = HermesUsageDestination(url: url) {
             UsageReports.shared.record(.homeWidget)
-            if usage.opens(state: authManager.state, servers: authManager.servers) { pendingLinks.hermesUsage = usage }
+            if HermesBackends.isEnabled, usage.opens(state: authManager.state, servers: authManager.servers) { pendingLinks.hermesUsage = usage }
             return
         }
 
