@@ -231,7 +231,7 @@ struct SettingsServerPage: View {
             }
 
             LabeledContent(String(localized: "Status")) {
-                SettingsStatusPill(label: String(localized: "Inactive"))
+                SettingsStatusPill(label: isActive ? String(localized: "Active") : String(localized: "Inactive")) // a Squadd server shows here active too
             }
 
             // Not behind the Bot Mode preview gate (#557): this login is what push pairing

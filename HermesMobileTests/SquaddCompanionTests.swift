@@ -187,6 +187,7 @@ final class SquaddScreenPhotoTests: XCTestCase {
         defaults.set(true, forKey: AppLock.enabledKey)
         addTeardownBlock { UserDefaults.standard.removePersistentDomain(forName: "SquaddScreenPhotoTests") }
         let lock = AppLock(defaults: defaults, authenticator: StillLocked())
+        await lock.sceneDidBecomeActive()?.value // the scene is up and Face ID failed: the lock, not the cover
         XCTAssertTrue(lock.isLocked)
         try await shoot("d-face-id-lock", ZStack { home(manager, studio); AppLockView(lock: lock, icon: .current) }, dir: dir) { true }
 
@@ -229,7 +230,7 @@ final class SquaddScreenPhotoTests: XCTestCase {
         }
         check(100)
         await fulfillment(of: [landed], timeout: 10)
-        try await Task.sleep(for: .seconds(1)) // shortcut: lets the reply render; a photo, not an assertion
+        try await Task.sleep(for: .seconds(1)) // test-wait: lets the reply draw before the shot; a photo for review, never an assertion
         let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
             window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
         }
