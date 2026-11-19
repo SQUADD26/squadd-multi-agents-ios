@@ -103,7 +103,8 @@ final class SquaddCompanionTests: XCTestCase {
         await model.load()
 
         let section = try XCTUnwrap(sections(model).first)
-        XCTAssertEqual(section.threads.map(\.title), ["Rinominato", "ciao zucchero"], "pinned first, then the newest")
+        XCTAssertEqual((section.folders.flatMap(\.threads) + section.threads).map(\.title), ["Rinominato", "ciao zucchero"],
+                       "pinned first, then the newest")
         XCTAssertEqual(section.archived.map(\.title), ["Prova B"])
     }
 
