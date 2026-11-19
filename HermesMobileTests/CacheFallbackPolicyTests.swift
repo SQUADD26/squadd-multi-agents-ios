@@ -2,6 +2,10 @@ import XCTest
 @testable import HermesMobile
 
 final class CacheFallbackPolicyTests: XCTestCase {
+    func testOfflineIsAConnectivityError() {
+        XCTAssertTrue(CacheFallbackPolicy.isOffline(URLError(.notConnectedToInternet)))
+    }
+
     func testUsesCacheForConnectivityErrors() {
         let codes: [URLError.Code] = [
             .notConnectedToInternet,

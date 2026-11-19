@@ -19,6 +19,11 @@ enum CacheFallbackPolicy {
         }
     }
 
+    /// Whether `error` means the server can't be reached at all, not that it refused.
+    static func isOffline(_ error: Error) -> Bool {
+        isConnectivityError(error)
+    }
+
     private static func isConnectivityError(_ error: Error) -> Bool {
         guard let urlError = error as? URLError else { return false }
 
