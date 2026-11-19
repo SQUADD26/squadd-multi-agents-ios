@@ -43,7 +43,7 @@ jobs:
       # This branch's own checkout and DerivedData (ci/pr_state.py), then a fetch of the head and dev: unchanged
       # files keep their dates, so the build recompiles only what changed since this branch's last run. Then the
       # two simulators, booted once and kept on between runs, and the build. Public repo: no credentials written.
-      # nice: the build gives way to Roberto's own work when both want the CPU, at full speed otherwise.
+      # nice (here and for the tests): gives way to Roberto's own work when both want the CPU, full speed otherwise.
       - name: Code, simulators and build
         id: sim
         env:
@@ -87,7 +87,7 @@ jobs:
           echo "::group::Tests of the touched files"
           mkdir -p "${TEST_RUNNER_FOTO_DIR}"
           run() {
-            xcodebuild test-without-building -project HermesMobile.xcodeproj -scheme HermesMobile \
+            nice -n 10 xcodebuild test-without-building -project HermesMobile.xcodeproj -scheme HermesMobile \
               -destination "platform=iOS Simulator,id=$1" -derivedDataPath "${DERIVED_DATA}" \
               -disableAutomaticPackageResolution -parallel-testing-enabled NO -collect-test-diagnostics never \
               -resultBundlePath "${RUNNER_TEMP}/$2.xcresult" $(cat "${RUNNER_TEMP}/$2.txt") \
