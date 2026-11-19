@@ -31,6 +31,9 @@ struct SquaddServerHome: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Made once in `.task`, not in `init`, so a pass of the parent reads no Keychain.
     @State private var model: SquaddAgentListModel?
+    @State private var client: SquaddCompanionClient?
+    @State private var editingAgent: SquaddBot?
+    @State private var isCreatingAgent = false
     @State private var isShowingSettings = false
     @State private var isAddingServer = false
     @State private var isSearchExpanded = false
@@ -71,9 +74,10 @@ struct SquaddServerHome: View {
         }
         .task {
             if model == nil {
-                let token = authManager.squaddToken(for: server) ?? ""
+                let client = SquaddCompanionClient(server: server, token: authManager.squaddToken(for: server) ?? "")
+                self.client = client
                 model = SquaddAgentListModel(
-                    client: SquaddCompanionClient(server: server, token: token),
+                    client: client,
                     onUnpaired: { [weak authManager, server] in authManager?.squaddUnpaired(server: server) }
                 )
             }
@@ -144,6 +148,30 @@ struct SquaddServerHome: View {
         } message: { _ in
             Text("Its threads stay, outside any folder.")
         }
+        .sheet(item: $editingAgent) { agentEditor(for: $0) }
+        .sheet(isPresented: $isCreatingAgent) { agentEditor(for: nil) }
+    }
+
+    @ViewBuilder
+    private func agentEditor(for bot: SquaddBot?) -> some View {
+        if let client {
+            SquaddAgentEditorView(
+                client: client, bot: bot,
+                onChange: { Task { await model?.load() } },
+                onUnpaired: { [weak authManager, server] in authManager?.squaddUnpaired(server: server) }
+            )
+        }
+    }
+
+    private var newAgentButton: some View {
+        Button { isCreatingAgent = true } label: {
+            Label("New Agent", systemImage: "plus")
+                .font(AppFont.subheadline().bold())
+        }
+        .disabled(client == nil)
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
+        .sessionsScreenListRow()
     }
 
     @ViewBuilder
@@ -167,9 +195,13 @@ struct SquaddServerHome: View {
             ContentUnavailableView("No Agents", systemImage: "person.2",
                                    description: Text("Agents created on the computer show here."))
                 .sessionsScreenListRow()
+            newAgentButton
         case .loaded(let sections):
+            newAgentButton
             ForEach(sections) { section in
-                SquaddAgentHeader(section: section) {
+                SquaddAgentHeader(section: section, client: client) {
+                    editingAgent = section.bot
+                } newThread: {
                     Task { await run { await $0.createThread(botId: section.id) } }
                 } newFolder: {
                     newFolderName = ""
@@ -372,22 +404,19 @@ struct SquaddServerHome: View {
 }
 
 /// An agent's name over its threads, set like the Sessions list's own title row.
+/// Tapping it opens the agent's editor.
 private struct SquaddAgentHeader: View {
     let section: SquaddAgentSection
+    let client: SquaddCompanionClient?
+    let edit: () -> Void
     let newThread: () -> Void
     let newFolder: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
-            Text(section.name)
-                .font(AppFont.title3().bold())
-                .foregroundStyle(.appPrimary)
-            if let subtitle = section.subtitle {
-                Text(subtitle)
-                    .font(AppFont.subheadline())
-                    .foregroundStyle(.appSecondary)
-            }
-            Spacer()
+            Button(action: edit) { identity }
+                .buttonStyle(.plain)
+                .accessibilityHint(Text("Edits the agent"))
             if section.isBusy {
                 ProgressView()
                     .controlSize(.small)
@@ -409,6 +438,26 @@ private struct SquaddAgentHeader: View {
         .padding(.top, 20)
         .padding(.bottom, 4)
         .accessibilityElement(children: .contain)
+    }
+
+    private var identity: some View {
+        HStack(spacing: 8) {
+            if let client {
+                SquaddAgentAvatar(client: client, path: section.bot.avatarUrl, name: section.name)
+            }
+            Text(section.name)
+                .font(AppFont.title3().bold())
+                .foregroundStyle(.appPrimary)
+            if let subtitle = section.subtitle {
+                Text(subtitle)
+                    .font(AppFont.subheadline())
+                    .foregroundStyle(.appSecondary)
+            }
+            Spacer()
+        }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 }
 

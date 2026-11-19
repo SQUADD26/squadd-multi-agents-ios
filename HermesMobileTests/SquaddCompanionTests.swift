@@ -99,13 +99,15 @@ final class SquaddCompanionTests: XCTestCase {
     func testThreadsFollowTheDesktopOrderAndArchivedWaitApart() async throws {
         SquaddHTTPFixture.handler = { _ in (200, try! Self.fixture("bots-organized.json")) }
         let model = SquaddAgentListModel(client: client(token: "t"), onUnpaired: {})
-
         await model.load()
+        let loaded = try XCTUnwrap(sections(model).first)
 
-        let section = try XCTUnwrap(sections(model).first)
-        XCTAssertEqual((section.folders.flatMap(\.threads) + section.threads).map(\.title), ["Rinominato", "ciao zucchero"],
+        XCTAssertEqual((loaded.folders.flatMap(\.threads) + loaded.threads).map(\.title), ["Rinominato", "ciao zucchero"],
                        "pinned first, then the newest")
-        XCTAssertEqual(section.archived.map(\.title), ["Prova B"])
+        XCTAssertEqual(loaded.archived.map(\.title), ["Prova B"])
+        let olderPinned = SquaddTask(threadId: "a", title: nil, lastThreadOrderAt: 1, pinned: true)
+        let newer = SquaddTask(threadId: "b", title: nil, lastThreadOrderAt: 2)
+        XCTAssertEqual(SquaddTask.desktopOrder([newer, olderPinned]).map(\.threadId), ["a", "b"], "an older pinned thread goes above a newer one")
     }
 
     func testThreadActionsUseTheTaskRoutes() async throws {

@@ -37,6 +37,9 @@ struct ModelPickerConfiguration {
     /// open until the server confirms the save.
     let dismissesOnCommit: Bool
     var searchPrompt: LocalizedStringKey = "Search models"
+    /// Whether the list ends with a typed-model entry. Off where the server takes only the
+    /// models it lists.
+    var showsCustomEntry = true
 
     static let composer = ModelPickerConfiguration(
         navigationTitle: "All models",
@@ -103,6 +106,22 @@ struct ModelPickerConfiguration {
         showsCurrentCustomModelGroup: true,
         showsSavedCustomModelGroup: false,
         dismissesOnCommit: true
+    )
+
+    /// A Squadd agent's model (#22). The computer runs only the models its engines list, so there
+    /// is no typed entry; the editor closes the sheet once the computer accepts the pick.
+    static let squaddAgent = ModelPickerConfiguration(
+        navigationTitle: "Model",
+        dismissTitle: "Done",
+        dismissPlacement: .cancellationAction,
+        customActionTitle: "Use Custom",
+        requiresCustomProviderID: true,
+        showsCustomFavoriteStar: false,
+        showsModelFavoriteStars: false,
+        showsCurrentCustomModelGroup: true,
+        showsSavedCustomModelGroup: false,
+        dismissesOnCommit: false,
+        showsCustomEntry: false
     )
 }
 

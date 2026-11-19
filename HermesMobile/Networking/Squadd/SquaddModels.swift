@@ -27,14 +27,27 @@ struct SquaddBot: Decodable, Equatable, Identifiable {
     /// Milliseconds since 1970, as the companion sends every time.
     let createdAt: Double?
     var tasks: [SquaddTask]
+    let description: String?
+    /// The agent's standing instructions (the desktop's «soul»).
+    let soul: String?
+    /// A path on the companion (`/api/attachments/<file>`), read with the device token.
+    let avatarUrl: String?
+    let modelSelection: SquaddModelSelection?
     /// The agent's folders in their saved order (`PATCH /api/bots/:id/projects/order`).
     var projects: [SquaddProject]
 
-    private enum CodingKeys: String, CodingKey { case id, name, title, threadId, unread, busy, createdAt, tasks, projects }
+    private enum CodingKeys: String, CodingKey {
+        case id, name, title, threadId, unread, busy, createdAt, tasks, description, soul, avatarUrl, modelSelection, projects
+    }
 
     init(id: String, name: String?, title: String? = nil, threadId: String? = nil, unread: Bool? = nil,
-         busy: Bool? = nil, createdAt: Double? = nil, tasks: [SquaddTask] = [], projects: [SquaddProject] = []) {
+         busy: Bool? = nil, createdAt: Double? = nil, tasks: [SquaddTask] = [], description: String? = nil, soul: String? = nil,
+         avatarUrl: String? = nil, modelSelection: SquaddModelSelection? = nil, projects: [SquaddProject] = []) {
         self.id = id
+        self.description = description
+        self.soul = soul
+        self.avatarUrl = avatarUrl
+        self.modelSelection = modelSelection
         self.name = name
         self.title = title
         self.threadId = threadId
@@ -56,6 +69,70 @@ struct SquaddBot: Decodable, Equatable, Identifiable {
         createdAt = try? container.decodeIfPresent(Double.self, forKey: .createdAt)
         tasks = (try? container.decodeIfPresent([Lossy<SquaddTask>].self, forKey: .tasks))?.compactMap(\.value) ?? []
         projects = (try? container.decodeIfPresent([Lossy<SquaddProject>].self, forKey: .projects))?.compactMap(\.value) ?? []
+        description = try? container.decodeIfPresent(String.self, forKey: .description)
+        soul = try? container.decodeIfPresent(String.self, forKey: .soul)
+        avatarUrl = try? container.decodeIfPresent(String.self, forKey: .avatarUrl)
+        modelSelection = try? container.decodeIfPresent(SquaddModelSelection.self, forKey: .modelSelection)
+    }
+}
+
+/// Which engine (`instanceId`) and model an agent runs on. `PATCH /api/bots/:id/model` takes the
+/// same shape and refuses a model the instance does not offer.
+struct SquaddModelSelection: Codable, Equatable {
+    let instanceId: String
+    let model: String
+}
+
+/// `POST /api/bots` and the bot `PATCH`es answer with the agent as it now stands.
+struct SquaddBotEnvelope: Decodable {
+    let bot: SquaddBot
+}
+
+/// `GET /api/instances`: the computer's engines and the models each offers. Only an engine whose
+/// snapshot says `available` can run an agent; an engine or model that fails to decode is skipped.
+struct SquaddInstanceList: Decodable {
+    let instances: [SquaddInstance]
+
+    private enum CodingKeys: String, CodingKey { case instances }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        instances = (try? container.decodeIfPresent([Lossy<SquaddInstance>].self, forKey: .instances))?.compactMap(\.value) ?? []
+    }
+}
+
+struct SquaddInstance: Decodable, Equatable {
+    struct Model: Decodable, Equatable {
+        let id: String
+        let label: String?
+        /// The desktop lists these under "Older".
+        let older: Bool?
+    }
+
+    let instanceId: String
+    let displayName: String?
+    let isAvailable: Bool
+    let models: [Model]
+
+    private enum CodingKeys: String, CodingKey { case instanceId, displayName, snapshot, models }
+    private enum SnapshotKeys: String, CodingKey { case state }
+    private enum ModelsKeys: String, CodingKey { case options }
+
+    init(instanceId: String, displayName: String?, isAvailable: Bool, models: [Model]) {
+        self.instanceId = instanceId
+        self.displayName = displayName
+        self.isAvailable = isAvailable
+        self.models = models
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        instanceId = try container.decode(String.self, forKey: .instanceId)
+        displayName = try? container.decodeIfPresent(String.self, forKey: .displayName)
+        let snapshot = try? container.nestedContainer(keyedBy: SnapshotKeys.self, forKey: .snapshot)
+        isAvailable = (try? snapshot?.decodeIfPresent(String.self, forKey: .state)) == "available"
+        let models = try? container.nestedContainer(keyedBy: ModelsKeys.self, forKey: .models)
+        self.models = (try? models?.decodeIfPresent([Lossy<Model>].self, forKey: .options))?.compactMap(\.value) ?? []
     }
 }
 
