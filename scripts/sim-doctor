@@ -17,7 +17,7 @@ import subprocess
 import sys
 
 
-APP_BUNDLE_ID = os.environ.get("HERMEX_BUNDLE_ID", "com.uzairansar.hermesmobile")
+APP_BUNDLE_ID = os.environ.get("HERMEX_BUNDLE_ID", "com.squaddcrm.multiagents")
 PROBE_TIMEOUT = 20
 # Swap past half of RAM, or this many simulator processes stuck in
 # uninterruptible waits, came with every boot and launch stalling on

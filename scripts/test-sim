@@ -19,7 +19,7 @@ import time
 
 
 # Same override as scripts/sim-login, for a Config/Local.xcconfig bundle ID.
-APP_BUNDLE_ID = os.environ.get("HERMEX_BUNDLE_ID", "com.uzairansar.hermesmobile")
+APP_BUNDLE_ID = os.environ.get("HERMEX_BUNDLE_ID", "com.squaddcrm.multiagents")
 RUNNER_HANG = "The test runner hung before establishing connection"
 # Build products live inside the checkout, one set per worktree.
 BUILD_DIR = ".build/DerivedData"

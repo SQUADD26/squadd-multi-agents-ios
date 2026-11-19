@@ -7,7 +7,7 @@ sessionDefaults:
   scheme: "HermesMobile"
   configuration: "Debug"
   simulatorName: "iPhone 17e"
-  bundleId: "com.uzairansar.hermesmobile"
+  bundleId: "com.squaddcrm.multiagents"
   # Shared with scripts/test-sim, so a launch after tests reuses their build.
   derivedDataPath: "./.build/DerivedData"
 sentryDisabled: true

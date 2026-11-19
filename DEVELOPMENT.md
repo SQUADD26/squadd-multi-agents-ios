@@ -381,14 +381,14 @@ Debug builds read these launch arguments; Release builds compile none of them in
 | `--hitch-meter` | Shows a frame-hitch readout in the top-leading corner, such as `12.4 ms/s · 3 hitches · 60 Hz`: late-frame milliseconds per second, hitch count, and the refresh rate the display link reports, over the last second. It takes no touches, VoiceOver skips it, and it updates at most twice a second. |
 
 ```zsh
-xcrun simctl launch <simulator-udid> com.uzairansar.hermesmobile --hitch-meter
+xcrun simctl launch <simulator-udid> com.squaddcrm.multiagents --hitch-meter
 ```
 
 The `HERMEX_DEV_*` environment variables (`HERMEX_DEV_SERVER_URL`, `HERMEX_DEV_PASSWORD`, `HERMEX_DEV_BOT_ADDRESS`/`_USERNAME`/`_PASSWORD`, and `HERMEX_DEV_HERMES_SERVER=1` for a Hermes server) sign a Debug build in; `scripts/sim-login` sets them from the macOS Keychain (§ Signing a simulator in).
 
 ### Recording signposts
 
-`HermesMobile/Config/PerformanceSignposts.swift` marks eight intervals in every build, under the bundle ID as subsystem (`com.uzairansar.hermesmobile`, or `com.uzairansar.hermesmobile.branch` for Hermex Branch) and category `Performance`. Metadata is counts only; never add text, titles, paths, URLs, or IDs.
+`HermesMobile/Config/PerformanceSignposts.swift` marks eight intervals in every build, under the bundle ID as subsystem (`com.squaddcrm.multiagents`, or `com.squaddcrm.multiagents.branch` for Hermex Branch) and category `Performance`. Metadata is counts only; never add text, titles, paths, URLs, or IDs.
 
 | Interval | Measures | Metadata |
 |---|---|---|
@@ -418,7 +418,7 @@ Debug builds count the body evaluations of the transcript's heavy views in memor
 
 ### Watching the Bot connection log
 
-`HermesConnection` logs Bot sign-ins and the gateway socket's lifecycle under the bundle ID as subsystem and the category `HermesConnection` (`docs/agents/hermes-server.md`). In Console.app, select a cabled iPhone, start streaming, and filter `subsystem:com.uzairansar.hermesmobile category:HermesConnection` (`com.uzairansar.hermesmobile.branch` for Hermex Branch). Check it on a device: the simulator's `log show` doesn't show these lines.
+`HermesConnection` logs Bot sign-ins and the gateway socket's lifecycle under the bundle ID as subsystem and the category `HermesConnection` (`docs/agents/hermes-server.md`). In Console.app, select a cabled iPhone, start streaming, and filter `subsystem:com.squaddcrm.multiagents category:HermesConnection` (`com.squaddcrm.multiagents.branch` for Hermex Branch). Check it on a device: the simulator's `log show` doesn't show these lines.
 
 ## Swift File-Size Policy
 
@@ -452,17 +452,17 @@ live in [`TESTFLIGHT.md`](TESTFLIGHT.md). The separate branch-app upload is belo
 When the owner says **"push to branch testflight"**, upload the current *feature branch*
 to the side-by-side **Hermex Branch** internal TestFlight app. This is a TestFlight
 upload, **not** a Git push. Never merge, Git push, or upload the production
-`com.uzairansar.hermesmobile` TestFlight app unless the owner explicitly asks.
+`com.squaddcrm.multiagents` TestFlight app unless the owner explicitly asks.
 
 Branch TestFlight app identity:
 
 - App Store Connect app name: `Hermex Branch`
-- Main bundle ID: `com.uzairansar.hermesmobile.branch`
-- Share extension bundle ID: `com.uzairansar.hermesmobile.branch.shareextension`
-- Live Activity widget bundle ID: `com.uzairansar.hermesmobile.branch.liveactivitywidget`
-- Notification Service Extension bundle ID: `com.uzairansar.hermesmobile.branch.notifications`
+- Main bundle ID: `com.squaddcrm.multiagents.branch`
+- Share extension bundle ID: `com.squaddcrm.multiagents.branch.shareextension`
+- Live Activity widget bundle ID: `com.squaddcrm.multiagents.branch.liveactivitywidget`
+- Notification Service Extension bundle ID: `com.squaddcrm.multiagents.branch.notifications`
 - Display name: `Hermex Branch`
-- App group: `group.com.uzairansar.hermesmobile.branch`
+- App group: `group.com.squaddcrm.multiagents.branch`
 - URL scheme: `hermes-agent-branch`
 - SKU: `hermes-mobile-ios-branch`
 

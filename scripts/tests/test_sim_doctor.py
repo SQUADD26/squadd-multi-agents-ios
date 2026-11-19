@@ -78,14 +78,14 @@ class GatherTests(unittest.TestCase):
             return doctor.diagnose(doctor.gather(UDID), UDID)
 
     def test_zombie_app_is_cleared_by_restarting_the_simulator(self):
-        jobs = "PID\tStatus\tLabel\n46848\t0\tUIKitApplication:com.uzairansar.hermesmobile[e626][rb-legacy]\n"
+        jobs = "PID\tStatus\tLabel\n46848\t0\tUIKitApplication:com.squaddcrm.multiagents[e626][rb-legacy]\n"
         verdict, explanation, fix = self.doctor_says("Booted", jobs, host_state="Z\n")
         self.assertEqual(verdict, "ZOMBIE_APP")
         self.assertIn("PID 46848", explanation)
         self.assertIn("xcrun simctl shutdown SIM-A", fix)
 
     def test_running_app_is_healthy(self):
-        jobs = "46848\t0\tUIKitApplication:com.uzairansar.hermesmobile[e626]\n"
+        jobs = "46848\t0\tUIKitApplication:com.squaddcrm.multiagents[e626]\n"
         self.assertEqual(self.doctor_says("Booted", jobs, host_state="Ss\n")[0], "OK")
 
     def test_failed_app_listing_is_not_reported_healthy(self):

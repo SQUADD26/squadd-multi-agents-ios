@@ -190,7 +190,7 @@ struct AppAppearance: Equatable {
 struct AppAppearanceTrait: UITraitDefinition {
     static let defaultValue = AppAppearance.default
     static let affectsColorAppearance = true
-    static let identifier = "com.uzairansar.hermesmobile.appearance"
+    static let identifier = "com.squaddcrm.multiagents.appearance"
 }
 
 private struct AppAppearanceKey: EnvironmentKey, UITraitBridgedEnvironmentKey {
