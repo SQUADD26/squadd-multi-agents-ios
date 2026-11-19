@@ -20,7 +20,7 @@ set -euo pipefail
 udid="${1:?usage: scripts/sim-login <simulator-udid> [--hermes]}"
 hermes_server="${2:-}"
 [[ -z "$hermes_server" || "$hermes_server" == "--hermes" ]] || { echo "usage: scripts/sim-login <simulator-udid> [--hermes]" >&2; exit 1 }
-bundle_id="${HERMEX_BUNDLE_ID:-com.uzairansar.hermesmobile}"
+bundle_id="${HERMEX_BUNDLE_ID:-com.squaddcrm.multiagents}"
 
 # Prints one attribute ("acct" or "icmt") of a generic-password Keychain item,
 # or nothing when the item is missing.

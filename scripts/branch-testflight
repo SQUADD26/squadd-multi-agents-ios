@@ -1,6 +1,6 @@
 #!/bin/zsh
 # Uploads the current feature branch to the side-by-side Hermex Branch
-# TestFlight app (com.uzairansar.hermesmobile.branch): the "push to branch
+# TestFlight app (com.squaddcrm.multiagents.branch): the "push to branch
 # testflight" command. This is a TestFlight upload, not a Git push. The build is
 # internal-only, so it never reaches external testers or the App Store.
 #

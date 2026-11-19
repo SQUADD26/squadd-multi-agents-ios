@@ -5,10 +5,10 @@
 // Apple team. Create Config/Local.xcconfig (gitignored) instead — see
 // CONTRIBUTING.md ("Code signing for contributors").
 
-DEVELOPMENT_TEAM = 6GYD9C9N6R
+DEVELOPMENT_TEAM = SSCUGDMCBD
 APP_IDENTIFIER_SUFFIX =
-APP_BUNDLE_IDENTIFIER = com.uzairansar.hermesmobile$(APP_IDENTIFIER_SUFFIX)
-APP_GROUP_IDENTIFIER = group.com.uzairansar.hermesmobile$(APP_IDENTIFIER_SUFFIX)
+APP_BUNDLE_IDENTIFIER = com.squaddcrm.multiagents$(APP_IDENTIFIER_SUFFIX)
+APP_GROUP_IDENTIFIER = group.com.squaddcrm.multiagents$(APP_IDENTIFIER_SUFFIX)
 
 // Keychain access groups. The first entry of the entitlement's array is the
 // app's *default* group, so KEYCHAIN_DEFAULT_ACCESS_GROUP must stay first and

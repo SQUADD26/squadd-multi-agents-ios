@@ -146,7 +146,7 @@ Canonical vocabulary: `CONTEXT.md`.
 - `HermesMobile/Push/` - APNs registration: the build's push environment, per-server pairing keys in the shared Keychain access group, the relay client, and the app delegate that receives device tokens.
 - `HermesShareExtension/` and `HermesLiveActivityWidget/` - separate targets. Shared files need target-membership checks.
 - `HermesMobileTests/` - the XCTest suite, one target directory. Keep tests near the behavior in name and scope.
-- `Config/`, `ci/`, and `.github/workflows/` - signing, CI, and release configuration. Treat edits there as release-sensitive. App identity resolves through xcconfig and is not grep-able: bundle ID `com.uzairansar.hermesmobile`, tests `….tests`, Team `6GYD9C9N6R`, SKU `hermes-mobile-ios`.
+- `Config/`, `ci/`, and `.github/workflows/` - signing, CI, and release configuration. Treat edits there as release-sensitive. App identity resolves through xcconfig and is not grep-able: bundle ID `com.squaddcrm.multiagents`, tests `….tests`, Team `SSCUGDMCBD`, SKU `hermes-mobile-ios`.
 - `.codex-tmp/hermes-webui/` - the gitignored, read-only upstream reference. Prefer its patterns over invented ones. Never edit or import from it; refresh with `git pull` when advancing the pin.
 
 ## Taste
@@ -168,7 +168,7 @@ For App Store release preparation, tester management, submission, or publication
 use `scripts/app-store` and `TESTFLIGHT.md` § App Store Connect CLI. The command
 defaults to read-only; `--write` is for an explicitly authorized change.
 
-"push to branch testflight" means upload the current branch to the side-by-side **Hermex Branch** internal TestFlight app (`com.uzairansar.hermesmobile.branch`). It is a TestFlight upload, **not** a git push. Validate and commit first, then run `scripts/branch-testflight` from the feature branch (`DEVELOPMENT.md` has the details). Never touch the production `com.uzairansar.hermesmobile` app, invite testers, or change App Store Connect state unless explicitly asked. `TESTFLIGHT.md` owns release gates.
+"push to branch testflight" means upload the current branch to the side-by-side **Hermex Branch** internal TestFlight app (`com.squaddcrm.multiagents.branch`). It is a TestFlight upload, **not** a git push. Validate and commit first, then run `scripts/branch-testflight` from the feature branch (`DEVELOPMENT.md` has the details). Never touch the production `com.squaddcrm.multiagents` app, invite testers, or change App Store Connect state unless explicitly asked. `TESTFLIGHT.md` owns release gates.
 
 ## Additional tips
 
