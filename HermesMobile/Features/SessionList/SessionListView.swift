@@ -164,8 +164,7 @@ struct SessionListView: View {
     @AppStorage private var showsCliSessions: Bool
     @AppStorage private var showsClaudeCodeSessions: Bool
     @AppStorage(HeaderLogoColor.storageKey) private var headerLogoColorHex = HeaderLogoColor.defaultHex
-    @AppStorage(PrimaryActionTintSettings.isEnabledKey) private var tintsPrimaryActions = false
-    @AppStorage(AppAppearanceSettings.accentHexKey) private var accentHex: String?
+    @AppStorage(PrimaryActionTintSettings.isEnabledKey) private var tintsPrimaryActions = true
     @AppStorage(GlassPreference.isEnabledKey) private var isGlassEnabled = GlassPreference.defaultIsEnabled
     @AppStorage(SessionIdentitySettings.displayNameKey) private var identityDisplayName = ""
     @AppStorage(SessionIdentitySettings.initialsKey) private var identityInitials = ""
@@ -1005,7 +1004,7 @@ struct SessionListView: View {
     }
 
     private var newSessionButtonTint: (fill: Color, label: Color) {
-        PrimaryActionTintSettings.colors(accentHex: accentHex, serverHex: headerLogoColorHex)
+        PrimaryActionTintSettings.colors
     }
 
     private var newSessionButtonUsesThemeColor: Bool {

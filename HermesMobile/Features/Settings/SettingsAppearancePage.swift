@@ -12,7 +12,7 @@ struct SettingsAppearancePage: View {
     @AppStorage(AppTextSize.storageKey) private var textSizeStop = 0
     @AppStorage(CodeDisplaySettings.customSizeKey) private var customCodeSize: Double?
     @AppStorage(CodeDisplaySettings.wrapsLinesKey) private var wrapsCodeLines = false
-    @AppStorage(PrimaryActionTintSettings.isEnabledKey) private var tintsPrimaryActions = false
+    @AppStorage(PrimaryActionTintSettings.isEnabledKey) private var tintsPrimaryActions = true
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
 
     var body: some View {

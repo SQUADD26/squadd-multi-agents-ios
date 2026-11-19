@@ -268,17 +268,9 @@ enum PrimaryActionTintSettings {
         isEnabled && controlIsEnabled
     }
 
-    /// A tinted primary action's fill and label: the accent at its readable color if one is
-    /// chosen, otherwise the server's color.
-    static func colors(accentHex: String?, serverHex: String) -> (fill: Color, label: Color) {
-        if accentHex.flatMap(HeaderLogoColor.normalizedHex) != nil {
-            return (Color(.appAccent), Color(.appOnAccent))
-        }
-        return (
-            HeaderLogoColor.color(for: serverHex),
-            HeaderLogoColor.prefersDarkForeground(for: serverHex) ? .black : .white
-        )
-    }
+    /// A tinted primary action's fill and label: the theme's accent at its readable color,
+    /// Squadd's blue on the default theme.
+    static let colors: (fill: Color, label: Color) = (Color(.appAccent), Color(.appOnAccent))
 }
 
 enum AppHaptics {
