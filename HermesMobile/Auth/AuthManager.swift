@@ -482,7 +482,7 @@ final class AuthManager {
     }
 
     /// `server`'s shared connection signed in and reached `gateway` (`HermesConnections.onSignedIn`).
-    /// Records it on a Hermes server's entry for the usage report (#1724) when it changed; a webui
+    /// Records it on a Hermes server's entry when it changed; a webui
     /// server's own Hermes connection changes nothing.
     func hermesSignedIn(server: URL, gateway: HermesGatewayKind) {
         guard var account = servers.first(where: { $0.id == server.absoluteString }), account.kind == .hermes,

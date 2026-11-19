@@ -712,7 +712,7 @@ final class AuthManagerStateTests: XCTestCase {
         XCTAssertEqual(manager.state, .loggedIn(server: webuiServer))
     }
 
-    /// A sign-in records which gateway the Hermes server reached, for the usage report (#1724);
+    /// A sign-in records which gateway the Hermes server reached, (#1724);
     /// a webui server's own Hermes connection records nothing on the webui server.
     func testASignInRecordsTheGatewayOnlyOnTheHermesServer() async throws {
         defer { HermesHostFixture.reset() }
