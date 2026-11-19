@@ -252,3 +252,5 @@ final class SquaddScreenPhotoTests: XCTestCase {
     func capability() -> AppLockCapability { AppLockCapability(method: .faceID, hasPasscode: true) }
     func authenticate(reason: String) async -> Bool { false }
 }
+
+// misura: touched so the PR run takes its photos.
