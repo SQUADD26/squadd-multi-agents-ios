@@ -1,0 +1,81 @@
+# Evidence for #29, not for merge: the connector tests, their red lines and the photos. Runs on a push to foto/29-connettori; the logs and photos are the artifact.
+name: Foto 29 connettori
+
+on:
+  push:
+    branches: ['foto/29-connettori']
+
+permissions:
+  contents: read
+
+env:
+  DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+  SIMULATOR_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-27-0
+  SIMULATOR_NAME: iPhone 17
+
+jobs:
+  evidence:
+    name: Tests, red lines, key grep and photos
+    runs-on: xcode-27
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select simulator
+        id: sim
+        run: |
+          set -euo pipefail
+          udid=$(xcrun simctl list devices available --json | python3 -c '
+          import json, os, sys
+          devices = json.load(sys.stdin)["devices"].get(os.environ["SIMULATOR_RUNTIME"], [])
+          print(next(d["udid"] for d in devices if d["name"] == os.environ["SIMULATOR_NAME"]))')
+          echo "udid=${udid}" >> "$GITHUB_OUTPUT"
+
+      - name: Tests and photos
+        env:
+          UDID: ${{ steps.sim.outputs.udid }}
+          TEST_RUNNER_FOTO_DIR: ${{ github.workspace }}/evidence/photos
+        run: |
+          set -euo pipefail
+          mkdir -p evidence/photos
+          xcrun simctl boot "${UDID}" || true
+          xcrun simctl bootstatus "${UDID}" -b
+          xcrun simctl ui "${UDID}" appearance dark
+          xcodebuild test -project HermesMobile.xcodeproj -scheme HermesMobile -configuration Debug \
+            -destination "platform=iOS Simulator,id=${UDID}" -derivedDataPath DerivedData \
+            -only-testing:HermesMobileTests/SquaddConnectorsTests -only-testing:HermesMobileTests/SquaddSettingsTests \
+            -only-testing:HermesMobileTests/SquaddSettingsPhotoTests -only-testing:HermesMobileTests/LocalizationCatalogTests \
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee evidence/tests.log | grep -E "Test Case|Executed|error:|failed" | tail -60
+          python3 ci/check_string_catalog.py --derived-data DerivedData 2>&1 | tee evidence/string-catalog.log
+
+      - name: Red lines
+        env:
+          UDID: ${{ steps.sim.outputs.udid }}
+        run: |
+          set -uo pipefail
+          run() {
+            echo "### $1" >> evidence/red-lines.log
+            xcodebuild test -project HermesMobile.xcodeproj -scheme HermesMobile -configuration Debug \
+              -destination "platform=iOS Simulator,id=${UDID}" -derivedDataPath DerivedData \
+              -only-testing:HermesMobileTests/SquaddConnectorsTests CODE_SIGNING_ALLOWED=NO 2>&1 \
+              | grep -E "error: .*SquaddConnectorsTests|Executed .* tests" | sed 's#.*/HermesMobileTests/##' >> evidence/red-lines.log
+            git checkout -- HermesMobile
+          }
+          run "0 no mutation"
+          sed -i '' 's/state = read.setup == "ready" ? .loaded(SquaddConnectorApp.join(read, services)) : .notSetUp/state = .loaded(SquaddConnectorApp.join(read, services))/' HermesMobile/Features/Squadd/SquaddConnectorsModel.swift
+          run "1 not-set-up computer shown as a list"
+          sed -i '' 's/            await browse(link)//' HermesMobile/Features/Squadd/SquaddConnectorsModel.swift
+          run "2 sign-in never opened"
+          sed -i '' 's/        await load()$//' HermesMobile/Features/Squadd/SquaddConnectorsModel.swift
+          run "3 list not read again after the sign-in"
+          sed -i '' 's/        defer { busyApp = nil }//' HermesMobile/Features/Squadd/SquaddConnectorsModel.swift
+          run "4 busy state left behind"
+          sed -i '' 's/\.filter(\\.isActive)//' HermesMobile/Networking/Squadd/SquaddConnectorModels.swift
+          run "5 a pending sign-in counted as connected"
+          cat evidence/red-lines.log
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: evidence-29-connettori
+          path: evidence
