@@ -146,12 +146,12 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         XCTAssertEqual(manager.state, .loggedIn(server: laptop))
         var router = try host(manager)
 
-        // a. A link to Pesto's "Weekly menu" on the Mac Studio, with the MacBook active: the app
+        // a. A link to Pesto's "hi" thread on the Mac Studio, with the MacBook active: the app
         // switches computer, reads its agents and marks the thread.
-        let weeklyMenu = SquaddThreadLink(threadID: "e0196fb1-7f3b-44b7-93a0-e7b1e93f7af1",
+        let hi = SquaddThreadLink(threadID: "e0196fb1-7f3b-44b7-93a0-e7b1e93f7af1",
                                           botID: "b70a0bbd-64c1-491b-ad34-f441d52fe9f0", server: studio)
         Self.served = []
-        router.requestDeepLink(weeklyMenu.url)
+        router.requestDeepLink(hi.url)
         try await shoot("f1-link-opens-thread", dir: dir) {
             manager.state == .loggedIn(server: self.studio) && Self.served.contains("Bearer token-studio")
         }
