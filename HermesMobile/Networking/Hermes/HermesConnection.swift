@@ -109,7 +109,7 @@ import OSLog
     /// here remembers it.
     var onLoginRejected: ((BotFailure) -> Void)?
     /// Called after each successful sign-in with what it reached. `HermesConnections` sets it so
-    /// `AuthManager` can record it for the usage report (#1724).
+    /// `AuthManager` can record it.
     var onSignedIn: ((HermesGatewayKind) -> Void)?
     /// Called with the refresh token the host rotated the sent one into, before the new access
     /// token is used, even when this connection was retired meanwhile: the host has already

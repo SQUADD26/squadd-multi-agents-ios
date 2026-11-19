@@ -26,7 +26,6 @@ struct InsightsView: View {
     var body: some View {
         content
             .modifier(UsageTitle(profile: profile))
-            .onAppear { UsageReports.shared.record(.insights) }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

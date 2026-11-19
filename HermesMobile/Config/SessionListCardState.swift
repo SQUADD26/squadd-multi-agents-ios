@@ -2,8 +2,6 @@ import Foundation
 
 /// The prompt cards that share the slot at the top of the session list.
 enum SessionListCard: CaseIterable {
-    /// Asks once whether to send usage reports (#1662), and again when the report gains fields.
-    case usageReports
     case tip, star
 
     /// The card to show. At most one per launch: once a card has shown, the others wait for a
@@ -14,16 +12,11 @@ enum SessionListCard: CaseIterable {
     }
 
     /// The card a session list shows now, on the device's standard defaults. The caller passes
-    /// the stored counter, dismissed releases and usage report answers from its `@AppStorage`,
+    /// the stored counter, dismissed releases from its `@AppStorage`,
     /// so reading them subscribes its view and an answer hides a card at once.
     @MainActor
     static func current(completedResponses: Int, tipDismissedRelease: String?, starDismissedRelease: String?,
-                        usageReportConsent: UsageReportConsent, forcesUsageReportsCard: Bool = false,
                         hasSharedImport: Bool) -> SessionListCard? {
-        #if DEBUG
-        // Settings › Developer: skip every guard while the question is unanswered.
-        if forcesUsageReportsCard, usageReportConsent.question() != nil { return .usageReports }
-        #endif
         let ratingPolicy = RatingPromptState.shared.policy
         func isEligible(_ card: SessionListCard, dismissedRelease: String?) -> Bool {
             let state = SessionListCardState(card: card, defaults: .standard)
@@ -32,10 +25,6 @@ enum SessionListCard: CaseIterable {
             )
         }
         var eligible = Set<SessionListCard>()
-        if usageReportsEligible(question: usageReportConsent.question(), completedResponses: completedResponses,
-                                hasSharedImport: hasSharedImport, ratingPolicy: ratingPolicy) {
-            eligible.insert(.usageReports)
-        }
         if isEligible(.tip, dismissedRelease: tipDismissedRelease) { eligible.insert(.tip) }
         if isEligible(.star, dismissedRelease: starDismissedRelease) { eligible.insert(.star) }
         return choose(eligible: eligible, shownThisLaunch: RatingPromptState.shared.cardShownThisLaunch)
@@ -49,30 +38,19 @@ enum SessionListCard: CaseIterable {
         return current(completedResponses: defaults.integer(forKey: TipJar.completedResponseCountKey),
                        tipDismissedRelease: defaults.string(forKey: TipJar.dismissedReleaseKey),
                        starDismissedRelease: defaults.string(forKey: GitHubStar.dismissedReleaseKey),
-                       usageReportConsent: UsageReports.shared.consent,
-                       forcesUsageReportsCard: defaults.bool(forKey: UsageReports.Keys.debugForcesCard),
                        hasSharedImport: hasSharedImport)
-    }
-
-    /// The usage reports card waits for 5 completed responses and an unanswered question, under
-    /// the same share and rating guards as the other cards. It has no X: only an answer hides it.
-    static func usageReportsEligible(question: UsageReportConsent.Question?, completedResponses: Int,
-                                     hasSharedImport: Bool, ratingPolicy: RatingPromptPolicy, now: Date = Date()) -> Bool {
-        question != nil && completedResponses >= Self.usageReports.minimumResponses && !hasSharedImport && ratingPolicy.allowsSessionListCard(at: now)
     }
 
     fileprivate var minimumResponses: Int {
         switch self {
-        case .usageReports: return 5
         case .tip: return 25
         case .star: return 15
         }
     }
 
-    /// The tip and star cards' stored answers; the usage reports card keeps its own in `UsageReports`.
+    /// The tip and star cards' stored answers.
     fileprivate var promptKeys: (dismissedRelease: String, linkOpened: String)? {
         switch self {
-        case .usageReports: return nil
         case .tip: return (TipJar.dismissedReleaseKey, TipJar.linkOpenedKey)
         case .star: return (GitHubStar.dismissedReleaseKey, GitHubStar.linkOpenedKey)
         }
@@ -108,25 +86,23 @@ struct SessionListCardState {
     }
 
     /// Settings › About's rows call this directly; the card's own button goes through
-    /// `openLinkFromCard`, which also tallies it.
+    /// `openLinkFromCard`.
     func recordLinkOpened() {
         guard let keys = card.promptKeys else { return }
         defaults.set(true, forKey: keys.linkOpened)
         dismiss()
     }
 
-    /// The card's own button: hides it for good and tallies `link_opened`, not `dismissed`.
+    /// The card's own button: hides it for good.
     @MainActor
-    func openLinkFromCard(usage: UsageReports? = nil, now: Date = Date()) {
+    func openLinkFromCard() {
         recordLinkOpened()
-        (usage ?? .shared).record(card, \.linkOpened, now: now)
     }
 
     /// The card's X.
     @MainActor
-    func dismissFromCard(usage: UsageReports? = nil) {
+    func dismissFromCard() {
         dismiss()
-        (usage ?? .shared).record(card, \.dismissed)
     }
 }
 

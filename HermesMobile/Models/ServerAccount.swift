@@ -11,7 +11,7 @@ enum ServerKind: String, Codable, Sendable {
 }
 
 /// Which door a Hermes server's sign-in came through (#1724): the dashboard, or a gateway's
-/// own Webapp (#1606). Recorded for the usage report only; routing reads the live connection.
+/// own Webapp (#1606). Routing reads the live connection.
 enum HermesGatewayKind: String, Codable, Sendable {
     case dashboard
     case webapp
