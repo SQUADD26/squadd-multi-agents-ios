@@ -25,19 +25,12 @@ enum SessionListCard: CaseIterable {
         if forcesUsageReportsCard, usageReportConsent.question() != nil { return .usageReports }
         #endif
         let ratingPolicy = RatingPromptState.shared.policy
-        func isEligible(_ card: SessionListCard, dismissedRelease: String?) -> Bool {
-            let state = SessionListCardState(card: card, defaults: .standard)
-            return dismissedRelease != state.release && state.isEligible(
-                completedResponses: completedResponses, hasSharedImport: hasSharedImport, ratingPolicy: ratingPolicy
-            )
-        }
         var eligible = Set<SessionListCard>()
         if usageReportsEligible(question: usageReportConsent.question(), completedResponses: completedResponses,
                                 hasSharedImport: hasSharedImport, ratingPolicy: ratingPolicy) {
             eligible.insert(.usageReports)
         }
-        if isEligible(.tip, dismissedRelease: tipDismissedRelease) { eligible.insert(.tip) }
-        if isEligible(.star, dismissedRelease: starDismissedRelease) { eligible.insert(.star) }
+        // No tip or star card: their links go to the Hermex maintainer, not to Squadd.
         return choose(eligible: eligible, shownThisLaunch: RatingPromptState.shared.cardShownThisLaunch)
     }
 
