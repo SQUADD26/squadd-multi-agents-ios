@@ -1,5 +1,5 @@
-# Simulator photos for a review: the home screen icon, the launch screen and the first screen,
-# in dark appearance. Push a branch named foto/<anything> to run it; the photos are the artifact.
+# Simulator photos for a review: the home screen icon, the launch screen, the first screen, and
+# the branded screens behind sign-in (BrandPhotoTests), in dark appearance. Push a branch named foto/<anything> to run it; the photos are the artifact.
 name: Foto simulatore
 
 on:
@@ -60,6 +60,19 @@ jobs:
           xcrun simctl launch "${UDID}" "${bundle_id}"
           sleep 8
           xcrun simctl io "${UDID}" screenshot photos/3-welcome.png
+
+      # Home header, Settings → About and Acknowledgements need a signed-in server to reach by
+      # hand; BrandPhotoTests renders those real views in the app host and saves them here.
+      - name: Photograph the screens behind sign-in
+        env:
+          TEST_RUNNER_BRAND_PHOTOS_DIR: ${{ github.workspace }}/photos
+        run: |
+          set -euo pipefail
+          xcodebuild test -project HermesMobile.xcodeproj -scheme HermesMobile -configuration Debug \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath DerivedData -only-testing:HermesMobileTests/BrandPhotoTests \
+            CODE_SIGNING_ALLOWED=NO -quiet
+          ls photos
 
       - uses: actions/upload-artifact@v7
         with:
