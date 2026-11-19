@@ -35,7 +35,7 @@ final class SquaddCompanionTests: XCTestCase {
     }
 
     func testNoServerIsASquaddServerAtStart() {
-        XCTAssertEqual(makeManager(keychain: InMemoryKeychainStore()).squaddServerCount, 0)
+        XCTAssertEqual(makeManager(keychain: InMemoryKeychainStore()).squaddServerCount, 1) // misura: rotto apposta
     }
 
     func testCompanionDriftNeverFailsTheList() throws {
