@@ -28,8 +28,7 @@ enum CacheFallbackPolicy {
              .cannotConnectToHost,
              .dnsLookupFailed,
              .cannotFindHost,
-             .dataNotAllowed,
-             .timedOut:
+             .dataNotAllowed:
             return true
         default:
             return false
