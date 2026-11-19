@@ -29,6 +29,7 @@ final class SquaddCompanionTests: XCTestCase {
         let pesto = try XCTUnwrap(SquaddAgentSection(bot: bots[1]) as SquaddAgentSection?)
         XCTAssertEqual(pesto.threads.map(\.title), ["Weekly menu", "hi"])
         XCTAssertEqual(pesto.threads.first?.updatedAt, 1_795_088_901.806)
+        XCTAssertEqual(pesto.unreadThreadIDs.count, 2)
     }
 
     func testCompanionDriftNeverFailsTheList() throws {

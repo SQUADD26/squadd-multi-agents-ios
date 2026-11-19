@@ -102,8 +102,9 @@ struct SquaddDebugAddServerView: View {
                     .keyboardType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                TextField(text: $code) { Text(verbatim: "Pairing code") }
-                    .keyboardType(.numberPad)
+                TextField(text: $code) { Text(verbatim: "Pairing code or device token") }
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
             } footer: {
                 if let errorMessage { Text(errorMessage).foregroundStyle(.red) }
             }
@@ -120,11 +121,29 @@ struct SquaddDebugAddServerView: View {
             defer { isPairing = false }
             do {
                 let server = try AuthManager.normalizedServerURL(from: address)
-                try authManager.addSquaddServer(address: server, token: try await squaddPair(server: server, code: code))
+                // Digits are a pairing code to redeem; anything else is a device token `POST /api/pair` already returned.
+                let entry = code.trimmingCharacters(in: .whitespacesAndNewlines)
+                let isCode = !entry.isEmpty && entry.allSatisfy(\.isNumber)
+                try authManager.addSquaddServer(address: server, token: isCode ? try await squaddPair(server: server, code: entry) : entry)
                 dismiss()
             } catch {
                 errorMessage = squaddPairingFailure(error)
             }
+        }
+    }
+}
+
+/// Debug only: what the Squadd home's Add Server opens, so a second companion can be added.
+struct SquaddAddServerSheet: View {
+    @Bindable var authManager: AuthManager
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            SquaddDebugAddServerView(authManager: authManager)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                }
         }
     }
 }
@@ -142,5 +161,12 @@ struct SquaddDebugAddServerButton: View {
                 NavigationStack { SquaddDebugAddServerView(authManager: authManager) }
             }
     }
+}
+#else
+/// Release: the Squadd home's Add Server is the app's usual one.
+struct SquaddAddServerSheet: View {
+    @Bindable var authManager: AuthManager
+
+    var body: some View { AddServerView(authManager: authManager) }
 }
 #endif

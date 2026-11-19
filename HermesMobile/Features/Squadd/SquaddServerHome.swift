@@ -20,45 +20,38 @@ struct SquaddRoute<Webui: View>: View {
     }
 }
 
-/// A Squadd server's home: its agents, each with its task threads in the session rows the
-/// Sessions list uses, read from the companion's `GET /api/bots`.
+/// A Squadd server's home, built like the Hermes Sessions home (`HermesSessionListView`): the same
+/// header with the server's avatar and switcher, then each agent's task threads in session rows,
+/// read from the companion's `GET /api/bots`. Threads don't open yet: chat is its own ticket.
 struct SquaddServerHome: View {
     @Bindable var authManager: AuthManager
     let server: URL
-    @State private var model: SquaddAgentListModel
+    /// Made once in `.task`, not in `init`, so a pass of the parent reads no Keychain.
+    @State private var model: SquaddAgentListModel?
     @State private var isShowingSettings = false
-
-    init(authManager: AuthManager, server: URL) {
-        self.authManager = authManager
-        self.server = server
-        let token = authManager.squaddToken(for: server) ?? ""
-        _model = State(initialValue: SquaddAgentListModel(
-            fetch: { try await SquaddCompanionClient(server: server, token: token).bots() },
-            onUnpaired: { [weak authManager] in authManager?.squaddUnpaired(server: server) }
-        ))
-    }
+    @State private var isAddingServer = false
 
     var body: some View {
         NavigationStack {
-            content
-                .navigationTitle(authManager.activeServer?.displayName ?? server.host() ?? "")
-                .toolbar {
-                    #if DEBUG
-                    ToolbarItem(placement: .topBarLeading) {
-                        // Debug only: a second companion, for checking two Squadd servers stay apart.
-                        NavigationLink { SquaddDebugAddServerView(authManager: authManager) } label: {
-                            Image(systemName: "plus")
-                        }
-                        .accessibilityLabel(Text(verbatim: "Add Squadd Server (Debug)"))
-                    }
-                    #endif
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button { isShowingSettings = true } label: { Image(systemName: "gearshape") }
-                            .accessibilityLabel("Settings")
-                    }
-                }
+            AppList(rows: .plain) {
+                SessionsHeader(logoColor: HeaderLogoColor.color(for: identity.headerLogoColorHex), avatar: avatar,
+                               isSearchDisabled: true, openSearch: {})
+                    .sessionsTopChromeListRow()
+                rows
+            }
+            .refreshable { await model?.load() }
+            .toolbar(.hidden, for: .navigationBar)
         }
-        .task { await model.load() }
+        .task {
+            if model == nil {
+                let token = authManager.squaddToken(for: server) ?? ""
+                model = SquaddAgentListModel(
+                    fetch: { [server] in try await SquaddCompanionClient(server: server, token: token).bots() },
+                    onUnpaired: { [weak authManager, server] in authManager?.squaddUnpaired(server: server) }
+                )
+            }
+            await model?.load()
+        }
         .sheet(isPresented: $isShowingSettings) {
             NavigationStack {
                 SettingsView(authManager: authManager, server: server)
@@ -69,60 +62,96 @@ struct SquaddServerHome: View {
                     }
             }
         }
+        .sheet(isPresented: $isAddingServer) { SquaddAddServerSheet(authManager: authManager) }
     }
 
     @ViewBuilder
-    private var content: some View {
-        switch model.phase {
+    private var rows: some View {
+        switch model?.phase ?? .loading {
         case .loading:
             ProgressView()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 28)
+                .sessionsScreenListRow()
         case .failed:
             ContentUnavailableView {
                 Label("Can't Reach the Computer", systemImage: "wifi.exclamationmark")
             } description: {
                 Text("Check that the computer is on and on the same network or tailnet.")
             } actions: {
-                Button("Try Again") { Task { await model.load() } }
+                Button("Try Again") { Task { await model?.load() } }
             }
+            .sessionsScreenListRow()
         case .loaded(let sections) where sections.isEmpty:
             ContentUnavailableView("No Agents", systemImage: "person.2",
                                    description: Text("Agents created on the computer show here."))
-                .refreshable { await model.load() }
+                .sessionsScreenListRow()
         case .loaded(let sections):
-            List(sections) { section in
-                Section {
-                    if section.threads.isEmpty {
-                        Text("No threads yet")
-                            .foregroundStyle(.secondary)
-                    }
-                    ForEach(section.threads) { thread in
-                        SessionRowView(session: thread, showsMessageCount: false, showsWorkspace: false)
-                    }
-                } header: {
-                    SquaddAgentHeader(section: section)
+            ForEach(sections) { section in
+                SquaddAgentHeader(section: section)
+                    .sessionsScreenListRow()
+                if section.threads.isEmpty {
+                    Text("No threads yet")
+                        .font(AppFont.subheadline())
+                        .foregroundStyle(.appSecondary)
+                        .padding(.horizontal, 24)
+                        .sessionsScreenListRow()
+                }
+                ForEach(section.threads) { thread in
+                    SessionRowView(session: thread, showsMessageCount: false, showsWorkspace: false,
+                                   isUnread: section.unreadThreadIDs.contains(thread.id))
+                        .padding(.horizontal, 12)
+                        .sessionsScreenListRow()
                 }
             }
-            .listStyle(.insetGrouped)
-            .refreshable { await model.load() }
         }
+    }
+
+    private var identity: ServerAccount {
+        authManager.activeServer ?? ServerAccount(id: server.absoluteString, urlString: server.absoluteString,
+                                                  displayName: server.host() ?? "", initials: "", headerLogoColorHex: HeaderLogoColor.defaultHex,
+                                                  createdAt: .now, updatedAt: .now, kind: .squadd)
+    }
+
+    private var avatar: SessionsHeader.Avatar {
+        SessionsHeader.Avatar(
+            initials: identity.initials,
+            color: HeaderLogoColor.color(for: identity.headerLogoColorHex),
+            foreground: HeaderLogoColor.prefersDarkForeground(for: identity.headerLogoColorHex) ? .black : .white,
+            servers: AvatarServerSwitcherModel(servers: authManager.servers, activeServerID: authManager.activeServerID),
+            openSettings: { isShowingSettings = true },
+            switchToServer: { authManager.switchActiveServer(to: $0) },
+            addServer: { isAddingServer = true },
+            manageServers: { isShowingSettings = true }
+        )
     }
 }
 
+/// An agent's name over its threads, set like the Sessions list's own title row.
 private struct SquaddAgentHeader: View {
     let section: SquaddAgentSection
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Text(section.name)
+                .font(AppFont.title3().bold())
+                .foregroundStyle(.appPrimary)
             if let subtitle = section.subtitle {
-                Text(subtitle).foregroundStyle(.secondary)
+                Text(subtitle)
+                    .font(AppFont.subheadline())
+                    .foregroundStyle(.appSecondary)
             }
+            Spacer()
             if section.isBusy {
-                Image(systemName: "ellipsis")
+                ProgressView()
+                    .controlSize(.small)
                     .accessibilityLabel("Working")
             }
         }
+        .padding(.horizontal, 24)
+        .padding(.top, 28)
+        .padding(.bottom, 12)
         .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
     }
 }

@@ -8,9 +8,12 @@ struct SquaddAgentSection: Identifiable, Equatable {
     let subtitle: String?
     let isBusy: Bool
     let threads: [SessionSummary]
+    /// The threads the companion marks unread, by `SessionSummary.id` (the thread id).
+    let unreadThreadIDs: Set<String>
 
     init(bot: SquaddBot) {
         id = bot.id
+        unreadThreadIDs = Set(bot.tasks.filter { $0.unread == true }.map(\.threadId))
         name = Self.nonEmpty(bot.name) ?? String(localized: "Unnamed Agent")
         subtitle = Self.nonEmpty(bot.title)
         isBusy = bot.busy == true
