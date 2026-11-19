@@ -153,6 +153,7 @@ final class SquaddScreenPhotoTests: XCTestCase {
         // URLSession.shared, the session the screens use, answers from the recordings.
         SquaddHTTPFixture.handler = { request in
             if request.value(forHTTPHeaderField: "Authorization") == "Bearer revoked" { return (401, unauthorized) }
+            guard request.url?.path == "/api/bots" else { return (404, Data()) } // nothing else was recorded
             Self.botsServed += 1
             return (200, bots)
         }
@@ -198,6 +199,9 @@ final class SquaddScreenPhotoTests: XCTestCase {
         try await shoot("e2-server-page", NavigationStack {
             SettingsServerPage(authManager: manager, account: account, onDefaultProfileSelected: { _ in })
         }, dir: dir) { true }
+        // The Settings pages that take the server: push and About read it, with the companion answering.
+        try await shoot("e3-notifications", NavigationStack { SettingsNotificationsPage(server: studio) }, dir: dir) { true }
+        try await shoot("e4-about", NavigationStack { SettingsAboutPage(server: account) }, dir: dir) { true }
     }
 
     private func add(_ url: URL, name: String, initials: String, color: String, token: String, to manager: AuthManager) throws {
