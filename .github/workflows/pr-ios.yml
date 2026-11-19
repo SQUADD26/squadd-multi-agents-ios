@@ -1,32 +1,34 @@
 # PR checks in under a minute, on Roberto's Mac (runner label `squadd-multi-ios`): build every target, run the
-# tests of the files the PR touches (ci/pr_tests.py), keep their photos as the `foto` artifact, check the String
-# Catalog. Fast because the Mac keeps state between runs: the checkout, DerivedData (incremental build) and a
-# booted simulator. Coverage and the index store are off. The full suite and Release builds run at night (pr-ci.yml).
+# tests of the files the branch touches against dev (ci/pr_tests.py), keep their photos as the `foto` artifact,
+# check the String Catalog. Fast because the Mac keeps state between runs: each branch's checkout and DerivedData
+# (incremental build) and two booted simulators. Coverage and the index store are off. The full suite and Release
+# builds run at night (pr-ci.yml).
 #
-# The repo is public and the runner is a real Mac: the job runs only for PRs from branches of this repository,
-# never from a fork (the `if` below; fork PRs also need a maintainer's approval in the repo settings). No secrets.
+# It runs on every push to a branch of this repo, so a PR to dev shows the result of its head commit, often before
+# it is opened; a push event also starts ~5 s sooner than a pull_request one. The repo is public and the runner is
+# a real Mac: only people with write access push here, so fork PRs never reach it (they also need a maintainer's
+# approval in the repo settings). No secrets.
 name: PR iOS
 
 on:
-  pull_request:
-    branches: [dev]
+  push:
+    branches-ignore: [dev, main, master]
 
 permissions:
   contents: read
 
 concurrency:
-  group: pr-ios-${{ github.event.pull_request.number }}
+  group: pr-ios-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   prova:
     name: Build, touched tests, photos, catalog
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: ${{ !github.event.deleted }}
     runs-on: [self-hosted, squadd-multi-ios]
     timeout-minutes: 2
     env:
-      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      HEAD_SHA: ${{ github.sha }}
       DERIVED_DATA: ${{ github.workspace }}/../../DerivedData
       TEST_TIMES: ${{ github.workspace }}/../../test-times.json
       SIMULATOR_NAME: Squadd multi CI
@@ -36,30 +38,26 @@ jobs:
       # Untracked: the runner neither waits for nor kills the build daemons (ibtoold) at the end; they stay warm.
       RUNNER_TRACKING_ID: ""
     steps:
-      # This PR's own checkout and DerivedData (ci/pr_state.py), then a fetch of the two commits: unchanged files
-      # keep their dates, so the build recompiles only what changed since this PR's last run. Public repo: no
-      # credentials written.
-      - name: Code
+      # This branch's own checkout and DerivedData (ci/pr_state.py), then a fetch of the head and dev: unchanged
+      # files keep their dates, so the build recompiles only what changed since this branch's last run. Then the
+      # two simulators, booted once and kept on between runs. Public repo: no credentials written.
+      - name: Code and simulators
+        id: sim
         env:
-          PR: ${{ github.event.pull_request.number }}
+          BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          git fetch -q --no-tags origin "${HEAD_SHA}" "${BASE_SHA}"
+          dev="+refs/heads/dev:refs/remotes/origin/dev"
+          git fetch -q --no-tags origin "${HEAD_SHA}" "${dev}"
           git show "${HEAD_SHA}:ci/pr_state.py" > "${RUNNER_TEMP}/pr_state.py"
-          python3 "${RUNNER_TEMP}/pr_state.py" "${PR}" "${HEAD_SHA}"
+          python3 "${RUNNER_TEMP}/pr_state.py" "${BRANCH}" "${HEAD_SHA}"
           cd "${GITHUB_WORKSPACE}"
-          git fetch -q --no-tags origin "${HEAD_SHA}" "${BASE_SHA}"
+          git fetch -q --no-tags origin "${HEAD_SHA}" "${dev}"
           git checkout -qf --detach "${HEAD_SHA}"
           git clean -ffdq
-          git diff --name-only "${BASE_SHA}...${HEAD_SHA}" > "${RUNNER_TEMP}/changed.txt"
+          git diff --name-only "$(git merge-base origin/dev HEAD)" HEAD > "${RUNNER_TEMP}/changed.txt"
           python3 ci/pr_tests.py < "${RUNNER_TEMP}/changed.txt" > "${RUNNER_TEMP}/tests.txt"
           echo "Tests of the touched files:"; cat "${RUNNER_TEMP}/tests.txt"
-
-      # Two simulators, booted once and kept on between runs: the touched tests split across them.
-      - name: Simulators
-        id: sim
-        run: |
-          set -euo pipefail
           for name in "${SIMULATOR_NAME}" "${SIMULATOR_NAME} 2"; do
             udid=$(xcrun simctl list devices available --json | NAME="${name}" python3 -c '
           import json, os, sys
@@ -68,10 +66,11 @@ jobs:
             echo "${udid}"
           done | { read -r one; read -r two; echo "udid=${one}"; echo "udid2=${two}"; } >> "$GITHUB_OUTPUT"
 
+      # nice: the build gives way to Roberto's own work when both want the CPU, at full speed otherwise.
       - name: Build
         run: |
           set -euo pipefail
-          xcodebuild build-for-testing -project HermesMobile.xcodeproj -scheme HermesMobile \
+          nice -n 10 xcodebuild build-for-testing -project HermesMobile.xcodeproj -scheme HermesMobile \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath "${DERIVED_DATA}" -disableAutomaticPackageResolution -enableCodeCoverage NO \
             COMPILER_INDEX_STORE_ENABLE=NO CODE_SIGNING_ALLOWED=NO -quiet

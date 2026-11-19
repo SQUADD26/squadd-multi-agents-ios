@@ -1,18 +1,19 @@
 #!/usr/bin/env python3
-"""Give the PR iOS job the build state of its own PR, so a push rebuilds only what it changed.
+"""Give the PR iOS job the build state of its own branch, so a push rebuilds only what it changed.
 
 The runner builds in one fixed place (the workspace and _work/DerivedData: DerivedData keeps absolute
-paths). Between runs each PR's checkout and DerivedData are parked in _work/pr-states/<pr>/ by renaming,
-which is instant. A PR seen for the first time starts from an APFS clone (copy-on-write, ~2 s) of the
-parked state closest to its head: the fewest Swift files to recompile, and never one that would delete
-Swift files (a deleted input makes the Swift driver rebuild the whole module).
+paths). Between runs each branch's checkout and DerivedData are parked in _work/pr-states/<branch>/ by
+renaming, which is instant. A branch seen for the first time starts from an APFS clone (copy-on-write,
+~2 s) of the parked state closest to its head: the fewest Swift files to recompile, and never one that
+would delete Swift files (a deleted input makes the Swift driver rebuild the whole module).
 
-    python3 ci/pr_state.py <pr number> <head sha>
+    python3 ci/pr_state.py <branch> <head sha>
 
 Runs before the checkout; the workspace it leaves holds some earlier commit that the job then fetches over.
 """
 
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -45,14 +46,14 @@ def closest(repo, head, candidates):
     return min(scored)[1] if scored else candidates[0][0]
 
 
-def main(pr, head):
+def main(branch, head):
     workspace = Path(os.environ["GITHUB_WORKSPACE"])
     work = workspace.parent.parent
     derived, states = work / "DerivedData", work / "pr-states"
     marker = states / "current"
     states.mkdir(exist_ok=True)
     current = marker.read_text().strip() if marker.exists() else "start"
-    mine = f"pr-{pr}"
+    mine = re.sub(r"[^A-Za-z0-9._-]", "-", branch)
     if current == mine:
         print(f"Build state: {mine}, kept from its last run")
         return

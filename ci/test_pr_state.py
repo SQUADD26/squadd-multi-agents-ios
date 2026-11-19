@@ -19,7 +19,7 @@ class PRStateTests(unittest.TestCase):
     def test_deleting_a_swift_file_costs_more_than_any_number_of_changes(self):
         self.assertGreater(pr_state.cost("D\tA.swift\n"), pr_state.cost("M\tB.swift\n" * 500 + "A\tC.swift\nM\tdocs.md"))
 
-    def test_each_pr_gets_its_own_state_back(self):
+    def test_each_branch_gets_its_own_state_back(self):
         work = Path(tempfile.mkdtemp())
         workspace = work / "repo" / "repo"
         workspace.mkdir(parents=True)
@@ -29,14 +29,14 @@ class PRStateTests(unittest.TestCase):
         (work / "DerivedData").mkdir()
         (work / "DerivedData" / "built").write_text("start")
 
-        pr_state.main("1", base)
-        (work / "DerivedData" / "built").write_text("pr 1")
-        pr_state.main("2", base)
-        self.assertEqual((work / "DerivedData" / "built").read_text(), "pr 1")  # a new PR clones the closest state
-        (work / "DerivedData" / "built").write_text("pr 2")
-        pr_state.main("1", base)
+        pr_state.main("foto/1-a", base)
+        (work / "DerivedData" / "built").write_text("branch 1")
+        pr_state.main("foto/2-b", base)
+        self.assertEqual((work / "DerivedData" / "built").read_text(), "branch 1")  # a new branch clones the closest state
+        (work / "DerivedData" / "built").write_text("branch 2")
+        pr_state.main("foto/1-a", base)
 
-        self.assertEqual((work / "DerivedData" / "built").read_text(), "pr 1")
+        self.assertEqual((work / "DerivedData" / "built").read_text(), "branch 1")
         self.assertTrue((workspace / ".git").is_dir())
 
 
