@@ -539,11 +539,11 @@ final class AuthManager {
         }
 
         await ScreenHolds.handBackAll(server: active)
-        if kind(of: active) == .hermes {
+        if kind(of: active) != .webui {
             try? await BotHistoryCache.shared.removeServer(active, activeConnectionID: (try? BotConnectionStore(keychain: keychain).load(server: active))?.id)
             await ChatDraftStore.shared.discardBotDrafts(server: active)
             await forgetPush(active)
-            removeBotConnection(for: active)
+            removeSignIn(for: active)
             // Only once the record's removal has retired the shared connection: a Bots inbox
             // still on screen can save a roster it reads during the awaits above (#1403).
             await BotRosterCache.shared.remove(server: active)
@@ -683,13 +683,13 @@ final class AuthManager {
     /// server on the same host stay.
     private func clearLocalArtifacts(for server: URL) {
         try? keychain.delete(.customHeaders, scope: server.absoluteString)
-        removeBotConnection(for: server)
+        removeSignIn(for: server)
         if kind(of: server) == .webui { clearSessionCookies(for: server) }
     }
 
     /// Any Bot Screen takeover on the server being left goes back to its bot. It runs on a connection
     /// of its own, so the logged-in tree's rebuild can't cut it off.
-    private func handBackScreens(leavingFor next: URL) {
+    func handBackScreens(leavingFor next: URL) {
         guard let departing = state.server, departing != next else { return }
         handBackScreenHolds(departing)
     }
@@ -698,7 +698,7 @@ final class AuthManager {
     /// which also retires its shared sign-in (`BotConnectionStore.remove`), the Profile its
     /// New Session remembers (#1015), whether its Sessions list shows every Profile (#709),
     /// the Profile that list last read, its favorite and recent models and remembered Thinking and Fast, and its Bot Screen switch.
-    private func removeBotConnection(for server: URL) {
+    func removeBotConnection(for server: URL) {
         BotScreenSettings.remove(for: server, in: preferences)
         ScreenHoldStore(keychain: keychain).removeAll(server: server)
         ModelFavoritesStore.remove(for: server, in: preferences)
@@ -745,7 +745,7 @@ final class AuthManager {
         }
         // A webui 401 is never about a Hermes server's own sign-in: a late reply from a
         // webui screen a switch left behind must not sign the Hermes server out (#899).
-        if let server = state.server, kind(of: server) == .hermes { return }
+        if let server = state.server, kind(of: server) != .webui { return }
 
         lastErrorMessage = String(localized: "Your session expired. Sign in again.")
 
@@ -873,15 +873,15 @@ final class AuthManager {
     /// enters `.loggedIn` optimistically: a stale cookie is demoted by the first 401
     /// (`handleAPIError`). A Hermes server sends no webui headers and is signed in only
     /// while its own record exists; without one its sign-in form shows (#899).
-    private func enterActiveServer(_ server: URL) {
-        guard kind(of: server) == .hermes else {
+    func enterActiveServer(_ server: URL) {
+        guard kind(of: server) != .webui else {
             hydrateCustomHeaders(for: server)
             state = .loggedIn(server: server)
             return
         }
         headerStore.replace(with: [])
-        let saved = try? BotConnectionStore(keychain: keychain).load(server: server)
-        state = saved == nil ? .loggedOut(server: server) : .loggedIn(server: server)
+        let signedIn = kind(of: server) == .squadd ? squaddToken(for: server) != nil : (try? BotConnectionStore(keychain: keychain).load(server: server)) != nil
+        state = signedIn ? .loggedIn(server: server) : .loggedOut(server: server)
     }
 
     nonisolated static func normalizedServerURL(from rawValue: String) throws -> URL {

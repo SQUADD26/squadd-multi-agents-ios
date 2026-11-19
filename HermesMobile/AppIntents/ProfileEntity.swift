@@ -143,8 +143,8 @@ enum ProfileEntityProvider {
                 profiles = (live[account.id] ?? cached.map(\.profile)).map {
                     ProfileEntity(hermesServer: server, profile: $0, title: named[$0]?.title, model: named[$0]?.model)
                 }
-            case .webui:
-                guard account.id == webuiServer else { return nil }
+            case .webui, .squadd:
+                guard account.kind == .webui, account.id == webuiServer else { return nil }
                 profiles = webuiList
             }
             guard !profiles.isEmpty else { return nil }

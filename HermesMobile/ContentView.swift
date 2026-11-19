@@ -129,9 +129,9 @@ struct ContentView: View {
                              didAbandonShare: { shares.abandon($0) }, shortcutReview: shortcutReview)
                 .id(server)
         case .loggedOut(let server):
-            OnboardingView(authManager: authManager, savedServer: server)
+            SquaddRoute(authManager: authManager, server: server) { OnboardingView(authManager: authManager, savedServer: server) }
         case .loggedIn(let server):
-            SessionListView(
+            SquaddRoute(authManager: authManager, server: server) { SessionListView(
                 authManager: authManager,
                 server: server,
                 pendingSharedImport: Binding(get: { shares.offered(to: server) }, set: { shares.pending = $0 }),
@@ -142,7 +142,7 @@ struct ContentView: View {
                 requestedNewChat: $pendingLinks.newChatRequest,
                 pendingBotDestination: $pendingLinks.bot,
                 pendingWebuiPush: $pendingLinks.webuiPush
-            )
+            ) }
             // Switching the active server keeps us in `.loggedIn`, so without a
             // per-server identity SwiftUI would reuse the same SessionListView (and
             // its server-bound view model), leaving stale sessions/chat on screen.

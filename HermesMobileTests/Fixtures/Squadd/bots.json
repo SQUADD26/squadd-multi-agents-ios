@@ -1,0 +1,425 @@
+{
+  "bots": [
+    {
+      "id": "7626ad85-eebf-402e-bf80-32a12fe1251a",
+      "threadId": "f6b2d30c-6c88-403d-8ff8-4edc30531b55",
+      "name": "Kiwi",
+      "title": "Tracker",
+      "description": "Kiwi test bot.",
+      "soul": "",
+      "soulHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "notifications": true,
+      "color": "pink",
+      "mascotBody": "cursor",
+      "unread": true,
+      "modelSelection": {
+        "instanceId": "claude",
+        "model": "claude-sonnet-5-5"
+      },
+      "createdAt": 1795088898120,
+      "avatarUrl": null,
+      "autoApprove": false,
+      "activity": "idle",
+      "busy": false,
+      "approvalMode": "full",
+      "waitingForTeammates": false,
+      "mainThreadId": "f6b2d30c-6c88-403d-8ff8-4edc30531b55",
+      "tasks": [
+        {
+          "threadId": "f6b2d30c-6c88-403d-8ff8-4edc30531b55",
+          "title": "File a bug about the login screen",
+          "createdAt": 1795088898120,
+          "updatedAt": 1795088903299,
+          "unread": true,
+          "activity": "idle",
+          "busy": false,
+          "lastThreadOrderAt": 1795088903299,
+          "titleFromFirstMessage": true,
+          "cwd": "/fixture-home/.openmausbot/task-workspaces/7626ad85-eebf-402e-bf80-32a12fe1251a/f6b2d30c-6c88-403d-8ff8-4edc30531b55",
+          "usage": {
+            "input": 12,
+            "output": 5,
+            "cachedInput": 2,
+            "costUsd": 0.01,
+            "turns": 1,
+            "lastTurn": {
+              "input": 12,
+              "output": 5,
+              "cachedInput": 2,
+              "costUsd": 0.01
+            },
+            "context": {
+              "tokens": 12,
+              "window": 1000000
+            }
+          },
+          "modelSelection": {
+            "instanceId": "claude",
+            "model": "claude-sonnet-5-5"
+          },
+          "followsBotModel": true,
+          "waitingForTeammates": false
+        }
+      ],
+      "messages": [
+        {
+          "id": "b340d2c0-0d95-47fd-b5a3-ac4426070f26",
+          "at": 1795088898121,
+          "parentId": null,
+          "role": "bot",
+          "kind": "text",
+          "text": "Hi Ada, I'm Kiwi. What would you like me to do?"
+        },
+        {
+          "id": "d3c81380-9340-4427-9741-eebd0c43ebc4",
+          "at": 1795088902644,
+          "parentId": "b340d2c0-0d95-47fd-b5a3-ac4426070f26",
+          "role": "user",
+          "kind": "text",
+          "text": "File a bug about the login screen",
+          "requestPending": false
+        },
+        {
+          "id": "7bc77d9f-66ea-495a-8677-42d1787a1fe2",
+          "at": 1795088903295,
+          "parentId": "d3c81380-9340-4427-9741-eebd0c43ebc4",
+          "role": "bot",
+          "kind": "text",
+          "text": "hello from fake claude",
+          "turnId": "63a592bb-b0fb-403c-a3e1-f29453d8070c",
+          "itemId": "text-6f35cc58-9157-4f9e-ac85-5e4e52ceb899",
+          "requestMessageId": "d3c81380-9340-4427-9741-eebd0c43ebc4",
+          "turnTerminal": true,
+          "turnCompletedAt": 1795088903299,
+          "turnSucceeded": true
+        },
+        {
+          "id": "61b9171d-d43a-41a2-aa01-c733e18336cb",
+          "at": 1795088903295,
+          "parentId": "7bc77d9f-66ea-495a-8677-42d1787a1fe2",
+          "role": "bot",
+          "kind": "activity",
+          "tool": {
+            "name": "Bash",
+            "spoken": "running a command",
+            "step": {
+              "activity": "command",
+              "target": "echo hi"
+            },
+            "summary": "echo hi",
+            "input": "{\n  \"command\": \"echo hi\"\n}",
+            "itemId": "tu-962548-1",
+            "ok": true,
+            "output": "[\n  {\n    \"type\": \"text\",\n    \"text\": \"hi\"\n  }\n]"
+          },
+          "turnId": "63a592bb-b0fb-403c-a3e1-f29453d8070c",
+          "requestMessageId": "d3c81380-9340-4427-9741-eebd0c43ebc4"
+        },
+        {
+          "id": "48312541-497a-4522-9783-75fd56d5a027",
+          "at": 1795088903299,
+          "parentId": "61b9171d-d43a-41a2-aa01-c733e18336cb",
+          "role": "bot",
+          "kind": "digest",
+          "text": "[digest] · tools: Bash ×1 (from tool previews) · reply: hello from fake claude",
+          "digest": {
+            "turnId": "63a592bb-b0fb-403c-a3e1-f29453d8070c",
+            "botId": "7626ad85-eebf-402e-bf80-32a12fe1251a",
+            "threadId": "f6b2d30c-6c88-403d-8ff8-4edc30531b55",
+            "at": 1795088903299,
+            "durationMs": 54,
+            "tools": [
+              {
+                "name": "Bash",
+                "count": 1,
+                "failed": 0,
+                "sample": "echo hi"
+              }
+            ],
+            "toolCalls": 1,
+            "memory": [],
+            "reply": "hello from fake claude",
+            "usage": {
+              "input": 12,
+              "output": 5,
+              "cachedInput": 2,
+              "costUsd": 0.01
+            },
+            "hookCoverage": "preview"
+          },
+          "turnId": "63a592bb-b0fb-403c-a3e1-f29453d8070c",
+          "requestMessageId": "d3c81380-9340-4427-9741-eebd0c43ebc4",
+          "turnSucceeded": true
+        }
+      ],
+      "activeLeafId": "48312541-497a-4522-9783-75fd56d5a027"
+    },
+    {
+      "id": "b70a0bbd-64c1-491b-ad34-f441d52fe9f0",
+      "threadId": "5e423427-5373-4b0b-b212-0eb4f5c39be0",
+      "name": "Pesto",
+      "title": "",
+      "description": "",
+      "soul": "",
+      "soulHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "notifications": true,
+      "color": "coral",
+      "mascotBody": "cursor",
+      "unread": true,
+      "modelSelection": {
+        "instanceId": "claude",
+        "model": "claude-sonnet-5-5"
+      },
+      "createdAt": 1795088885616,
+      "avatarUrl": null,
+      "autoApprove": false,
+      "activity": "idle",
+      "busy": false,
+      "approvalMode": "full",
+      "waitingForTeammates": false,
+      "mainThreadId": "5e423427-5373-4b0b-b212-0eb4f5c39be0",
+      "tasks": [
+        {
+          "threadId": "5e423427-5373-4b0b-b212-0eb4f5c39be0",
+          "title": "Weekly menu",
+          "createdAt": 1795088898127,
+          "updatedAt": 1795088901806,
+          "approvalMode": "full",
+          "autoApprove": false,
+          "alwaysAllow": [],
+          "unread": true,
+          "activity": "idle",
+          "busy": false,
+          "lastThreadOrderAt": 1795088901806,
+          "cwd": "/fixture-home/.openmausbot/task-workspaces/b70a0bbd-64c1-491b-ad34-f441d52fe9f0/5e423427-5373-4b0b-b212-0eb4f5c39be0",
+          "usage": {
+            "input": 12,
+            "output": 5,
+            "cachedInput": 2,
+            "costUsd": 0.01,
+            "turns": 1,
+            "lastTurn": {
+              "input": 12,
+              "output": 5,
+              "cachedInput": 2,
+              "costUsd": 0.01
+            },
+            "context": {
+              "tokens": 12,
+              "window": 1000000
+            }
+          },
+          "modelSelection": {
+            "instanceId": "claude",
+            "model": "claude-sonnet-5-5"
+          },
+          "followsBotModel": true,
+          "waitingForTeammates": false
+        },
+        {
+          "threadId": "e0196fb1-7f3b-44b7-93a0-e7b1e93f7af1",
+          "title": "hi",
+          "createdAt": 1795088885616,
+          "updatedAt": 1795088891795,
+          "unread": true,
+          "activity": "idle",
+          "busy": false,
+          "lastThreadOrderAt": 1795088891794,
+          "titleFromFirstMessage": true,
+          "cwd": "/fixture-home/.openmausbot/task-workspaces/b70a0bbd-64c1-491b-ad34-f441d52fe9f0/e0196fb1-7f3b-44b7-93a0-e7b1e93f7af1",
+          "usage": {
+            "input": 24,
+            "output": 10,
+            "cachedInput": 4,
+            "costUsd": 0.02,
+            "turns": 2,
+            "lastTurn": {
+              "input": 12,
+              "output": 5,
+              "cachedInput": 2,
+              "costUsd": 0.01
+            },
+            "context": {
+              "tokens": 12,
+              "window": 1000000
+            }
+          },
+          "modelSelection": {
+            "instanceId": "claude",
+            "model": "claude-sonnet-5-5"
+          },
+          "followsBotModel": true,
+          "waitingForTeammates": false
+        }
+      ],
+      "messages": [
+        {
+          "id": "e7bd29e4-65a0-4078-b594-fdb117be10a3",
+          "at": 1795088901134,
+          "parentId": null,
+          "role": "user",
+          "kind": "text",
+          "text": "Plan the menu for next week",
+          "requestPending": false
+        },
+        {
+          "id": "1a91309e-713c-4258-8c28-a95beea56003",
+          "at": 1795088901801,
+          "parentId": "e7bd29e4-65a0-4078-b594-fdb117be10a3",
+          "role": "bot",
+          "kind": "text",
+          "text": "hello from fake claude",
+          "turnId": "8311125e-2e6d-4ff3-a4cd-2de797cc1dd2",
+          "itemId": "text-f89f8bd3-c154-415a-81f0-6fb84e11799a",
+          "requestMessageId": "e7bd29e4-65a0-4078-b594-fdb117be10a3",
+          "turnTerminal": true,
+          "turnCompletedAt": 1795088901806,
+          "turnSucceeded": true
+        },
+        {
+          "id": "de821187-51ba-4f20-b0fe-79177fb72a07",
+          "at": 1795088901802,
+          "parentId": "1a91309e-713c-4258-8c28-a95beea56003",
+          "role": "bot",
+          "kind": "activity",
+          "tool": {
+            "name": "Bash",
+            "spoken": "running a command",
+            "step": {
+              "activity": "command",
+              "target": "echo hi"
+            },
+            "summary": "echo hi",
+            "input": "{\n  \"command\": \"echo hi\"\n}",
+            "itemId": "tu-962425-1",
+            "ok": true,
+            "output": "[\n  {\n    \"type\": \"text\",\n    \"text\": \"hi\"\n  }\n]"
+          },
+          "turnId": "8311125e-2e6d-4ff3-a4cd-2de797cc1dd2",
+          "requestMessageId": "e7bd29e4-65a0-4078-b594-fdb117be10a3"
+        },
+        {
+          "id": "0fb55eb2-4f16-49f1-91b7-2bd1e1714d34",
+          "at": 1795088901806,
+          "parentId": "de821187-51ba-4f20-b0fe-79177fb72a07",
+          "role": "bot",
+          "kind": "digest",
+          "text": "[digest] · tools: Bash ×1 (from tool previews) · reply: hello from fake claude",
+          "digest": {
+            "turnId": "8311125e-2e6d-4ff3-a4cd-2de797cc1dd2",
+            "botId": "b70a0bbd-64c1-491b-ad34-f441d52fe9f0",
+            "threadId": "5e423427-5373-4b0b-b212-0eb4f5c39be0",
+            "at": 1795088901806,
+            "durationMs": 55,
+            "tools": [
+              {
+                "name": "Bash",
+                "count": 1,
+                "failed": 0,
+                "sample": "echo hi"
+              }
+            ],
+            "toolCalls": 1,
+            "memory": [],
+            "reply": "hello from fake claude",
+            "usage": {
+              "input": 12,
+              "output": 5,
+              "cachedInput": 2,
+              "costUsd": 0.01
+            },
+            "hookCoverage": "preview"
+          },
+          "turnId": "8311125e-2e6d-4ff3-a4cd-2de797cc1dd2",
+          "requestMessageId": "e7bd29e4-65a0-4078-b594-fdb117be10a3",
+          "turnSucceeded": true
+        }
+      ],
+      "activeLeafId": "0fb55eb2-4f16-49f1-91b7-2bd1e1714d34"
+    },
+    {
+      "id": "799b6b0b-c385-45c2-852a-031e1fa68ab9",
+      "threadId": "4a16f61d-ddfe-4a9a-87b9-54c02dfe44d1",
+      "name": "Squadd",
+      "title": "",
+      "description": "",
+      "soul": "",
+      "soulHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "notifications": true,
+      "color": "chrome",
+      "unread": false,
+      "modelSelection": {
+        "instanceId": "claude",
+        "model": "claude-sonnet-5-5"
+      },
+      "createdAt": 1795088876125,
+      "chiefOfStaff": true,
+      "hidden": false,
+      "defaultBot": {},
+      "approvalMode": "full",
+      "waitingForTeammates": false,
+      "mainThreadId": "4a16f61d-ddfe-4a9a-87b9-54c02dfe44d1",
+      "avatarUrl": null,
+      "tasks": [
+        {
+          "threadId": "4a16f61d-ddfe-4a9a-87b9-54c02dfe44d1",
+          "title": "New thread",
+          "createdAt": 1795088876125,
+          "updatedAt": 1795088876130,
+          "unread": false,
+          "activity": "idle",
+          "busy": false,
+          "modelSelection": {
+            "instanceId": "claude",
+            "model": "claude-sonnet-5-5"
+          },
+          "followsBotModel": true,
+          "waitingForTeammates": false
+        }
+      ],
+      "messages": [
+        {
+          "id": "46728114-2c8d-46f7-a422-7eb8d097a356",
+          "at": 1795088876130,
+          "parentId": null,
+          "role": "bot",
+          "kind": "options",
+          "text": "Hey! I'm Squadd. I'm new here. I'm here to be your Chief of Staff. I can manage your other bots. Task me with anything. I'll make sure it gets to the right bot. I'm taking a look around to see if there's anything I can pick up for you. I'll follow up in a moment.",
+          "helperIntro": true,
+          "card": {
+            "title": "Hey! I'm Squadd. I'm new here.",
+            "subtitle": "I'm here to be your Chief of Staff. I can manage your other bots. Task me with anything. I'll make sure it gets to the right bot. I'm taking a look around to see if there's anything I can pick up for you. I'll follow up in a moment.",
+            "options": [
+              "What are my bots up to?",
+              "Set up a bot for my inbox",
+              "Make me a morning routine",
+              "How do I connect my email?"
+            ],
+            "fixedOptions": true
+          }
+        }
+      ],
+      "activeLeafId": "46728114-2c8d-46f7-a422-7eb8d097a356"
+    }
+  ],
+  "botQueuedMessages": {},
+  "sections": [],
+  "groups": [],
+  "computerControl": {
+    "7626ad85-eebf-402e-bf80-32a12fe1251a": {
+      "held": false,
+      "helpReason": null
+    },
+    "b70a0bbd-64c1-491b-ad34-f441d52fe9f0": {
+      "held": false,
+      "helpReason": null
+    },
+    "799b6b0b-c385-45c2-852a-031e1fa68ab9": {
+      "held": false,
+      "helpReason": null
+    }
+  },
+  "together": {
+    "newBot": true
+  }
+}

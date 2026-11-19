@@ -33,6 +33,8 @@ struct KeychainStore: KeychainStoring {
         // Per-server JSON of the Bot Screen takeovers this iPhone holds (#1567). The viewer id in
         // each is a capability on the host.
         case screenHolds = "screen_holds"
+        // Per-server device token a Squadd companion returned from `POST /api/pair`.
+        case squaddDeviceToken = "squadd_device_token"
     }
 
     private let keychain: Keychain

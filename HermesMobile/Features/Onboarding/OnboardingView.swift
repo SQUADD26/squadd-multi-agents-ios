@@ -35,6 +35,9 @@ struct OnboardingView: View {
                 .navigationDestination(isPresented: $isShowingSetup) { setupPages }
         }
         .preferredColorScheme(.dark)
+        #if DEBUG
+        .overlay(alignment: .topTrailing) { SquaddDebugAddServerButton(authManager: authManager) }
+        #endif
         .sheet(isPresented: $isAddingServer) {
             AddServerView(authManager: authManager, entry: .onboarding, savedServer: savedServer)
         }

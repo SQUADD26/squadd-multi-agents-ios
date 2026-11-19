@@ -153,7 +153,7 @@ private struct SettingsServerRow: View {
     /// The kind is a product name, so it stays untranslated.
     private var detail: String {
         if let movedTo { return String(localized: "Moved to \(movedTo)") }
-        return (account.kind == .hermes ? "Squadd" : "webui") + " · " + hostFallback
+        return (account.kind == .hermes ? "Squadd" : account.kind == .squadd ? "Squadd Multi-Agents" : "webui") + " · " + hostFallback
     }
 
     var body: some View {

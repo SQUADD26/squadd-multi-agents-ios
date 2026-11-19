@@ -36,7 +36,7 @@ import UserNotifications
                                                     botConnectionID: botConnectionID) {
                     return HermesDeepLink.botURL(for: destination)
                 }
-            case nil:
+            case .squadd, nil:
                 continue
             }
         }
