@@ -27,11 +27,13 @@ struct SquaddBot: Decodable, Equatable, Identifiable {
     /// Milliseconds since 1970, as the companion sends every time.
     let createdAt: Double?
     var tasks: [SquaddTask]
+    /// The agent's folders in their saved order (`PATCH /api/bots/:id/projects/order`).
+    var projects: [SquaddProject]
 
-    private enum CodingKeys: String, CodingKey { case id, name, title, threadId, unread, busy, createdAt, tasks }
+    private enum CodingKeys: String, CodingKey { case id, name, title, threadId, unread, busy, createdAt, tasks, projects }
 
     init(id: String, name: String?, title: String? = nil, threadId: String? = nil, unread: Bool? = nil,
-         busy: Bool? = nil, createdAt: Double? = nil, tasks: [SquaddTask] = []) {
+         busy: Bool? = nil, createdAt: Double? = nil, tasks: [SquaddTask] = [], projects: [SquaddProject] = []) {
         self.id = id
         self.name = name
         self.title = title
@@ -40,6 +42,7 @@ struct SquaddBot: Decodable, Equatable, Identifiable {
         self.busy = busy
         self.createdAt = createdAt
         self.tasks = tasks
+        self.projects = projects
     }
 
     init(from decoder: Decoder) throws {
@@ -52,7 +55,42 @@ struct SquaddBot: Decodable, Equatable, Identifiable {
         busy = try? container.decodeIfPresent(Bool.self, forKey: .busy)
         createdAt = try? container.decodeIfPresent(Double.self, forKey: .createdAt)
         tasks = (try? container.decodeIfPresent([Lossy<SquaddTask>].self, forKey: .tasks))?.compactMap(\.value) ?? []
+        projects = (try? container.decodeIfPresent([Lossy<SquaddProject>].self, forKey: .projects))?.compactMap(\.value) ?? []
     }
+}
+
+extension SquaddBot {
+    /// The desktop sidebar's layout of the open threads (`Sidebar.tsx`): folders ordered by where
+    /// their first thread sits in `SquaddTask.desktopOrder`, folders with no open thread after them
+    /// in the saved order, each with its threads; then the threads in no folder.
+    var desktopLayout: (folders: [(project: SquaddProject, tasks: [SquaddTask])], loose: [SquaddTask]) {
+        let open = SquaddTask.desktopOrder(tasks).filter { !$0.isArchived }
+        func rank(_ project: SquaddProject) -> Int { open.firstIndex { $0.projectId == project.id } ?? .max }
+        let folders = projects.enumerated()
+            .sorted { (rank($0.element), $0.offset) < (rank($1.element), $1.offset) }
+            .map { _, project in (project: project, tasks: open.filter { $0.projectId == project.id }) }
+        let ids = Set(projects.map(\.id))
+        return (folders, open.filter { !ids.contains($0.projectId ?? "") })
+    }
+}
+
+/// One of an agent's folders: a name, maybe an emoji, and the threads whose `projectId` is its id.
+/// Organizing only; a folder never owns settings or a working directory.
+struct SquaddProject: Decodable, Equatable, Identifiable {
+    let id: String
+    let name: String
+    let emoji: String?
+
+    init(id: String, name: String, emoji: String? = nil) {
+        self.id = id
+        self.name = name
+        self.emoji = emoji
+    }
+}
+
+/// `POST /api/bots/:id/projects`: the new folder.
+struct SquaddProjectResponse: Decodable {
+    let project: SquaddProject
 }
 
 /// One task thread of an agent. The desktop lists an agent's threads pinned first, then by

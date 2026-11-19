@@ -110,13 +110,7 @@ final class SquaddCompanionTests: XCTestCase {
     func testThreadActionsUseTheTaskRoutes() async throws {
         var seen: [(String, String, [String: Any])] = []
         SquaddHTTPFixture.handler = { request in
-            let body = request.httpBodyStream.flatMap { stream -> [String: Any]? in
-                stream.open(); defer { stream.close() }
-                var data = Data(), buffer = [UInt8](repeating: 0, count: 4096)
-                while case let n = stream.read(&buffer, maxLength: buffer.count), n > 0 { data.append(buffer, count: n) }
-                return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-            } ?? [:]
-            seen.append((request.httpMethod ?? "", request.url?.path ?? "", body))
+            seen.append((request.httpMethod ?? "", request.url?.path ?? "", Self.body(request)))
             switch (request.httpMethod, request.url?.path) {
             case ("GET", "/api/bots"): return (200, try! Self.fixture("bots-organized.json"))
             case ("POST", _): return (201, try! Self.fixture("task-create.json"))
@@ -206,6 +200,79 @@ final class SquaddCompanionTests: XCTestCase {
         try FileManager.default.removeItem(at: file.deletingLastPathComponent())
     }
 
+    // MARK: - Folders (#18), against the same recordings
+
+    private let clienti = "b0c17762-27e5-4edb-a095-55708b5b549b"
+    private let interni = "aa979bc8-6f82-4832-93ef-8db11aee6b31"
+
+    func testFoldersFollowTheDesktopSidebar() async throws {
+        SquaddHTTPFixture.handler = { _ in (200, try! Self.fixture("bots-organized.json")) }
+        let model = SquaddAgentListModel(client: client(token: "t"), onUnpaired: {})
+
+        await model.load()
+
+        let section = try XCTUnwrap(sections(model).first)
+        XCTAssertEqual(section.savedFolderOrder, [interni, clienti])
+        XCTAssertEqual(section.folders.map(\.name), ["Clienti", "Interni"], "a folder with the top thread comes first, as on the desktop")
+        XCTAssertEqual(section.folders.map { $0.threads.map(\.title) }, [["Rinominato"], []])
+        XCTAssertEqual(section.threads.map(\.title), ["ciao zucchero"])
+    }
+
+    func testFolderActionsUseTheProjectRoutesAndKeepTheThreads() async throws {
+        var seen: [(String, String, [String: Any])] = []
+        SquaddHTTPFixture.handler = { request in
+            seen.append((request.httpMethod ?? "", request.url?.path ?? "", Self.body(request)))
+            switch (request.httpMethod, request.url?.path ?? "") {
+            case ("GET", _): return (200, try! Self.fixture("bots-organized.json"))
+            case ("POST", _): return (201, try! Self.fixture("project-create.json"))
+            case ("DELETE", _): return (200, try! Self.fixture("project-delete.json"))
+            case ("PATCH", let path) where path.hasSuffix("/order"): return (200, try! Self.fixture("project-order.json"))
+            default: return (200, try! Self.fixture("task-patch.json"))
+            }
+        }
+        let model = SquaddAgentListModel(client: client(token: "t"), onUnpaired: {})
+        await model.load()
+        let base = "/api/bots/\(starter)"
+
+        let moved = await model.move(threadId: sugarThread, botId: starter, toFolder: interni)
+        let ungrouped = await model.move(threadId: sugarThread, botId: starter, toFolder: nil)
+        let reordered = await model.moveFolder(clienti, botId: starter, by: -1)
+        let deleted = await model.deleteFolder(clienti, botId: starter)
+        let afterDelete = try XCTUnwrap(sections(model).first)
+        let created = await model.createFolder(named: "Clienti", botId: starter)
+
+        XCTAssertEqual([moved, ungrouped, reordered, deleted, created], [true, true, true, true, true])
+        let calls = Array(seen.dropFirst())
+        XCTAssertEqual(calls.map { "\($0.0) \($0.1)" }, ["PATCH \(base)/tasks/\(sugarThread)", "PATCH \(base)/tasks/\(sugarThread)",
+                                                     "PATCH \(base)/projects/order", "DELETE \(base)/projects/\(clienti)",
+                                                     "POST \(base)/projects"])
+        XCTAssertEqual(calls[0].2["projectId"] as? String, interni)
+        XCTAssertTrue(calls[1].2["projectId"] is NSNull, "out of every folder sends null")
+        XCTAssertEqual(calls[2].2["projectIds"] as? [String], [clienti, interni], "the whole saved order, the moved folder one place up")
+        XCTAssertEqual(calls[4].2["name"] as? String, "Clienti")
+        XCTAssertEqual(afterDelete.savedFolderOrder, [interni])
+        XCTAssertTrue(afterDelete.threads.contains { $0.id == pinnedThread }, "the deleted folder's thread stays, in no folder")
+        XCTAssertEqual(try sections(model).first?.savedFolderOrder, [interni, clienti], "a new folder goes last")
+    }
+
+    func testRefusedFolderChangesPutThemBack() async throws {
+        var refusing = false
+        SquaddHTTPFixture.handler = { _ in
+            refusing ? (400, try! Self.fixture("task-patch-400.json")) : (200, try! Self.fixture("bots-organized.json"))
+        }
+        let model = SquaddAgentListModel(client: client(token: "t"), onUnpaired: {})
+        await model.load()
+        let before = try sections(model)
+        refusing = true
+
+        let reordered = await model.moveFolder(interni, botId: starter, by: 1)
+        let deleted = await model.deleteFolder(clienti, botId: starter)
+        let moved = await model.move(threadId: sugarThread, botId: starter, toFolder: interni)
+
+        XCTAssertEqual([reordered, deleted, moved], [false, false, false])
+        XCTAssertEqual(try sections(model), before)
+    }
+
     private func sections(_ model: SquaddAgentListModel) throws -> [SquaddAgentSection] {
         guard case .loaded(let sections) = model.phase else { XCTFail("not loaded"); return [] }
         return sections
@@ -223,6 +290,20 @@ final class SquaddCompanionTests: XCTestCase {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [SquaddHTTPFixture.self]
         return SquaddCompanionClient(server: server, token: token, session: URLSession(configuration: configuration))
+    }
+
+    /// The JSON body `URLProtocol` hands over as a stream.
+    private nonisolated static func body(_ request: URLRequest) -> [String: Any] {
+        guard let stream = request.httpBodyStream else { return [:] }
+        stream.open()
+        defer { stream.close() }
+        var data = Data(), buffer = [UInt8](repeating: 0, count: 4096)
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            guard count > 0 else { break }
+            data.append(buffer, count: count)
+        }
+        return (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
     }
 
     private nonisolated static func fixture(_ name: String) throws -> Data {
