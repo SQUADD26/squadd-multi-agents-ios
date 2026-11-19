@@ -36,8 +36,8 @@ enum PushEnvironment: String, Codable, Equatable, Sendable {
     }
 }
 
-/// The two bundle identifiers the relay accepts. Anything else means this build
-/// was renamed for a fork and cannot use the maintainer's relay.
+/// The two bundle identifiers the upstream Hermex relay accepts. Anything else, Squadd's
+/// `com.squaddcrm.multiagents` included, cannot use that relay; Squadd push is #30.
 enum PushBundleIdentifier {
     static let supported: Set<String> = [
         "com.uzairansar.hermesmobile",

@@ -287,7 +287,7 @@ import XCTest
         await provisioner.enable()
 
         XCTAssertEqual(provisioner.failure?.title, HermexPushProvisioner.Step.pair.title)
-        XCTAssertEqual(provisioner.failure?.message, "This Hermes host refused the step (HTTP 404). Check the host’s logs, then try again.")
+        XCTAssertEqual(provisioner.failure?.message, "This Squadd host refused the step (HTTP 404). Check the host’s logs, then try again.")
         XCTAssertFalse(PushHTTPFixture.calls.contains { $0.contains("/api/env") || $0.contains("agent-plugins") || $0.contains("/api/gateway/restart") })
         XCTAssertNil(provisioner.pluginCard)
         XCTAssertEqual(registrar.actions, [])
@@ -304,7 +304,7 @@ import XCTest
         await provisioner.enable()
 
         XCTAssertEqual(provisioner.failure?.title, HermexPushProvisioner.Step.pair.title)
-        XCTAssertEqual(provisioner.failure?.message, "This Hermes host refused the step (HTTP 404). Check the host’s logs, then try again.")
+        XCTAssertEqual(provisioner.failure?.message, "This Squadd host refused the step (HTTP 404). Check the host’s logs, then try again.")
         XCTAssertFalse(PushHTTPFixture.calls.contains { $0.contains("/api/env") || $0.contains("agent-plugins") || $0.contains("/api/gateway/restart") })
         XCTAssertNil(provisioner.pluginCard)
     }
@@ -476,8 +476,8 @@ import XCTest
         let unreachable = makeProvisioner(server: serverA, registrar: FakePushRegistrar())
         await unreachable.enable()
         XCTAssertEqual(unreachable.failure, HermexPushProvisioner.Failure(
-            title: "Sign in to Hermes",
-            message: "Could not reach this Hermes host. Check the connection, then try again."))
+            title: "Sign in to Squadd",
+            message: "Could not reach this Squadd host. Check the connection, then try again."))
 
         PushHTTPFixture.reset()
         PushHTTPFixture.handler = { request in
@@ -486,8 +486,8 @@ import XCTest
         let unknown = makeProvisioner(server: serverA, registrar: FakePushRegistrar())
         await unknown.enable()
         XCTAssertEqual(unknown.failure, HermexPushProvisioner.Failure(
-            title: "Sign in to Hermes",
-            message: "This Hermes host doesn’t offer the password sign-in push setup needs."))
+            title: "Sign in to Squadd",
+            message: "This Squadd host doesn’t offer the password sign-in push setup needs."))
         XCTAssertEqual(PushHTTPFixture.calls, ["GET https://a.example.com/api/status"])
     }
 
@@ -1013,7 +1013,7 @@ import XCTest
 
         XCTAssertEqual(provisioner.pluginCard, .failed(HermexPushProvisioner.Failure(
             title: "Couldn’t reinstall the plugin",
-            message: "This Hermes host refused the step (HTTP 400). Check the host’s logs, then try again.",
+            message: "This Squadd host refused the step (HTTP 400). Check the host’s logs, then try again.",
             remedy: .retryUpdate)))
         XCTAssertEqual(PushHTTPFixture.calls.suffix(3), [
             "POST https://a.example.com/api/dashboard/agent-plugins/hermex-push/disable",
@@ -1042,7 +1042,7 @@ import XCTest
 
         XCTAssertEqual(provisioner.pluginCard, .failed(HermexPushProvisioner.Failure(
             title: "Couldn’t reinstall the plugin",
-            message: "Hermes still has the plugin turned off, so notifications stop when Hermes restarts. Try again to turn it back on.",
+            message: "Squadd still has the plugin turned off, so notifications stop when Squadd restarts. Try again to turn it back on.",
             remedy: .retryUpdate)))
     }
 
@@ -1100,7 +1100,7 @@ import XCTest
         await provisioner.enable()
         XCTAssertEqual(provisioner.failure, HermexPushProvisioner.Failure(
             title: HermexPushProvisioner.Step.pair.title,
-            message: "This Hermes host returned pairing keys Hermex cannot use. Update the hermex-push plugin.",
+            message: "This Squadd host returned pairing keys Squadd Multi-Agents cannot use. Update the hermex-push plugin.",
             remedy: .updatePlugin))
 
         await provisioner.updatePlugin()
@@ -1139,7 +1139,7 @@ import XCTest
 
         XCTAssertEqual(provisioner.pluginCard, .failed(HermexPushProvisioner.Failure(
             title: "Couldn’t reinstall the plugin",
-            message: "This Hermes host refused the step (HTTP 500). Check the host’s logs, then try again.",
+            message: "This Squadd host refused the step (HTTP 500). Check the host’s logs, then try again.",
             remedy: .retryUpdate)))
         XCTAssertFalse(provisioner.showsSteps, "The update stopped, not setup, and its card says so")
 
@@ -1176,7 +1176,7 @@ import XCTest
 
         let checkFailed = { (status: Int) in HermexPushProvisioner.PluginCard.status(.checkFailed(HermexPushProvisioner.Failure(
             title: "Couldn’t check the plugin version",
-            message: "This Hermes host refused the step (HTTP \(status)). Check the host’s logs, then try again."))) }
+            message: "This Squadd host refused the step (HTTP \(status)). Check the host’s logs, then try again."))) }
         XCTAssertEqual(provisioner.pluginCard, checkFailed(500))
         XCTAssertNil(provisioner.failure, "The card names it once")
 
@@ -1376,7 +1376,7 @@ import XCTest
         // A new plugin that fails to import leaves Hermes up with none of its routes mounted.
         let unmounted = HermexPushProvisioner.PluginUpdate.checkFailed(HermexPushProvisioner.Failure(
             title: "Couldn’t check the plugin version",
-            message: "This Hermes host refused the step (HTTP 404). Check the host’s logs, then try again."))
+            message: "This Squadd host refused the step (HTTP 404). Check the host’s logs, then try again."))
         for backDuringTheWait in [true, false] {
             PushHTTPFixture.reset()
             let registrar = try await pairedRegistrar(serverA)
@@ -1430,8 +1430,8 @@ import XCTest
         await provisioner.restartHermes()
 
         XCTAssertEqual(provisioner.pluginCard, .failed(HermexPushProvisioner.Failure(
-            title: "Couldn’t restart Hermes",
-            message: "This Hermes host refused the step (HTTP 500). Check the host’s logs, then try again.",
+            title: "Couldn’t restart Squadd",
+            message: "This Squadd host refused the step (HTTP 500). Check the host’s logs, then try again.",
             remedy: .retryRestart)))
         XCTAssertEqual(PushHTTPFixture.calls.last, "POST https://a.example.com/api/plugins/hermex-push/restart",
                        "Nothing waits on a restart that never ran")

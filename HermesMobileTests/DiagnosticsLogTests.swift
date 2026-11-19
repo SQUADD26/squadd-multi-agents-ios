@@ -192,7 +192,7 @@ final class DiagnosticsLogTests: XCTestCase {
             "osVersion": "iPhone OS 27.0.1 (24A100)",
             "deviceType": "iPhone18,1",
             "platformArchitecture": "arm64e",
-            "bundleIdentifier": "com.uzairansar.hermesmobile",
+            "bundleIdentifier": "com.squaddcrm.multiagents",
             "terminationReason": "Namespace SIGNAL, Code 0xb USER-SECRET",
             "virtualMemoryRegionInfo": "0 is not in any region. USER-SECRET",
             "exceptionReason": {

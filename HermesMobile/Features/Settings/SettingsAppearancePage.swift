@@ -73,10 +73,13 @@ struct SettingsAppearancePage: View {
                     SettingsLabel(title: String(localized: "Tint New Chat & Send"), systemImage: "paintbrush.pointed")
                 }
 
-                NavigationLink {
-                    ThinkingSliderPickerView()
-                } label: {
-                    SettingsLabel(title: String(localized: "Thinking Slider"), systemImage: "slider.horizontal.below.rectangle")
+                // Thinking is a webui and Hermes control (ADR 0002).
+                if HermesBackends.isEnabled {
+                    NavigationLink {
+                        ThinkingSliderPickerView()
+                    } label: {
+                        SettingsLabel(title: String(localized: "Thinking Slider"), systemImage: "slider.horizontal.below.rectangle")
+                    }
                 }
 
                 AppIconSettingsSection()

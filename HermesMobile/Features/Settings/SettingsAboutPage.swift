@@ -9,7 +9,6 @@ struct SettingsAboutPage: View {
     /// Why Troubleshoot with Hermes couldn't queue its chat text; nothing was queued.
     @State private var troubleshootingFailure: NewChatWithContentError?
     @State private var diagnostics = DiagnosticsModel()
-    @AppStorage(UsageReports.Keys.acceptedVersion) private var acceptedUsageVersion: Int?
 
     static var appVersion: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? String(localized: "Unknown")
@@ -67,56 +66,10 @@ struct SettingsAboutPage: View {
 
             Section {
                 SettingsExternalLink(title: String(localized: "Privacy Policy"), systemImage: "hand.raised", destination: AppConfig.privacyPolicyURL)
-                NavigationLink {
-                    SettingsUsageReportsPage()
-                } label: {
-                    LabeledContent {
-                        Text(acceptedUsageVersion != nil ? String(localized: "On") : String(localized: "Off"))
-                    } label: {
-                        SettingsLabel(title: String(localized: "Usage Reports"), systemImage: "chart.bar")
-                    }
-                }
                 SettingsExternalLink(title: String(localized: "Support"), systemImage: "questionmark.circle", destination: AppConfig.supportURL)
             }
 
-            Section {
-                Group {
-                    SettingsExternalLink(
-                        title: String(localized: "Become a supporter"),
-                        systemImage: "heart",
-                        destination: AppConfig.membershipURL,
-                        accessibilityLabel: String(localized: "Become a supporter, opens in browser")
-                    )
-                    SettingsExternalLink(
-                        title: String(localized: "Buy Uzi a coffee"),
-                        systemImage: "cup.and.saucer",
-                        destination: AppConfig.tipURL,
-                        accessibilityLabel: String(localized: "Buy Uzi a coffee, opens in browser")
-                    )
-                }
-                .environment(\.openURL, OpenURLAction { url in
-                    SessionListCardState(card: .tip, defaults: .standard).recordLinkOpened()
-                    return .systemAction(url)
-                })
-
-                SettingsExternalLink(
-                    title: String(localized: "Rate Hermex"),
-                    systemImage: "star",
-                    destination: AppConfig.writeReviewURL,
-                    accessibilityLabel: String(localized: "Rate Hermex, opens the App Store")
-                )
-
-                SettingsExternalLink(
-                    title: String(localized: "Star on GitHub"),
-                    systemImage: "chevron.left.forwardslash.chevron.right",
-                    destination: AppConfig.repositoryURL,
-                    accessibilityLabel: String(localized: "Star on GitHub, opens GitHub")
-                )
-                .environment(\.openURL, OpenURLAction { url in
-                    SessionListCardState(card: .star, defaults: .standard).recordLinkOpened()
-                    return .systemAction(url)
-                })
-            }
+            // Hermex's tip jar, rating and GitHub star links point to the Hermex maintainer, not to Squadd.
 
             Section {
                 NavigationLink {
@@ -203,21 +156,11 @@ private struct SupportDetailsSheet: View {
 #if DEBUG
 /// Maintainer tools for Debug builds. Not localized.
 struct SettingsDeveloperPage: View {
-    @AppStorage(UsageReports.Keys.debugForcesCard) private var forcesUsageReportsCard = false
-
     var body: some View {
         AppList {
             Section {
                 Button(String(localized: "Reset rating prompt state")) {
                     RatingPromptState.shared.reset()
-                }
-
-                // Turning it on forgets the usage reports answer, so the card asks again.
-                Toggle(isOn: Binding(get: { forcesUsageReportsCard }, set: { isOn in
-                    if isOn { UsageReports.shared.forgetAnswerForTesting() }
-                    forcesUsageReportsCard = isOn
-                })) {
-                    Text(verbatim: "Force usage reports card")
                 }
 
                 NavigationLink {

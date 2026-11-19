@@ -44,7 +44,6 @@ struct TasksView: View {
         content
             .themedPageBackground()
             .navigationTitle("Tasks")
-            .onAppear { UsageReports.shared.record(.tasks) }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Button {

@@ -53,13 +53,16 @@ struct SettingsComposerPage: View {
                 }
             }
 
-            Section {
-                Toggle(isOn: $showsChatFilesButton) {
-                    SettingsLabel(title: String(localized: "Files Button"), systemImage: "folder")
-                }
+            // Files and Git read a webui or Hermes workspace (ADR 0002).
+            if HermesBackends.isEnabled {
+                Section {
+                    Toggle(isOn: $showsChatFilesButton) {
+                        SettingsLabel(title: String(localized: "Files Button"), systemImage: "folder")
+                    }
 
-                Toggle(isOn: $showsChatGitControls) {
-                    SettingsLabel(title: String(localized: "Git Actions"), systemImage: "arrow.triangle.branch")
+                    Toggle(isOn: $showsChatGitControls) {
+                        SettingsLabel(title: String(localized: "Git Actions"), systemImage: "arrow.triangle.branch")
+                    }
                 }
             }
         }

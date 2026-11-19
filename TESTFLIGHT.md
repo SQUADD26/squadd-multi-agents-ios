@@ -4,7 +4,7 @@ Maintainer-only release procedures. Uploads, tester invitations, and App Store
 Connect changes require an explicit owner request. Contributors only need
 [DEVELOPMENT.md](DEVELOPMENT.md).
 
-These procedures target the production app, `com.uzairansar.hermesmobile`.
+These procedures target the production app, `com.squaddcrm.multiagents`.
 For the side-by-side **Hermex Branch** app, use the
 [branch upload commands](DEVELOPMENT.md#branch-testflight-upload-cli--the-push-to-branch-testflight-command).
 
@@ -177,7 +177,7 @@ Set `VERSION` to the full App Store version and `BUILD_ID` to the processed RC's
 App Store Connect resource ID, not its displayed build number. Use `status`,
 `versions list --platform IOS`, `builds list`, and `testflight groups list` to
 resolve the exact version, build, locales, and external group IDs. Verify the
-app is `com.uzairansar.hermesmobile` before writing. Avoid `--latest` when
+app is `com.squaddcrm.multiagents` before writing. Avoid `--latest` when
 promoting an RC: use the build recorded on the release issue throughout.
 
 Pull the previous released version's public metadata with `metadata pull` into
@@ -392,7 +392,7 @@ Review notes and App Privacy answers must match the submitted build:
 
 - Hermex is a native client for a user-configured, self-hosted Hermes server,
   with no in-app account creation or purchase flow.
-- There is no tracking; optional first-party usage reports. Account for what the server
+- There is no tracking and no usage reports. Account for what the server
   operator can access when providing an owner-hosted server to testers.
 - The composer supports camera capture, selected photos/files, and explicit
   voice input. Check permission descriptions against the app's current Info.plist.
@@ -444,7 +444,7 @@ to open the next release train.
 Feedback exported by Xcode lands on the maintainer's Mac at:
 
 ```
-~/Library/Developer/Xcode/Products/com.uzairansar.hermesmobile/Feedback/Points/
+~/Library/Developer/Xcode/Products/com.squaddcrm.multiagents/Feedback/Points/
 ```
 
 One `<id>.xcfeedbackpoint/` bundle per submission, each containing

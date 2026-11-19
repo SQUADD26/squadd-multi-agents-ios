@@ -110,7 +110,7 @@ struct SlashCommandAutocompleteView: View {
                 query: parsed.commandName,
                 skills: skillSuggestions,
                 agentCommands: agentCommands,
-                builtins: scope.builtins,
+                builtins: scope.offeredBuiltins,
                 matchesAliases: scope.isHermes
             )
         }

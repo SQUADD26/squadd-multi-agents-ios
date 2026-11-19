@@ -240,10 +240,10 @@ struct HermesAttemptRecord: Equatable, Sendable {
     /// iOS and Hermes releases, when the attempt started, and each stage's outcome.
     func report(app: String = Self.appVersion, system: String = Self.systemVersion) -> String {
         let lines = [
-            "Hermex connection details",
+            "Squadd Multi-Agents connection details",
             "App: \(app)",
             "iOS: \(system)",
-            "Server kind: \(self[.status] == .passed ? "Hermes" : "unknown")",
+            "Server kind: \(self[.status] == .passed ? "Squadd" : "unknown")",
             "Reported release: \(reportedRelease ?? "unknown")",
             "Tested release: \(HermesCompatibility.testedVersion)",
             "Attempt: \(startedText)"

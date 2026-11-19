@@ -82,7 +82,7 @@ import XCTest
         let replies: [(id: String, reply: HermesHostFixture.Reply, expected: String)] = [
             ("gone", .json(404, .object(["detail": .string("Job not found")])), "The server rejected the request: Job not found"),
             ("a1", .json(502, .string("Bad Gateway")),
-             "Your proxy answered, but Hermes didn't. Check that the dashboard is running on the host."),
+             "Your proxy answered, but Squadd didn't. Check that the dashboard is running on the host."),
             ("b2", .json(530, .string("")),
              "Cloudflare can't reach your tunnel. Check that cloudflared and the dashboard are running on the host.")
         ]
@@ -350,7 +350,7 @@ extension CronManagementViewModelTests {
 
         await viewModel.resume(viewModel.jobs[1])
         XCTAssertEqual(viewModel.jobs.map(\.state), ["scheduled", "scheduled"], "A failure leaves the row as it was")
-        XCTAssertEqual(viewModel.actionErrorMessage, "The Hermes server hit an internal error. Check the server logs, then try again.")
+        XCTAssertEqual(viewModel.actionErrorMessage, "The Squadd server hit an internal error. Check the server logs, then try again.")
 
         await viewModel.delete(viewModel.jobs[1])
         XCTAssertEqual(viewModel.jobs.map(\.jobId), ["a1"])

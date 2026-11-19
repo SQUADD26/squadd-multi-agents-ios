@@ -110,7 +110,7 @@ private struct StagedPhotoLibraryVideo {
             .appendingPathComponent("Hermex-Photo-Import-\(UUID().uuidString)", isDirectory: true)
         do {
             try fileManager.createDirectory(at: directoryURL, withIntermediateDirectories: false)
-            let filename = sourceURL.lastPathComponent.isEmpty ? "Hermex Video.mp4" : sourceURL.lastPathComponent
+            let filename = sourceURL.lastPathComponent.isEmpty ? "Squadd Video.mp4" : sourceURL.lastPathComponent
             let fileURL = directoryURL.appendingPathComponent(filename, isDirectory: false)
             try fileManager.copyItem(at: sourceURL, to: fileURL)
             self.fileURL = fileURL

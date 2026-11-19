@@ -220,11 +220,11 @@ final class BotConnectionVersionTests: XCTestCase {
         let hermes = URL(string: "https://hermes.example:9119")!
         let store = BotConnectionStore(keychain: InMemoryKeychainStore())
         let model = BotConnectionSetup(server: hermes, isServerSignIn: true,
-                                       error: "Hermes didn't accept the username or password.", store: store,
+                                       error: "Squadd didn't accept the username or password.", store: store,
                                        makeWire: { _ in ConnectionSetupWire() }, discard: { _ in })
         model.load()
         XCTAssertEqual(model.address, "https://hermes.example:9119")
-        XCTAssertEqual(model.errorMessage, "Hermes didn't accept the username or password.")
+        XCTAssertEqual(model.errorMessage, "Squadd didn't accept the username or password.")
 
         model.address = "https://elsewhere.example"; model.username = "me"; model.password = "secret"
         let saved = await model.connect()

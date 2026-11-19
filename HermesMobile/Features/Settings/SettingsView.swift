@@ -90,7 +90,7 @@ struct SettingsView: View {
                     SettingsLabel(title: String(localized: "General"), systemImage: "gearshape")
                 }
             } header: {
-                Text(verbatim: "Hermex")
+                Text(verbatim: "Squadd Multi-Agents")
             } appFooter: {
                 Text("Applies on this iPhone to every server.")
             }
@@ -153,7 +153,7 @@ private struct SettingsServerRow: View {
     /// The kind is a product name, so it stays untranslated.
     private var detail: String {
         if let movedTo { return String(localized: "Moved to \(movedTo)") }
-        return (account.kind == .hermes ? "Hermes" : account.kind == .squadd ? "Squadd Multi-Agents" : "webui") + " · " + hostFallback
+        return (account.kind == .hermes ? "Squadd" : account.kind == .squadd ? "Squadd Multi-Agents" : "webui") + " · " + hostFallback
     }
 
     var body: some View {

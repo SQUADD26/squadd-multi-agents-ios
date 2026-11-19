@@ -1689,7 +1689,7 @@ extension GitWorkspaceViewModelTests {
         XCTAssertFalse(committed)
         XCTAssertEqual(HermesGitHost.writes, ["unstage (all)", "stage a.swift", #"commit "feat(app): add a""#,
                                               "unstage (all)", "stage b.swift"])
-        XCTAssertEqual(sheet.actionErrorMessage, String(localized: "Git couldn’t finish this change on your Hermes host."))
+        XCTAssertEqual(sheet.actionErrorMessage, String(localized: "Git couldn’t finish this change on your Squadd host."))
         XCTAssertEqual(sheet.message, "feat(app): add a", "The message stays for a retry")
         XCTAssertEqual(HermesGitHost.requests.filter { $0.url?.path == "/api/git/review/list" }.count, statusReads + 2,
                        "The remembered staged files, then the status after the failure")
@@ -1870,7 +1870,7 @@ extension GitWorkspaceViewModelTests {
         let committed = await sheet.commitSelected(push: false)
 
         XCTAssertFalse(committed)
-        XCTAssertEqual(sheet.actionErrorMessage, String(localized: "Git couldn’t finish this change on your Hermes host."))
+        XCTAssertEqual(sheet.actionErrorMessage, String(localized: "Git couldn’t finish this change on your Squadd host."))
         XCTAssertEqual(HermesGitHost.writes, [])
     }
 
@@ -2143,7 +2143,7 @@ extension GitWorkspaceViewModelTests {
         let pulled = await availability.performRemoteAction(.pull)
 
         XCTAssertFalse(pulled)
-        XCTAssertEqual(availability.actionErrorMessage, String(localized: "Git couldn’t finish this change on your Hermes host."))
+        XCTAssertEqual(availability.actionErrorMessage, String(localized: "Git couldn’t finish this change on your Squadd host."))
         XCTAssertGreaterThan(HermesGitHost.requests.filter { $0.url?.path == "/api/git/status" }.count, statusReads)
     }
 

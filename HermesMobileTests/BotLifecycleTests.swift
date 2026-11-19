@@ -39,7 +39,7 @@ import XCTest
         let (creator, wire) = try makeCreator(roster: [row("triage")])
         creator.setTitle("Triage")
         XCTAssertFalse(creator.canCreate)
-        XCTAssertEqual(creator.nameProblem, "A bot named “triage” already exists on this Hermes.")
+        XCTAssertEqual(creator.nameProblem, "A bot named “triage” already exists on this Squadd.")
         creator.setTitle("Default")
         XCTAssertFalse(creator.canCreate)
         XCTAssertNotNil(creator.nameProblem)
@@ -154,7 +154,7 @@ import XCTest
         await creator.create()
 
         XCTAssertEqual(wire.calls.map(\.0), ["profiles.create"])
-        XCTAssertEqual(creator.outcomes[.profile], .failed("Hermes refused this name. It may already exist on the host."))
+        XCTAssertEqual(creator.outcomes[.profile], .failed("Squadd refused this name. It may already exist on the host."))
         XCTAssertNil(creator.outcomes[.look]); XCTAssertNil(creator.outcomes[.chat])
         XCTAssertEqual(creator.phase, .editing)
         XCTAssertTrue(creator.canCreate, "the user can try again after fixing things on the host")
@@ -237,7 +237,7 @@ import XCTest
         await creator.create()
 
         XCTAssertEqual(creator.phase, .created)
-        XCTAssertEqual(creator.note, "No model is set for this bot yet. Pick one in Edit or in Hermes Desktop before chatting.")
+        XCTAssertEqual(creator.note, "No model is set for this bot yet. Pick one in Edit or in Squadd Desktop before chatting.")
     }
 
     func testReplacedConnectionAbortsBeforeAnyWrite() async throws {
@@ -407,7 +407,7 @@ import XCTest
         await inbox.open()
 
         await inbox.delete(inbox.profiles[0])
-        XCTAssertEqual(inbox.notice, "Hermes did not delete this bot. It is still on the host.")
+        XCTAssertEqual(inbox.notice, "Squadd did not delete this bot. It is still on the host.")
         XCTAssertEqual(inbox.profiles.map(\.id), ["triage"]); XCTAssertEqual(purged, 0)
         XCTAssertTrue(inbox.mayEdit(inbox.profiles[0]))
 

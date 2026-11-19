@@ -616,9 +616,9 @@ final class OnboardingViewModelIdentityTests: XCTestCase {
     func testAHostHeaderRefusalOrAnAccessSignInShowsItsAdviceWithoutFallingThrough() async {
         let rows: [(HermesHostFixture.Reply, String)] = [
             (.json(400, .object(["detail": .string("Invalid Host header. Dashboard requests must use the bound hostname or the configured public hostname.")])),
-             "Hermes doesn't accept hermes.example as its address. On the host, set dashboard.public_url to https://hermes.example, then restart the dashboard."),
+             "Squadd doesn't accept hermes.example as its address. On the host, set dashboard.public_url to https://hermes.example, then restart the dashboard."),
             (.json(401, .string("Sign in to Access")),
-             "Something in front of Hermes, such as Cloudflare Access, wants its own sign-in first. Add its service token under Connection Headers in the Hermes connection, or use an address that skips it, such as the dashboard's local network address.")
+             "Something in front of Squadd, such as Cloudflare Access, wants its own sign-in first. Add its service token under Connection Headers in the Squadd connection, or use an address that skips it, such as the dashboard's local network address.")
         ]
         for (reply, advice) in rows {
             let (gatekeeper, manager) = makeOpenWebui()
@@ -641,11 +641,11 @@ final class OnboardingViewModelIdentityTests: XCTestCase {
         let rows: [(String, HermesHostFixture.Reply, String, Int)] = [
             ("/auth/password-login", .json(429, .object([:])), "Too many sign-in attempts. Wait a minute, then try again.", 1),
             ("/auth/password-login", .json(401, .object(["error": .string("invalid_credentials")])),
-             "Hermes didn't accept the username or password.", 1),
+             "Squadd didn't accept the username or password.", 1),
             ("/api/status", .json(200, oldStatus),
-             "This Hermes host runs 0.20.0. Hermex needs Hermes 0.21.3 or later. Update Hermes on the host, then try again.", 0),
+             "This Squadd host runs 0.20.0. Squadd Multi-Agents needs Squadd 0.21.3 or later. Update Squadd on the host, then try again.", 0),
             ("/api/status", .json(200, browserOnly),
-             "This Hermes host only offers sign-in with a browser, which Hermex doesn't support yet. To connect now, add a dashboard username and password on the host.", 0)
+             "This Squadd host only offers sign-in with a browser, which Squadd Multi-Agents doesn't support yet. To connect now, add a dashboard username and password on the host.", 0)
         ]
         for (path, reply, copy, logins) in rows {
             HermesHostFixture.reset()

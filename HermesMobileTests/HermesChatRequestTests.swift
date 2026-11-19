@@ -173,7 +173,7 @@ import XCTest
             XCTAssertFalse(taken, "\(reply)")
             XCTAssertEqual(chat.requests.onScreen?.requestID, "q-1", "card kept for \(reply)")
             XCTAssertEqual(chat.requests.errorMessage,
-                           "Answer outcome unknown. Check Hermes Desktop before answering again.", "\(reply)")
+                           "Answer outcome unknown. Check Squadd Desktop before answering again.", "\(reply)")
             XCTAssertEqual(chat.writes("approval.respond").count, 1, "never resent for \(reply)")
             XCTAssertTrue(chat.requests.mayAnswer, "a deliberate second tap stays possible")
             // The host settling it elsewhere still retires the card.

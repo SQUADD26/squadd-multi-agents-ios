@@ -10,7 +10,7 @@ Hermex is on the App Store and people run it against their own servers every day
 
 ### 1. Open at the core
 
-Hermex is truly open. We share our roadmap (GitHub Issues), we share how we think about things, and of course we share all our code. There is no Hermex hosted backend, analytics service, or tracking layer: agent work and data stay on the user's hardware. Push notifications are the one exception, and they are optional and off until enabled: they route through an open-source, self-hostable relay (`uzairansaruzi/hermex-push`) that sees device tokens, notification metadata, and ciphertext, never message text, server URLs, or Hermes server credentials. `docs/agents/push.md` has the details. Usage reports are the second exception, also optional and off until allowed: a weekly summary of versions, feature use and counts, posted to an open-source collector (`uzairansaruzi/hermex-stats`) and never carrying message text, server addresses, credentials or file names. `docs/agents/usage-reports.md` has the details. Content the user's agent produces, such as an HTML report rendered in a chat or an HTML file previewed from the workspace, can load remote resources the way a browser would; that traffic goes where the page points, not to Hermex infrastructure. We work in the open, and should strive to stay that way.
+Hermex is truly open. We share our roadmap (GitHub Issues), we share how we think about things, and of course we share all our code. There is no Hermex hosted backend, analytics service, or tracking layer: agent work and data stay on the user's hardware. Push notifications are the one exception, and they are optional and off until enabled: they route through an open-source, self-hostable relay (`uzairansaruzi/hermex-push`) that sees device tokens, notification metadata, and ciphertext, never message text, server URLs, or Hermes server credentials. `docs/agents/push.md` has the details. Usage reports are off: this app sends no usage data to any third party. Content the user's agent produces, such as an HTML report rendered in a chat or an HTML file previewed from the workspace, can load remote resources the way a browser would; that traffic goes where the page points, not to Hermex infrastructure. We work in the open, and should strive to stay that way.
 
 ### 2. Performance without compromise
 
@@ -77,7 +77,7 @@ The most common defect in this repo is a change that works on the path you teste
 - **Reverse states.** If you added a way in, add the way out and the way to see it. Archive needs restore. Pin needs unpin. Start needs stop. Optimistic mutation needs rollback. A one-way door is a bug.
 - **Connection modes.** `localhost`, Tailscale, and tunnel behave differently; Cloudflare closes quiet streams. Backgrounding, reconnecting, and reattaching to a live stream instead of resending the message are real cases.
 - **Native quality.** Dynamic Type, VoiceOver labels, Reduce Motion, light and dark appearance, keyboard focus, and localization. Read `docs/agents/i18n.md` before touching the String Catalog, plurals, casing, or RTL.
-- **Docs.** Agent conventions live in `docs/agents/`; new vocabulary in `CONTEXT.md`; build and simulator mechanics in `DEVELOPMENT.md`; Hermes connection, reconnect, and feature detection in `docs/agents/hermes-server.md`; webui parity in `docs/agents/feature-gap-index.md`, and what a Hermes host still lacks against webui in #1668; Kanban contract and behavior rules in `docs/agents/kanban.md`. Push components, keys, and relay data in `docs/agents/push.md`; usage report contract, consent, and collector in `docs/agents/usage-reports.md`. Performance rules and their guards in `docs/agents/performance.md`. `CHANGELOG.md` is written at release time, not per PR.
+- **Docs.** Agent conventions live in `docs/agents/`; new vocabulary in `CONTEXT.md`; build and simulator mechanics in `DEVELOPMENT.md`; Hermes connection, reconnect, and feature detection in `docs/agents/hermes-server.md`; webui parity in `docs/agents/feature-gap-index.md`, and what a Hermes host still lacks against webui in #1668; Kanban contract and behavior rules in `docs/agents/kanban.md`. Push components, keys, and relay data in `docs/agents/push.md`. Performance rules and their guards in `docs/agents/performance.md`. `CHANGELOG.md` is written at release time, not per PR.
 
 ## Working with the server
 
@@ -146,7 +146,7 @@ Canonical vocabulary: `CONTEXT.md`.
 - `HermesMobile/Push/` - APNs registration: the build's push environment, per-server pairing keys in the shared Keychain access group, the relay client, and the app delegate that receives device tokens.
 - `HermesShareExtension/` and `HermesLiveActivityWidget/` - separate targets. Shared files need target-membership checks.
 - `HermesMobileTests/` - the XCTest suite, one target directory. Keep tests near the behavior in name and scope.
-- `Config/`, `ci/`, and `.github/workflows/` - signing, CI, and release configuration. Treat edits there as release-sensitive. App identity resolves through xcconfig and is not grep-able: bundle ID `com.uzairansar.hermesmobile`, tests `….tests`, Team `6GYD9C9N6R`, SKU `hermes-mobile-ios`.
+- `Config/`, `ci/`, and `.github/workflows/` - signing, CI, and release configuration. Treat edits there as release-sensitive. App identity resolves through xcconfig and is not grep-able: bundle ID `com.squaddcrm.multiagents`, tests `….tests`, Team `SSCUGDMCBD`, SKU `hermes-mobile-ios`.
 - `.codex-tmp/hermes-webui/` - the gitignored, read-only upstream reference. Prefer its patterns over invented ones. Never edit or import from it; refresh with `git pull` when advancing the pin.
 
 ## Taste
@@ -168,7 +168,7 @@ For App Store release preparation, tester management, submission, or publication
 use `scripts/app-store` and `TESTFLIGHT.md` § App Store Connect CLI. The command
 defaults to read-only; `--write` is for an explicitly authorized change.
 
-"push to branch testflight" means upload the current branch to the side-by-side **Hermex Branch** internal TestFlight app (`com.uzairansar.hermesmobile.branch`). It is a TestFlight upload, **not** a git push. Validate and commit first, then run `scripts/branch-testflight` from the feature branch (`DEVELOPMENT.md` has the details). Never touch the production `com.uzairansar.hermesmobile` app, invite testers, or change App Store Connect state unless explicitly asked. `TESTFLIGHT.md` owns release gates.
+"push to branch testflight" means upload the current branch to the side-by-side **Hermex Branch** internal TestFlight app (`com.squaddcrm.multiagents.branch`). It is a TestFlight upload, **not** a git push. Validate and commit first, then run `scripts/branch-testflight` from the feature branch (`DEVELOPMENT.md` has the details). Never touch the production `com.squaddcrm.multiagents` app, invite testers, or change App Store Connect state unless explicitly asked. `TESTFLIGHT.md` owns release gates.
 
 ## Additional tips
 

@@ -1,6 +1,7 @@
 import Foundation
 import Security
 import XCTest
+@testable import HermesMobile
 
 /// Keeps a test run from signing the simulator's Hermex out. The tests run inside the app as
 /// their host, so a test that reaches the real Keychain, cookie jar or standard defaults changes
@@ -17,6 +18,8 @@ final class TestHostStateGuard: NSObject, XCTestObservation {
 
     override init() {
         super.init()
+        // The Hermex suite tests the Hermes and webui backends, whatever the build ships (ADR 0002).
+        HermesBackends.isEnabled = true
         XCTestObservationCenter.shared.addTestObserver(self)
     }
 

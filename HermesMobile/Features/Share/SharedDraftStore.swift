@@ -198,7 +198,7 @@ struct SharedImportReservation: Equatable, Identifiable {
 enum HermesShareDraft {
     static var appGroupIdentifier: String {
         Bundle.main.object(forInfoDictionaryKey: "HermesAppGroupIdentifier") as? String
-            ?? "group.com.uzairansar.hermesmobile"
+            ?? "group.com.squaddcrm.multiagents"
     }
 
     // Legacy single-slot names. Existing installs may still have one of these records.

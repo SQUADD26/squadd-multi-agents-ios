@@ -244,7 +244,7 @@ import Observation
         await work.interrupt(action)
 
         XCTAssertEqual(wire.calls.map(\.method), ["subagent.list", "subagent.list"])
-        XCTAssertEqual(work.errorMessage, "This Hermes connection no longer owns these workers. Reconnect to inspect them.")
+        XCTAssertEqual(work.errorMessage, "This Squadd connection no longer owns these workers. Reconnect to inspect them.")
         XCTAssertEqual(work.availability, .supported)
         XCTAssertNil(work.interruptingWorker)
     }

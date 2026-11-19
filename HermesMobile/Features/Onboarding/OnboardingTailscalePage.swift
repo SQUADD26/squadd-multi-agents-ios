@@ -21,7 +21,7 @@ struct OnboardingTailscalePage: View {
                     Button(action: openTailscaleInAppStore) {
                         Label("Get Tailscale on the App Store", systemImage: "arrow.up.forward.square")
                             .font(AppFont.subheadline(weight: .semibold))
-                            .foregroundStyle(Color(red: 1.0, green: 0.74, blue: 0.10))
+                            .foregroundStyle(Color(red: 0.90, green: 0.91, blue: 0.92))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 14)
                             .padding(.vertical, 13)
@@ -55,7 +55,7 @@ struct OnboardingTailscalePage: View {
                 .font(AppFont.caption(weight: .bold))
                 .foregroundStyle(.black)
                 .frame(width: 23, height: 23)
-                .background(Color(red: 1.0, green: 0.74, blue: 0.10), in: Circle())
+                .background(Color(red: 0.90, green: 0.91, blue: 0.92), in: Circle())
 
             Text(text)
                 .font(AppFont.subheadline())

@@ -161,6 +161,23 @@ import Observation
         XCTAssertEqual(chat.writes("session.mutate").last?["expected_generation"], .number(3))
     }
 
+    /// Without the Hermes backends (ADR 0002) a chat offers neither Thinking nor Fast, whatever
+    /// the host says.
+    func testThinkingAndFastHideWithTheHermesBackendsOff() async throws {
+        let chat = await openChat(canonical: true)
+        chat.host.always("model.options", .init(result: Self.catalog(active: "claude-opus")))
+        await chat.turn.settings.controls.reload()
+        chat.receive(.object(["session_id": .string("tip"), "seq": .number(1), "type": .string("session.info"),
+                              "payload": .object(["fast": .bool(true)])]))
+        await waitUntil("fast") { chat.model.composerFastMode == true }
+
+        HermesBackends.isEnabled = false
+        defer { HermesBackends.isEnabled = true }
+
+        XCTAssertNil(chat.model.composerFastMode)
+        XCTAssertFalse(chat.model.showsReasoningEffortControl)
+    }
+
     /// A canonical Fast toggle is `config.set fast` without the `scope` the host refuses there,
     /// acknowledged as recorded; it changes this chat alone.
     func testACanonicalFastToggleSendsNoScope() async throws {
@@ -294,7 +311,7 @@ import Observation
         for word in ["show", "hide", "off"] {
             let refused = await chat.model.executeSlashCommand(Self.command("reasoning"), args: word)
             XCTAssertEqual(refused, .unsupported(friendlyMessage:
-                "On a Hermes host, /reasoning \(word) changes display settings for every client, so Hermex doesn't send it."))
+                "On a Squadd host, /reasoning \(word) changes display settings for every client, so Squadd Multi-Agents doesn't send it."))
         }
         let usage = await chat.model.executeSlashCommand(Self.command("reasoning"), args: "")
         XCTAssertEqual(usage, .unsupported(friendlyMessage: "Usage: /reasoning none|minimal|low|medium|high|xhigh|max|ultra"))
@@ -1013,7 +1030,7 @@ import Observation
         let moved = await chat.model.confirmHermesFolderMove("/Users/me/gone")
         XCTAssertFalse(moved)
         XCTAssertEqual(chat.model.composerConfigurationErrorMessage,
-                       "Hermes can't find the folder /Users/me/gone, so the session didn't move.")
+                       "Squadd can't find the folder /Users/me/gone, so the session didn't move.")
         XCTAssertEqual(chat.writes("session.workspace.move").count, 1)
         XCTAssertEqual(chat.model.selectedWorkspacePath, "/Users/me/notes")
     }

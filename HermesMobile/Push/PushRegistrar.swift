@@ -64,7 +64,7 @@ enum PushRegistrarError: Error, Equatable {
         return PushRegistrar(store: store)
     }()
 
-    private static let logger = Logger(subsystem: "com.uzairansar.hermesmobile", category: "push")
+    private static let logger = Logger(subsystem: "com.squaddcrm.multiagents", category: "push")
 
     private let store: any PushPairingStoring
     private let relay: any PushRelayRegistering

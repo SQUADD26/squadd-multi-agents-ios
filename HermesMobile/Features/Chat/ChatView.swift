@@ -309,8 +309,11 @@ struct ChatView: View {
     @AppStorage(ChatTranscriptDisplaySettings.thinkingAndToolCardsKey) private var thinkingAndToolCards = ThinkingAndToolCards.collapsed
     @AppStorage(ChatTranscriptDisplaySettings.foldsSettledTurnsKey) private var foldsSettledTurns = true
     @AppStorage(ChatTranscriptDisplaySettings.rtlChatLayoutEnabledKey) private var rtlChatLayoutEnabled = ChatTranscriptDisplaySettings.rtlChatLayoutDefaultEnabled
-    @AppStorage(SectionVisibilitySettings.chatFilesKey) private var showsFilesButton = true
-    @AppStorage(SectionVisibilitySettings.chatGitKey) private var showsGitControls = true
+    @AppStorage(SectionVisibilitySettings.chatFilesKey) private var storedShowsFilesButton = true
+    @AppStorage(SectionVisibilitySettings.chatGitKey) private var storedShowsGitControls = true
+    /// Files and Git read a webui or Hermes workspace (ADR 0002).
+    private var showsFilesButton: Bool { HermesBackends.isEnabled && storedShowsFilesButton }
+    private var showsGitControls: Bool { HermesBackends.isEnabled && storedShowsGitControls }
 
     let session: SessionSummary
     let server: URL
@@ -2298,7 +2301,7 @@ struct ChatView: View {
 
     /// A Hermes chat's delegated workers (#1140). Nil on the offline cache's copy, which lists none.
     private var delegatedWork: HermesDelegatedWork? {
-        viewModel.isViewingCachedData ? nil : viewModel.hermesActivity?.delegatedWork
+        !HermesBackends.isEnabled || viewModel.isViewingCachedData ? nil : viewModel.hermesActivity?.delegatedWork
     }
 
     /// A bot's chat has no subtitle to tap, since the pill opens its bot.
@@ -2424,7 +2427,7 @@ struct ChatView: View {
     /// What ⌘⇧S and the header's Screen button open while this chat is on screen (#1633, #1640): its
     /// card's Screen, except while the chat shows that the host doesn't serve its Profile.
     private var screenShortcut: BotScreenOpener? {
-        viewModel.errorUnserved == nil ? openBotScreen : nil
+        HermesBackends.isEnabled && viewModel.errorUnserved == nil ? openBotScreen : nil
     }
 
     /// The header's Screen button (#1640), last among the trailing actions so the others don't
@@ -2439,7 +2442,7 @@ struct ChatView: View {
     /// A Hermes chat's Screen card (#1632, #1633), while the Bots home or `SessionScreenModifier`
     /// offers its Screen (`openBotScreen`).
     private var botScreenCard: BotScreenCard? {
-        guard let openBotScreen, !viewModel.isViewingCachedData, let use = viewModel.hermesScreenUse else { return nil }
+        guard HermesBackends.isEnabled, let openBotScreen, !viewModel.isViewingCachedData, let use = viewModel.hermesScreenUse else { return nil }
         return BotScreenCard(use: use, open: { openBotScreen(takingOver: false) }, takeOver: { openBotScreen(takingOver: true) })
     }
 

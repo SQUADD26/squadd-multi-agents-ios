@@ -117,7 +117,7 @@ final class ListenRemoteControlController: ListenRemoteControlControlling {
     func update(_ snapshot: ListenNowPlayingSnapshot) {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = [
             MPMediaItemPropertyTitle: snapshot.title,
-            MPMediaItemPropertyArtist: "Hermex",
+            MPMediaItemPropertyArtist: "Squadd Multi-Agents",
             MPMediaItemPropertyPlaybackDuration: max(0, snapshot.duration),
             MPNowPlayingInfoPropertyElapsedPlaybackTime: max(0, snapshot.elapsedTime),
             MPNowPlayingInfoPropertyPlaybackRate: snapshot.isPlaying ? snapshot.speed.rawValue : 0,
@@ -601,6 +601,8 @@ final class ChatViewModel {
     private var reasoningGatingFetchToken = 0
     /// A Hermes session shows it unless the host marks the model `reasoning: false` (#1016).
     var showsReasoningEffortControl: Bool {
+        // Thinking is a webui and Hermes control (ADR 0002).
+        guard HermesBackends.isEnabled else { return false }
         if let hermesSettings { return hermesSettings.showsEffort }
         return ReasoningEffortOption.showsEffortControl(
             supportsReasoningEffort: supportsReasoningEffort,
@@ -1050,7 +1052,7 @@ final class ChatViewModel {
     var composerSentReasoningEffort: String? { hermesSettings?.sentEffort }
 
     /// A Hermes session's Fast mode (#1142); nil hides its row, as on a webui session.
-    var composerFastMode: Bool? { hermesSettings?.fast }
+    var composerFastMode: Bool? { HermesBackends.isEnabled ? hermesSettings?.fast : nil }
 
     /// Whether that Fast mode can change now (#1142).
     var composerMayChangeFastMode: Bool { hermesSettings?.mayChangeFast == true }
@@ -5054,7 +5056,8 @@ final class ChatViewModel {
     /// before restoring from one (`pendingHermesRollback`). A diff or restore reads the list
     /// first and sends the hash of the checkpoint the number names now.
     private func rollbackFromSlashCommand(_ args: String) async -> SlashCommandExecutionResult {
-        guard let hermes = hermesTurn else {
+        // Checkpoints are a Hermes host's (ADR 0002).
+        guard HermesBackends.isEnabled, let hermes = hermesTurn else {
             return .unsupported(friendlyMessage: SlashCommandExecutor.unsupportedMessage(for: "rollback"))
         }
         guard let command = HermesRollbackCommand(args) else {
@@ -6638,6 +6641,8 @@ final class ChatViewModel {
     /// `unsentHermesEdit` for the composer, and the reason says so.
     private func rewindHermesTranscript(before rowID: Int, sending text: String, on hermes: HermesChatTurnCoordinator,
                                         reconnect: String, retrying: HermesChatActivity.RetryTarget? = nil) async -> String? {
+        // Rewind is a Hermes host's (ADR 0002).
+        guard HermesBackends.isEnabled else { return String(localized: "Not available") }
         guard !isHermesSubmissionUncertain else { return reconnect }
         sendErrorMessage = nil
         lastError = nil

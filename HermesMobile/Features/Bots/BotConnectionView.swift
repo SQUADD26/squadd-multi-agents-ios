@@ -558,7 +558,7 @@ extension BotHostStatus {
             let url = isServerSignIn ? server : try BotConnection.address(address); attempted = url
             let account = isOpen ? "" : username.trimmingCharacters(in: .whitespacesAndNewlines)
             let secret = isOpen ? "" : password
-            let label = name.isEmpty ? (url.host ?? "Hermes") : name
+            let label = name.isEmpty ? (url.host ?? "Squadd") : name
             let expected = replacingHost || saved?.address != url ? nil : saved?.installID
             let wire = makeWire(BotConnection(id: UUID(), name: label, address: url, username: account,
                                               password: secret, installID: expected, headers: sent))
@@ -601,7 +601,7 @@ extension BotHostStatus {
         var browserConnection: HermesConnection?
         do {
             let admitted = try HermesHeaders(headers.sanitizedForStorage(), signsInWithBrowser: true).values
-            let label = name.isEmpty ? (server.host ?? "Hermes") : name
+            let label = name.isEmpty ? (server.host ?? "Squadd") : name
             let expected = replacingHost || saved?.address != server ? nil : saved?.installID
             let http = HermesConnection(connection: BotConnection(
                 id: UUID(), name: label, address: server, username: "", password: "",

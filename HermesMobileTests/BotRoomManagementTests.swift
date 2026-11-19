@@ -111,7 +111,7 @@ import XCTest
         XCTAssertTrue(reconciled); XCTAssertEqual(wire.listCalls, 1)
         wire.writeFailure = BotRoomFailure(code: 4123, reason: nil)
         await creator.create()
-        XCTAssertTrue(creator.message?.contains("Restart the Hermes gateway") == true)
+        XCTAssertTrue(creator.message?.contains("Restart the Squadd gateway") == true)
         XCTAssertNil(creator.created)
     }
 

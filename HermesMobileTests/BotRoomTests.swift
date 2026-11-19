@@ -448,7 +448,7 @@ import XCTest
         let wire = RoomWire(); let reader = makeReader(wire)
         wire.failure = BotRoomFailure(code: 4123, reason: nil)
         await reader.open()
-        XCTAssertTrue(reader.errorMessage?.contains("Restart the Hermes gateway") == true)
+        XCTAssertTrue(reader.errorMessage?.contains("Restart the Squadd gateway") == true)
         reader.close()
     }
 
@@ -851,7 +851,7 @@ import XCTest
         XCTAssertEqual(reader.link, .stopped)
         XCTAssertTrue(reader.needsSignIn)
         XCTAssertEqual(reader.events.map(\.seq), [1, 2, 3], "the saved history is back on screen")
-        XCTAssertEqual(reader.errorMessage, "Hermes didn't accept the username or password.")
+        XCTAssertEqual(reader.errorMessage, "Squadd didn't accept the username or password.")
     }
 
     func testRoomMentionsUseHandlesAndIncludeBroadcastTargets() throws {
