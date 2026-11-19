@@ -28,6 +28,7 @@ jobs:
       HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       BASE_SHA: ${{ github.event.pull_request.base.sha }}
       DERIVED_DATA: ${{ github.workspace }}/../../DerivedData
+      TEST_TIMES: ${{ github.workspace }}/../../test-times.json
       SIMULATOR_NAME: Squadd multi CI
       TEST_RUNNER_HERMEX_CI: "1"
       TEST_RUNNER_FOTO_DIR: ${{ github.workspace }}/ci-foto
@@ -75,7 +76,7 @@ jobs:
             -derivedDataPath "${DERIVED_DATA}" -disableAutomaticPackageResolution -enableCodeCoverage NO \
             COMPILER_INDEX_STORE_ENABLE=NO CODE_SIGNING_ALLOWED=NO -quiet
 
-      # Photo classes are the slow ones (seconds each): they alternate between the two simulators.
+      # Classes split by the seconds they took last time (photo classes take seconds): both simulators end together.
       - name: Tests of the touched files
         env:
           ONE: ${{ steps.sim.outputs.udid }}
@@ -84,17 +85,13 @@ jobs:
           set -euo pipefail
           mkdir -p "${TEST_RUNNER_FOTO_DIR}"
           [[ -s "${RUNNER_TEMP}/tests.txt" ]] || { echo "No test touched."; exit 0; }
-          cd "${RUNNER_TEMP}"
-          grep -v Photo tests.txt > one.txt || true
-          grep Photo tests.txt | awk '{ print > (NR % 2 ? "two.txt" : "one-photos.txt") }'
-          cat one-photos.txt >> one.txt 2> /dev/null || true
-          cd "${GITHUB_WORKSPACE}"
+          (cd "${RUNNER_TEMP}" && python3 "${GITHUB_WORKSPACE}/ci/pr_split.py" split "${TEST_TIMES}" < tests.txt)
           run() {
             xcodebuild test-without-building -project HermesMobile.xcodeproj -scheme HermesMobile \
               -destination "platform=iOS Simulator,id=$1" -derivedDataPath "${DERIVED_DATA}" \
               -disableAutomaticPackageResolution -parallel-testing-enabled NO -collect-test-diagnostics never \
               -resultBundlePath "${RUNNER_TEMP}/$2.xcresult" $(cat "${RUNNER_TEMP}/$2.txt") \
-              | grep -E "^Test (Case|Suite)|: error: -\[|\*\* TEST"
+              | grep -E "^Test (Case|Suite)|: error: -\[|\*\* TEST" | tee "${RUNNER_TEMP}/$2.log"
           }
           pids=()
           for half in one two; do
@@ -104,6 +101,7 @@ jobs:
           done
           failed=0
           for pid in "${pids[@]}"; do wait "${pid}" || failed=1; done
+          python3 ci/pr_split.py record "${TEST_TIMES}" "${RUNNER_TEMP}"/*.log
           exit "${failed}"
 
       # Icon, launch screen and first screen: no test reaches them, so the installed app is photographed.
