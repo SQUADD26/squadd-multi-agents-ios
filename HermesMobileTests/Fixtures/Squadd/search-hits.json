@@ -1,0 +1,18 @@
+{
+  "hits": [
+    {
+      "threadId": "efb8fa96-47ef-4968-bb13-ce9aacada117",
+      "messageId": "d52ddaff-71df-48b0-9f28-9bf6f5caecd6",
+      "at": 1795112269780,
+      "role": "user",
+      "kind": "text",
+      "snippet": "ciao zucchero",
+      "matchStart": 5,
+      "matchLength": 8,
+      "botId": "115b3d10-f305-4bef-8826-12c4856a6c97",
+      "name": "Fixture Starter",
+      "task": "ciao zucchero",
+      "onActivePath": true
+    }
+  ]
+}

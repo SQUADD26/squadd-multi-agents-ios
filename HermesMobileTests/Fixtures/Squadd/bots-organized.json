@@ -1,0 +1,130 @@
+{
+  "bots": [
+    {
+      "id": "115b3d10-f305-4bef-8826-12c4856a6c97",
+      "threadId": "e6621138-a11d-4430-a71c-1a7d84655853",
+      "name": "Fixture Starter",
+      "title": "",
+      "description": "",
+      "soul": "",
+      "soulHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "notifications": true,
+      "color": "chrome",
+      "unread": true,
+      "modelSelection": {
+        "instanceId": "claude",
+        "model": "claude-sonnet-5-5"
+      },
+      "createdAt": 1795112269162,
+      "chiefOfStaff": true,
+      "hidden": false,
+      "defaultBot": {},
+      "activity": "idle",
+      "busy": false,
+      "projects": [
+        {
+          "id": "aa979bc8-6f82-4832-93ef-8db11aee6b31",
+          "name": "Interni"
+        },
+        {
+          "id": "b0c17762-27e5-4edb-a095-55708b5b549b",
+          "name": "Clienti"
+        }
+      ],
+      "approvalMode": "full",
+      "waitingForTeammates": false,
+      "mainThreadId": "efb8fa96-47ef-4968-bb13-ce9aacada117",
+      "avatarUrl": null,
+      "tasks": [
+        {
+          "threadId": "e6621138-a11d-4430-a71c-1a7d84655853",
+          "title": "Prova B",
+          "createdAt": 1795112270797,
+          "updatedAt": 1795112270797,
+          "approvalMode": "full",
+          "autoApprove": false,
+          "alwaysAllow": [],
+          "unread": false,
+          "activity": "idle",
+          "busy": false,
+          "archivedAt": 1795112270858,
+          "modelSelection": {
+            "instanceId": "claude",
+            "model": "claude-sonnet-5-5"
+          },
+          "followsBotModel": true,
+          "waitingForTeammates": false
+        },
+        {
+          "threadId": "ad0bec87-7c36-40ca-a3ce-b5a991c6e22f",
+          "title": "Rinominato",
+          "createdAt": 1795112270794,
+          "updatedAt": 1795112270794,
+          "approvalMode": "full",
+          "autoApprove": false,
+          "alwaysAllow": [],
+          "unread": false,
+          "activity": "idle",
+          "busy": false,
+          "projectId": "b0c17762-27e5-4edb-a095-55708b5b549b",
+          "pinned": true,
+          "modelSelection": {
+            "instanceId": "claude",
+            "model": "claude-sonnet-5-5"
+          },
+          "followsBotModel": true,
+          "waitingForTeammates": false
+        },
+        {
+          "threadId": "efb8fa96-47ef-4968-bb13-ce9aacada117",
+          "title": "ciao zucchero",
+          "createdAt": 1795112269162,
+          "updatedAt": 1795112270595,
+          "unread": true,
+          "activity": "idle",
+          "busy": false,
+          "titleFromFirstMessage": true,
+          "lastThreadOrderAt": 1795112270593,
+          "cwd": "/fixture-home/.openmausbot/task-workspaces/115b3d10-f305-4bef-8826-12c4856a6c97/efb8fa96-47ef-4968-bb13-ce9aacada117",
+          "usage": {
+            "input": 12,
+            "output": 5,
+            "cachedInput": 2,
+            "costUsd": 0.01,
+            "turns": 1,
+            "lastTurn": {
+              "input": 12,
+              "output": 5,
+              "cachedInput": 2,
+              "costUsd": 0.01
+            },
+            "context": {
+              "tokens": 12,
+              "window": 1000000
+            }
+          },
+          "modelSelection": {
+            "instanceId": "claude",
+            "model": "claude-sonnet-5-5"
+          },
+          "followsBotModel": true,
+          "waitingForTeammates": false
+        }
+      ],
+      "messages": [],
+      "activeLeafId": null
+    }
+  ],
+  "botQueuedMessages": {},
+  "sections": [],
+  "groups": [],
+  "computerControl": {
+    "115b3d10-f305-4bef-8826-12c4856a6c97": {
+      "held": false,
+      "helpReason": null
+    }
+  },
+  "together": {
+    "newBot": true
+  }
+}
