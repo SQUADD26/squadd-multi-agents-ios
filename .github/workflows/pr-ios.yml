@@ -37,16 +37,20 @@ jobs:
       TEST_RUNNER_BRAND_PHOTOS_DIR: ${{ github.workspace }}/ci-foto
       # Untracked: the runner neither waits for nor kills the build daemons (ibtoold) at the end; they stay warm.
       RUNNER_TRACKING_ID: ""
+    # Three steps, not one per part: each step costs ~0.35 s to start and ~0.5 s to upload its log at the end.
+    # The parts stay apart as groups in the log.
     steps:
       # This branch's own checkout and DerivedData (ci/pr_state.py), then a fetch of the head and dev: unchanged
       # files keep their dates, so the build recompiles only what changed since this branch's last run. Then the
-      # two simulators, booted once and kept on between runs. Public repo: no credentials written.
-      - name: Code and simulators
+      # two simulators, booted once and kept on between runs, and the build. Public repo: no credentials written.
+      # nice: the build gives way to Roberto's own work when both want the CPU, at full speed otherwise.
+      - name: Code, simulators and build
         id: sim
         env:
           BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
+          echo "::group::Code and simulators"
           dev="+refs/heads/dev:refs/remotes/origin/dev"
           git fetch -q --no-tags origin "${HEAD_SHA}" "${dev}"
           git show "${HEAD_SHA}:ci/pr_state.py" > "${RUNNER_TEMP}/pr_state.py"
@@ -65,26 +69,23 @@ jobs:
             xcrun simctl bootstatus "${udid}" -b > /dev/null
             echo "${udid}"
           done | { read -r one; read -r two; echo "udid=${one}"; echo "udid2=${two}"; } >> "$GITHUB_OUTPUT"
-
-      # nice: the build gives way to Roberto's own work when both want the CPU, at full speed otherwise.
-      - name: Build
-        run: |
-          set -euo pipefail
+          echo "::endgroup::"
+          one=$(sed -n 's/^udid=//p' "$GITHUB_OUTPUT")
           nice -n 10 xcodebuild build-for-testing -project HermesMobile.xcodeproj -scheme HermesMobile \
-            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -destination "platform=iOS Simulator,id=${one}" \
             -derivedDataPath "${DERIVED_DATA}" -disableAutomaticPackageResolution -enableCodeCoverage NO \
             COMPILER_INDEX_STORE_ENABLE=NO CODE_SIGNING_ALLOWED=NO -quiet
 
-      # Classes split by the seconds they took last time (photo classes take seconds): both simulators end together.
-      - name: Tests of the touched files
+      # Tests: classes split by the seconds they took last time (photo classes take seconds), so both simulators
+      # end together. Then the photos no test reaches, and the String Catalog, which runs even when a test fails.
+      - name: Touched tests, photos and catalog
         env:
           ONE: ${{ steps.sim.outputs.udid }}
           TWO: ${{ steps.sim.outputs.udid2 }}
         run: |
           set -euo pipefail
+          echo "::group::Tests of the touched files"
           mkdir -p "${TEST_RUNNER_FOTO_DIR}"
-          [[ -s "${RUNNER_TEMP}/tests.txt" ]] || { echo "No test touched."; exit 0; }
-          (cd "${RUNNER_TEMP}" && python3 "${GITHUB_WORKSPACE}/ci/pr_split.py" split "${TEST_TIMES}" < tests.txt)
           run() {
             xcodebuild test-without-building -project HermesMobile.xcodeproj -scheme HermesMobile \
               -destination "platform=iOS Simulator,id=$1" -derivedDataPath "${DERIVED_DATA}" \
@@ -92,44 +93,50 @@ jobs:
               -resultBundlePath "${RUNNER_TEMP}/$2.xcresult" $(cat "${RUNNER_TEMP}/$2.txt") \
               | grep -E "^Test (Case|Suite)|: error: -\[|\*\* TEST" | tee "${RUNNER_TEMP}/$2.log"
           }
-          pids=()
-          for half in one two; do
-            [[ -s "${RUNNER_TEMP}/${half}.txt" ]] || continue
-            udid=${ONE}; [[ ${half} == two ]] && udid=${TWO}
-            run "${udid}" "${half}" & pids+=($!)
-          done
           failed=0
-          for pid in "${pids[@]}"; do wait "${pid}" || failed=1; done
-          python3 ci/pr_split.py record "${TEST_TIMES}" "${RUNNER_TEMP}"/*.log
+          if [[ -s "${RUNNER_TEMP}/tests.txt" ]]; then
+            (cd "${RUNNER_TEMP}" && python3 "${GITHUB_WORKSPACE}/ci/pr_split.py" split "${TEST_TIMES}" < tests.txt)
+            pids=()
+            for half in one two; do
+              [[ -s "${RUNNER_TEMP}/${half}.txt" ]] || continue
+              udid=${ONE}; [[ ${half} == two ]] && udid=${TWO}
+              run "${udid}" "${half}" & pids+=($!)
+            done
+            for pid in "${pids[@]}"; do wait "${pid}" || failed=1; done
+            python3 ci/pr_split.py record "${TEST_TIMES}" "${RUNNER_TEMP}"/*.log
+          else
+            echo "No test touched."
+          fi
+          echo "::endgroup::"
+
+          echo "::group::String Catalog"
+          python3 ci/check_string_catalog.py --derived-data "${DERIVED_DATA}" || failed=1
+          echo "::endgroup::"
+
+          # Icon, launch screen and first screen: no test reaches them, so the installed app is photographed.
+          if grep -qiE 'AppIcon|LaunchScreen|Info\.plist|Onboarding/' "${RUNNER_TEMP}/changed.txt"; then
+            echo "::group::Home screen, launch and welcome photos"
+            app="${DERIVED_DATA}/Build/Products/Debug-iphonesimulator/HermesMobile.app"
+            id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${app}/Info.plist")
+            xcrun simctl install "${ONE}" "${app}"
+            xcrun simctl io "${ONE}" screenshot "${TEST_RUNNER_FOTO_DIR}/1-home-screen.png"
+            # Held before main, the app stays on its launch screen for the photo.
+            xcrun simctl launch --terminate-running-process --wait-for-debugger "${ONE}" "${id}"
+            sleep 2
+            xcrun simctl io "${ONE}" screenshot "${TEST_RUNNER_FOTO_DIR}/2-launch.png"
+            xcrun simctl launch --terminate-running-process "${ONE}" "${id}"
+            sleep 4
+            xcrun simctl io "${ONE}" screenshot "${TEST_RUNNER_FOTO_DIR}/3-welcome.png"
+            xcrun simctl terminate "${ONE}" "${id}"
+            echo "::endgroup::"
+          fi
           exit "${failed}"
 
-      # Icon, launch screen and first screen: no test reaches them, so the installed app is photographed.
-      - name: Home screen, launch and welcome photos
-        env:
-          UDID: ${{ steps.sim.outputs.udid }}
-        run: |
-          set -euo pipefail
-          grep -qiE 'AppIcon|LaunchScreen|Info\.plist|Onboarding/' "${RUNNER_TEMP}/changed.txt" || exit 0
-          app="${DERIVED_DATA}/Build/Products/Debug-iphonesimulator/HermesMobile.app"
-          id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${app}/Info.plist")
-          xcrun simctl install "${UDID}" "${app}"
-          xcrun simctl io "${UDID}" screenshot "${TEST_RUNNER_FOTO_DIR}/1-home-screen.png"
-          # Held before main, the app stays on its launch screen for the photo.
-          xcrun simctl launch --terminate-running-process --wait-for-debugger "${UDID}" "${id}"
-          sleep 2
-          xcrun simctl io "${UDID}" screenshot "${TEST_RUNNER_FOTO_DIR}/2-launch.png"
-          xcrun simctl launch --terminate-running-process "${UDID}" "${id}"
-          sleep 4
-          xcrun simctl io "${UDID}" screenshot "${TEST_RUNNER_FOTO_DIR}/3-welcome.png"
-          xcrun simctl terminate "${UDID}" "${id}"
-
-      - name: String Catalog
-        if: ${{ !cancelled() }}
-        run: python3 ci/check_string_catalog.py --derived-data "${DERIVED_DATA}"
-
+      # PNGs are compressed already: zipping them again only costs time.
       - name: Photos
         if: ${{ !cancelled() && hashFiles('ci-foto/**') != '' }}
         uses: actions/upload-artifact@v7
         with:
           name: foto
           path: ci-foto
+          compression-level: 0

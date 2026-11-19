@@ -42,6 +42,10 @@ class PRStateTests(unittest.TestCase):
         self.assertEqual((work / "DerivedData" / "built").read_text(), "branch 1")
         self.assertTrue((workspace / ".git").is_dir())
 
+        pr_state.KEEP = 1  # the oldest parked state leaves at once; its files go in the background
+        pr_state.main("foto/3-c", base)
+        self.assertEqual(sorted(p.name for p in (work / "pr-states").iterdir() if p.is_dir()), ["foto-1-a"])
+
 
 if __name__ == "__main__":
     unittest.main()

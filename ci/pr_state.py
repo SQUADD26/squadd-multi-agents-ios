@@ -89,8 +89,12 @@ def main(branch, head):
     marker.write_text(mine)
     old = sorted((p for p in states.iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime, reverse=True)[KEEP:]
     for p in old:
-        shutil.rmtree(p)
-        print(f"Deleted the old build state {p.name}")
+        # Renamed out of the states at once, deleted in the background: a state is ~100k files (~1 s).
+        gone = work / f"pr-state-deleting-{p.name}-{os.getpid()}"
+        p.rename(gone)
+        subprocess.Popen([sys.executable, "-c", "import shutil, sys; shutil.rmtree(sys.argv[1])", str(gone)],
+                         start_new_session=True)
+        print(f"Deleting the old build state {p.name}")
 
 
 if __name__ == "__main__":
