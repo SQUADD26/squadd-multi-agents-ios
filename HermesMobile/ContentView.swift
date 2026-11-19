@@ -312,7 +312,6 @@ struct ContentView: View {
 
     private func consumePendingSharedImport(_ reservation: SharedImportReservation) {
         // A share from the share extension; a Shortcut's queued text has a destination instead.
-        if reservation.sharedImport.shortcut == nil
         shares.consume(reservation, in: HermesShareDraft.containerURL(), active: authManager.state.server,
                        servers: authManager.servers)
     }
