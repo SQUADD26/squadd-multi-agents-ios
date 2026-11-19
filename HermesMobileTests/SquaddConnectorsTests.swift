@@ -6,7 +6,7 @@ import XCTest
 /// connected-apps service `server/testing/broker-fake.ts`).
 @MainActor
 final class SquaddConnectorsTests: XCTestCase {
-    private let recorder = Recorder()
+    private let recorder = SquaddRequestRecorder()
     private var paths: [String] { recorder.requests.map { "\($0.httpMethod!) \($0.url!.path)" } }
     private var browsed: [URL] = []
 

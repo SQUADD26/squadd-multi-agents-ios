@@ -8,7 +8,7 @@ import XCTest
 /// fake Anthropic and OpenRouter keys set on the desktop).
 @MainActor
 final class SquaddSettingsTests: XCTestCase {
-    private let recorder = Recorder()
+    private let recorder = SquaddRequestRecorder()
     private var requests: [URLRequest] { recorder.requests }
     private var bodies: [[String: String]] { recorder.bodies }
     private var unpaired = 0
@@ -156,7 +156,7 @@ final class SquaddSettingsTests: XCTestCase {
 }
 
 /// What the fixture saw, written from URLSession's thread and read by the test after each await.
-final class Recorder: @unchecked Sendable {
+final class SquaddRequestRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var _requests: [URLRequest] = []
     private var _bodies: [[String: String]] = []
