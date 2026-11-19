@@ -81,7 +81,8 @@ jobs:
           xcodebuild test-without-building -project HermesMobile.xcodeproj -scheme HermesMobile \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
             -derivedDataPath "${DERIVED_DATA}" -disableAutomaticPackageResolution \
-            -parallel-testing-enabled NO -collect-test-diagnostics never $(cat "${RUNNER_TEMP}/tests.txt") -quiet
+            -parallel-testing-enabled NO -collect-test-diagnostics never $(cat "${RUNNER_TEMP}/tests.txt") \
+            | grep -E "^Test (Case|Suite)|error:|\*\* TEST|Testing started"
 
       # Icon, launch screen and first screen: no test reaches them, so the installed app is photographed.
       - name: Home screen, launch and welcome photos

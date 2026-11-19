@@ -73,6 +73,8 @@ def main(pr, head):
         base = closest(parked / "src", head, sorted(candidates, key=lambda c: c[0] != current))
         subprocess.run(["cp", "-c", "-pR", str(states / base / "src"), str(workspace)], check=True)
         subprocess.run(["cp", "-c", "-pR", str(states / base / "dd"), str(derived)], check=True)
+        # The clone has new inodes: without this the checkout rewrites every file and the build starts over.
+        git(workspace, "update-index", "-q", "--refresh")
         print(f"Build state: {mine}, new, cloned from {base}")
     marker.write_text(mine)
     old = sorted((p for p in states.iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime, reverse=True)[KEEP:]
