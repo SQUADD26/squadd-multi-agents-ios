@@ -20,8 +20,13 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         var log: [String] = []
         let started = Date()
         func note(_ line: String) { log.append(String(format: "%6.2fs  ", Date().timeIntervalSince(started)) + line) }
+        defer { try? log.joined(separator: "\n").write(to: folder.appendingPathComponent("squadd-live-log.txt"), atomically: true, encoding: .utf8) }
 
-        let bots = try await SquaddCompanionClient(server: address, token: token).bots()
+        let bots: [SquaddBot]
+        do { bots = try await SquaddCompanionClient(server: address, token: token).bots() } catch {
+            note("agents: \(error)")
+            throw error
+        }
         let bot = try XCTUnwrap(bots.first { !$0.tasks.isEmpty }, "the companion has an agent with a thread")
         let thread = try XCTUnwrap(bot.tasks.first)
         note("agent \(bot.name ?? bot.id), thread \(thread.threadId)")
@@ -34,7 +39,8 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         })
         defer { window.isHidden = true }
 
-        let model = try XCTUnwrap(settle(seconds: 20) { continuity.model.map { !$0.isLoading && !$0.messages.isEmpty ? $0 : nil } ?? nil },
+        // The thread may hold no row the chat shows yet, so loaded means a row or an error.
+        let model = try XCTUnwrap(settle(seconds: 20) { continuity.model.map { !$0.isLoading && (!$0.messages.isEmpty || $0.errorMessage != nil) ? $0 : nil } ?? nil },
                                   "the thread loaded")
         note("transcript: \(model.messages.count) rows, error: \(model.errorMessage ?? "none")")
         try photograph(window, named: "7-squadd-chat-open", in: folder)
@@ -62,7 +68,6 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         note("final reply: \(reply?.count ?? 0) characters: \(reply?.prefix(80) ?? "none")")
         note("rows: " + model.messages.map { "\($0.role ?? "?"):\($0.messageId ?? "?")" }.joined(separator: " "))
         try photograph(window, named: "9-squadd-chat-reply", in: folder)
-        try log.joined(separator: "\n").write(to: folder.appendingPathComponent("squadd-live-log.txt"), atomically: true, encoding: .utf8)
 
         XCTAssertEqual(outcome, .started)
         XCTAssertEqual(shown, true)

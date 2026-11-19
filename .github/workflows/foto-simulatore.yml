@@ -86,10 +86,13 @@ jobs:
           mkdir -p photos
           xcodebuild test -project HermesMobile.xcodeproj -scheme HermesMobile -configuration Debug \
             -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
-            -derivedDataPath DerivedData -only-testing:HermesMobileTests/SquaddChatTests \
+            -derivedDataPath DerivedData -resultBundlePath squadd.xcresult -only-testing:HermesMobileTests/SquaddChatTests \
             -only-testing:HermesMobileTests/SquaddChatLivePhotoTests CODE_SIGNING_ALLOWED=NO > photos/squadd-tests.log 2>&1
           status=$?
+          # The failure messages live only in the result bundle.
+          xcrun xcresulttool get test-results tests --path squadd.xcresult > photos/squadd-results.json || true
           grep -E "Test Case|error:|XCTAssert|Executed" photos/squadd-tests.log || tail -50 photos/squadd-tests.log
+          grep -E '"(name|result|failureMessage)"' photos/squadd-results.json || true
           ls photos
           exit "${status}"
 
