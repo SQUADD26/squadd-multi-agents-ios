@@ -1,0 +1,101 @@
+# PR checks in under a minute, on Roberto's Mac (runner label `squadd-multi-ios`): build every target, run the
+# tests of the files the PR touches (ci/pr_tests.py), keep their photos as the `foto` artifact, check the String
+# Catalog. Fast because the Mac keeps state between runs: the checkout, DerivedData (incremental build) and a
+# booted simulator. Coverage and the index store are off. The full suite and Release builds run at night (pr-ci.yml).
+#
+# The repo is public and the runner is a real Mac: the job runs only for PRs from branches of this repository,
+# never from a fork (the `if` below; fork PRs also need a maintainer's approval in the repo settings). No secrets.
+name: PR iOS
+
+on:
+  pull_request:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-ios-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  prova:
+    name: Build, touched tests, photos, catalog
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: [self-hosted, squadd-multi-ios]
+    timeout-minutes: 2
+    env:
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+      BASE_SHA: ${{ github.event.pull_request.base.sha }}
+      DERIVED_DATA: ${{ github.workspace }}/../../DerivedData
+      SIMULATOR_NAME: Squadd multi CI
+      TEST_RUNNER_HERMEX_CI: "1"
+      TEST_RUNNER_FOTO_DIR: ${{ github.workspace }}/.ci-foto
+      TEST_RUNNER_BRAND_PHOTOS_DIR: ${{ github.workspace }}/.ci-foto
+    steps:
+      # A fetch of the two commits into the checkout that stays on the Mac: unchanged files keep their dates, so
+      # the build recompiles only what differs from the last run. Public repo: no credentials written.
+      - name: Code
+        run: |
+          set -euo pipefail
+          git fetch -q --no-tags origin "${HEAD_SHA}" "${BASE_SHA}"
+          git checkout -qf --detach "${HEAD_SHA}"
+          git clean -ffdq
+          git diff --name-only "${BASE_SHA}...${HEAD_SHA}" > "${RUNNER_TEMP}/changed.txt"
+          python3 ci/pr_tests.py < "${RUNNER_TEMP}/changed.txt" > "${RUNNER_TEMP}/tests.txt"
+          echo "Tests of the touched files:"; cat "${RUNNER_TEMP}/tests.txt"
+
+      - name: Simulator
+        id: sim
+        run: |
+          set -euo pipefail
+          udid=$(xcrun simctl list devices available --json | python3 -c '
+          import json, os, sys
+          print(next(d["udid"] for ds in json.load(sys.stdin)["devices"].values() for d in ds if d["name"] == os.environ["SIMULATOR_NAME"]))')
+          # Stays booted between runs; booting it again is a no-op.
+          xcrun simctl bootstatus "${udid}" -b > /dev/null
+          echo "udid=${udid}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and test
+        run: |
+          set -euo pipefail
+          action=build-for-testing
+          [[ -s "${RUNNER_TEMP}/tests.txt" ]] && action=test
+          mkdir -p "${TEST_RUNNER_FOTO_DIR}"
+          xcodebuild "${action}" -project HermesMobile.xcodeproj -scheme HermesMobile \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath "${DERIVED_DATA}" -disableAutomaticPackageResolution \
+            -enableCodeCoverage NO -parallel-testing-enabled NO -collect-test-diagnostics never \
+            $(cat "${RUNNER_TEMP}/tests.txt") \
+            COMPILER_INDEX_STORE_ENABLE=NO CODE_SIGNING_ALLOWED=NO -quiet
+
+      # Icon, launch screen and first screen: no test reaches them, so the installed app is photographed.
+      - name: Home screen, launch and welcome photos
+        env:
+          UDID: ${{ steps.sim.outputs.udid }}
+        run: |
+          set -euo pipefail
+          grep -qiE 'AppIcon|LaunchScreen|Info\.plist|Onboarding/' "${RUNNER_TEMP}/changed.txt" || exit 0
+          app="${DERIVED_DATA}/Build/Products/Debug-iphonesimulator/HermesMobile.app"
+          id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${app}/Info.plist")
+          xcrun simctl install "${UDID}" "${app}"
+          xcrun simctl io "${UDID}" screenshot "${TEST_RUNNER_FOTO_DIR}/1-home-screen.png"
+          # Held before main, the app stays on its launch screen for the photo.
+          xcrun simctl launch --terminate-running-process --wait-for-debugger "${UDID}" "${id}"
+          sleep 2
+          xcrun simctl io "${UDID}" screenshot "${TEST_RUNNER_FOTO_DIR}/2-launch.png"
+          xcrun simctl launch --terminate-running-process "${UDID}" "${id}"
+          sleep 4
+          xcrun simctl io "${UDID}" screenshot "${TEST_RUNNER_FOTO_DIR}/3-welcome.png"
+          xcrun simctl terminate "${UDID}" "${id}"
+
+      - name: String Catalog
+        if: ${{ !cancelled() }}
+        run: python3 ci/check_string_catalog.py --derived-data "${DERIVED_DATA}"
+
+      - name: Photos
+        if: ${{ !cancelled() && hashFiles('.ci-foto/**') != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: foto
+          path: .ci-foto

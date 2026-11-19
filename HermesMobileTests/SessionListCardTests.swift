@@ -121,7 +121,7 @@ final class SessionListCardTests: XCTestCase {
 }
 
 /// Photographs real SwiftUI screens into `FOTO_DIR` (passed as `TEST_RUNNER_FOTO_DIR`) for a PR's
-/// evidence; skipped everywhere else. Add a `shoot` call per screen; `foto-simulatore.yml` runs it.
+/// evidence; skipped everywhere else. Add a `shoot` call per screen; `pr-ios.yml` runs it when the PR touches its screens.
 @MainActor
 final class ScreenPhotoTests: XCTestCase {
     private func shoot<V: View>(_ name: String, _ view: V) throws {

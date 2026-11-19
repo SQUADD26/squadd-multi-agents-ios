@@ -4,13 +4,13 @@ import XCTest
 
 /// Photos of the branded screens a simulator can't reach without a signed-in server: the home
 /// header's wordmark, Settings → About and Settings → Acknowledgements, rendered from the real
-/// views in the app host. Runs only from `.github/workflows/foto-simulatore.yml`, which sets
+/// views in the app host. Runs only from `.github/workflows/pr-ios.yml`, which sets
 /// `BRAND_PHOTOS_DIR` (through `TEST_RUNNER_BRAND_PHOTOS_DIR`) and uploads what lands there.
 @MainActor
 final class BrandPhotoTests: XCTestCase {
     func testPhotographTheBrandedScreens() throws {
         guard let directory = ProcessInfo.processInfo.environment["BRAND_PHOTOS_DIR"] else {
-            throw XCTSkip("Photos only: foto-simulatore.yml sets BRAND_PHOTOS_DIR.")
+            throw XCTSkip("Photos only: pr-ios.yml sets BRAND_PHOTOS_DIR.")
         }
         let folder = URL(fileURLWithPath: directory, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
