@@ -54,7 +54,7 @@ final class SquaddPresenceTests: XCTestCase {
         // before this main-actor test suspends.
         let task = Task { @MainActor () -> Int in
             var pings = 0
-            await SquaddPresence.keepAlive(ping: { pings += 1 }, sleep: { _ in })
+            await SquaddPresence.keepAlive(ping: { pings += 1 }, sleep: { _ in try Task.checkCancellation() })
             return pings
         }
         task.cancel()
