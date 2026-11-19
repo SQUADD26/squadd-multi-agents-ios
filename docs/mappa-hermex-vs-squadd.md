@@ -6,13 +6,13 @@ Ogni voce porta `file:riga` aperto nel codice. «non trovata» vuol dire cercata
 
 ## Le 5 decisioni da prendere
 
-1. **Che cosa parla l'app?** Hermex parla due protocolli: quello di Hermes (REST e JSON-RPC su WebSocket) e quello di hermes-webui (REST e SSE). Il companion ne parla un terzo: `/api/bots/...` più lo stream SSE `/api/events` (`companion/src/routes.ts:82-258`). Proposta: aggiungere all'app un terzo backend, `Networking/Squadd/`, accanto ai due che ci sono, e tenere la UI. La strada opposta, far parlare Hermes al companion, costa di più e porta sul server concetti che Squadd non ha. Costo: 10-15 giorni per chat, thread, stream e approvazioni.
+1. **Che cosa parla l'app?** Hermex parla due protocolli: quello di Hermes (REST e JSON-RPC su WebSocket) e quello di hermes-webui (REST e SSE). Il companion ne parla un terzo: `/api/bots/...` più lo stream SSE `/api/events` (`companion/src/routes.ts:82-258`). Proposta: aggiungere all'app un terzo backend, `Networking/Squadd/`, accanto ai due che ci sono, e tenere la UI. La strada opposta, far parlare Hermes al companion, costa di più e porta sul server concetti che Squadd non ha. Costo: circa 19 giorni per lista, chat, invio, stream, riconnessione, stop, coda, thread, approvazioni e domande (le prime righe della tabella).
 2. **Teniamo Hermes e webui nell'app?** «Famola nostra» fa pensare a un'app solo Squadd. Togliere i due backend alleggerisce di molto il codice (Kanban, Git, Workspace, MoveToHermes e Insights parlano solo con Hermes o webui), ma ogni merge da Hermex diventa più difficile. Proposta: v1 solo Squadd, codice Hermes/webui spento dietro un flag, poi tolto.
-3. **Come si collega il telefono alla v1?** Il pairing di Squadd passa da un QR `openmausbot://pair?...` (`packages/phone-protocol/src/pairing-link.ts:36-56`), un token bearer (`companion/src/proxy.ts:407`) e, fuori casa, un tunnel cifrato Noise NKpsk0 P-256 su yamux, diretto o via relay (`companion/src/e2e/noise.ts:7`, `companion/src/e2e/session.ts:1-2`). Hermex non ha uno scanner di QR (non trovato) né Noise o yamux. Proposta: v1 con QR, LAN, tailnet ed endpoint HTTPS ospitato (3-4 giorni); il tunnel E2E e il relay in un secondo passo (8-12 giorni, rischio alto).
+3. **Come si collega il telefono alla v1?** Il pairing di Squadd passa da un QR `openmausbot://pair?...` (`packages/phone-protocol/src/pairing-link.ts:36-56`), un token bearer (`companion/src/proxy.ts:407`) e, fuori casa, un tunnel cifrato Noise NKpsk0 P-256 su yamux, diretto o via relay (`companion/src/e2e/noise.ts:7`, `companion/src/e2e/session.ts:1-2`). Hermex non ha uno scanner di QR (non trovato) né Noise o yamux. Proposta: v1 con QR, LAN, tailnet ed endpoint HTTPS ospitato (4-5 giorni); il tunnel E2E e il relay in un secondo passo (circa 10 giorni, rischio alto).
 4. **Push e Live Activity su chi?** Hermex manda i token al relay hermex-push di Uzair (`HermesMobile/Push/PushRelayClient.swift:59`). Squadd ha già i suoi endpoint `/api/push/device` e `/api/push/activity` (`companion/src/routes.ts:221-226`) e un relay suo (`server/phone-push.ts:1-2`). Proposta: usare quelli di Squadd. Servono un bundle ID nostro, un team Apple e la chiave APNs sul relay di Squadd: è una decisione di account, non di codice.
 5. **Android?** Un client Android di Hermex non esiste: il maintainer l'ha escluso (issue uzairansaruzi/hermex#1311). Ci sono port della community, ma parlano con Hermes, non con Squadd. Proposta: niente Android prima che la v1 iOS stia in piedi. Poi un'app Kotlin/Compose nativa con un core di protocollo Kotlin Multiplatform, sul modello di `unsupportedpastels/mercury`, costruita su `packages/phone-protocol`. Dettagli più sotto.
 
-Totale v1 iOS solo Squadd (decisioni 1-4 come proposte): circa 30-40 giorni. Le righe della tabella dicono di cosa è fatto.
+Somma della colonna Giorni: 142 giorni per tutte le 87 righe. La v1 proposta (decisioni 1-4, senza chiamata live, telefono come strumento, tunnel E2E, login cloud, app MCP, browser live, dati, computer use, inbox, team map, consumi, rigenera, condivisione con link e routine) vale 82,5 giorni; il resto, 59,5 giorni, viene dopo.
 
 ## Funzioni, una per riga
 
@@ -302,7 +302,7 @@ Per ogni chiamata di rete di `HermesMobile/Networking`, la route del companion c
 | POST …/notify (prova) | HermesMobile/Push/PushRelayClient.swift:101 | manca | — |
 | POST hermex-stats /v1/report | HermesMobile/Config/UsageReports.swift:287 | manca (da spegnere) | — |
 
-Conteggio: delle chiamate e dei gruppi di chiamate qui sopra, circa metà ha una route equivalente nel companion. Mancano soprattutto workspace, git, kanban, consumi, plugin e la dettatura sul server.
+Conteggio: 170 righe di chiamate qui sopra; 103 hanno una route equivalente nel companion e 67 dicono «manca». Mancano soprattutto workspace, git, kanban, consumi, plugin e la dettatura sul server.
 
 ### Autenticazione, a confronto
 
