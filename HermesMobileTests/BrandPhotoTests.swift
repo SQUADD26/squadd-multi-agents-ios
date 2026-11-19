@@ -49,13 +49,20 @@ func steadyPhoto(of window: UIWindow, until ready: () -> Bool = { true }, limit:
     let frame = { renderer.image { _ in window.drawHierarchy(in: window.bounds, afterScreenUpdates: true) } }
     let pixels = { (image: UIImage) in image.cgImage?.dataProvider?.data as Data? }
     var last = frame(), same = 0
-    let end = Date().addingTimeInterval(limit)
-    while same < 3, Date() < end {
+    let start = Date(), end = Date().addingTimeInterval(limit)
+    photoShot += 1
+    var timeline = ""
+    defer { try? timeline.write(toFile: (ProcessInfo.processInfo.environment["FOTO_DIR"] ?? ProcessInfo.processInfo.environment["BRAND_PHOTOS_DIR"] ?? "/tmp") + "/timeline-\(photoShot).txt", atomically: true, encoding: .utf8) }
+    while Date() < end {
         // test-wait: a photo, not a check; lets the next frame draw before comparing it with the last one
         RunLoop.main.run(until: Date().addingTimeInterval(0.1))
         let now = frame()
-        same = ready() && pixels(now) == pixels(last) ? same + 1 : 0
+        let changed = pixels(now) != pixels(last)
+        same = ready() && !changed ? same + 1 : 0
+        timeline += String(format: "%.2f ready=%d changed=%d\n", Date().timeIntervalSince(start), ready() ? 1 : 0, changed ? 1 : 0)
         last = now
     }
     return try XCTUnwrap(last.pngData())
 }
+
+@MainActor var photoShot = 0
