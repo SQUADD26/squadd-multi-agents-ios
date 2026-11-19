@@ -28,6 +28,9 @@ struct SquaddRoute<Webui: View>: View {
 struct SquaddServerHome: View {
     @Bindable var authManager: AuthManager
     let server: URL
+    /// What the home does once its agents first load; nil in the app. The photo runs use it to
+    /// show the search and a thread's actions through the same handlers a tap reaches.
+    var start: SquaddHomeStart?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     /// Made once in `.task`, not in `init`, so a pass of the parent reads no Keychain.
     @State private var model: SquaddAgentListModel?
@@ -48,6 +51,7 @@ struct SquaddServerHome: View {
     @State private var namingFolderFor: String?
     @State private var newFolderName = ""
     @State private var deletingFolder: SquaddFolderRef?
+    @State private var hasStarted = false
 
     var body: some View {
         NavigationStack {
@@ -82,12 +86,16 @@ struct SquaddServerHome: View {
                 )
             }
             await model?.load()
+            if let start, !hasStarted {
+                hasStarted = true
+                begin(start)
+            }
         }
         // Debounced: a new query cancels the one waiting.
         .task(id: searchText) {
             if !searchText.isEmpty { try? await Task.sleep(for: .milliseconds(300)) }
-            guard !Task.isCancelled else { return }
-            await model?.search(searchText)
+            guard !Task.isCancelled, let model else { return }
+            if await !model.search(searchText) { toast.show(.failure(String(localized: "Couldn’t search the computer."))) }
         }
         .sheet(isPresented: $isShowingSettings) {
             NavigationStack {
@@ -372,6 +380,34 @@ struct SquaddServerHome: View {
         return done
     }
 
+    private func begin(_ start: SquaddHomeStart) {
+        guard case .loaded(let sections) = model?.phase else { return }
+        switch start {
+        case .search(let text):
+            openSearch()
+            searchText = text
+        case .showArchived:
+            expandedArchives = Set(sections.map(\.id))
+        case .newFolder:
+            newFolderName = ""
+            namingFolderFor = sections.first?.id
+        case .deleteFolder(let name):
+            for section in sections {
+                if let folder = section.folders.first(where: { $0.name == name }) {
+                    deletingFolder = SquaddFolderRef(botId: section.id, id: folder.id, name: folder.name)
+                    return
+                }
+            }
+        case .act(let action, let title):
+            for section in sections {
+                if let thread = (section.threads + section.archived).first(where: { $0.title == title }) {
+                    act(action, SquaddThreadRef(botId: section.id, session: thread))
+                    return
+                }
+            }
+        }
+    }
+
     private func openSearch() {
         withAnimation(SessionListMotion.searchChromeAnimation(reduceMotion: reduceMotion)) { isSearchExpanded = true }
         isSearchFocused = true
@@ -459,6 +495,18 @@ private struct SquaddAgentHeader: View {
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)
     }
+}
+
+/// A first step for `SquaddServerHome.start`.
+enum SquaddHomeStart {
+    case search(String)
+    case showArchived
+    /// The New Folder alert for the first agent.
+    case newFolder
+    /// The delete confirmation of the first folder with this name.
+    case deleteFolder(String)
+    /// The action on the first thread with this title.
+    case act(SquaddThreadAction, threadTitle: String)
 }
 
 /// What a thread's menu and swipes ask the home to do.
