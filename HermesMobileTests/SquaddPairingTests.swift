@@ -95,7 +95,10 @@ final class SquaddPairingTests: XCTestCase {
                 messages.insert(squaddPairingFailure(error))
             }
         }
+        // The companion answers an expired and a used code alike: no pairing is open.
         XCTAssertEqual(messages.count, 4, "expired and used share one message; the rest each have their own")
+        XCTAssertEqual(squaddPairingFailure(SquaddError.pairing("pairing_new_reason")),
+                       String(localized: "The computer refused the code. Codes last two minutes and work once."))
         XCTAssertTrue(messages.contains { $0.contains("20") }, "the device limit names it")
         XCTAssertTrue(manager.servers.isEmpty)
     }
@@ -134,5 +137,90 @@ final class SquaddPairingTests: XCTestCase {
     nonisolated static func fixture(_ name: String) throws -> Data {
         try Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .appendingPathComponent("Fixtures/Squadd/pairing/\(name)"))
+    }
+}
+
+/// Photographs the pairing screens into `FOTO_DIR` (passed as `TEST_RUNNER_FOTO_DIR`) for the PR's
+/// evidence, the companion played back from the recorded replies. The simulator has no camera, so the
+/// screen shows the way to the typed code. Skipped everywhere else.
+@MainActor
+final class SquaddPairingPhotoTests: XCTestCase {
+    private let computer = URL(string: "http://127.0.0.1:18810")!
+    private var window: UIWindow?
+    nonisolated(unsafe) private static var served = 0
+
+    override func tearDown() {
+        URLProtocol.unregisterClass(SquaddHTTPFixture.self)
+        SquaddHTTPFixture.handler = nil
+        window?.isHidden = true
+        super.tearDown()
+    }
+
+    func testPhotoPairingScreens() async throws {
+        let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
+        try XCTSkipIf(path == nil, "Only for photo runs")
+        let dir = URL(fileURLWithPath: path!)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        var reply = (401, try SquaddPairingTests.fixture("code-expired.json"))
+        let bots = try Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/Squadd/bots.json"))
+        // URLSession.shared, the session the screens use, answers from the recordings.
+        SquaddHTTPFixture.handler = { request in
+            Self.served += 1
+            return request.url?.path == "/api/bots" ? (200, bots) : reply
+        }
+        URLProtocol.registerClass(SquaddHTTPFixture.self)
+        let keychain = InMemoryKeychainStore()
+        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(),
+                                  serverRegistry: ServerRegistry.inMemory(keychain: keychain),
+                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
+        let link = try XCTUnwrap(URL(string: String(decoding: try SquaddPairingTests.fixture("qr-link.txt"), as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines)))
+        let invite = try XCTUnwrap(SquaddPairingInvite(url: link))
+
+        // a. The pairing screen: camera (none in the simulator, so the way to the code), then the code.
+        try await shoot("a-pair-screen", SquaddAddServerSheet(authManager: manager), dir: dir) { true }
+
+        // b. An openmausbot://pair link whose code expired.
+        Self.served = 0
+        try await shoot("b-link-expired", SquaddAddServerSheet(authManager: manager, invite: invite), dir: dir) { Self.served > 0 }
+
+        // c. The computer already has 20 devices.
+        reply = (401, try SquaddPairingTests.fixture("device-limit.json"))
+        Self.served = 0
+        try await shoot("c-device-limit", SquaddAddServerSheet(authManager: manager, invite: invite), dir: dir) { Self.served > 0 }
+
+        // d. Paired: the computer's agents under its own name.
+        reply = (201, try SquaddPairingTests.fixture("pair-qr.json"))
+        try await manager.pairSquadd(invite, deviceName: "iPhone di prova")
+        XCTAssertEqual(manager.state, .loggedIn(server: computer))
+        Self.served = 0
+        try await shoot("d-paired-home", SquaddRoute(authManager: manager, server: computer) { EmptyView() }, dir: dir) { Self.served > 0 }
+    }
+
+    /// Hosts `view` in a window of the app's scene, waits for `ready` and the frames after it, and
+    /// writes `<name>.png`.
+    private func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: @escaping @MainActor () -> Bool) async throws {
+        let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
+                                           configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        window?.isHidden = true
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+        window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
+        window.makeKeyAndVisible()
+        self.window = window
+        let landed = expectation(description: "\(name) landed")
+        func check(_ remaining: Int) {
+            if ready() || remaining == 0 { landed.fulfill(); return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { MainActor.assumeIsolated { check(remaining - 1) } }
+        }
+        check(100)
+        await fulfillment(of: [landed], timeout: 10)
+        try await Task.sleep(for: .seconds(1)) // test-wait: lets the reply draw before the shot; a photo for review, never an assertion
+        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+        try XCTUnwrap(image.pngData()).write(to: dir.appendingPathComponent("\(name).png"))
     }
 }
