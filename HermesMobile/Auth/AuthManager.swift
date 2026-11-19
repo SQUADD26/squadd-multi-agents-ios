@@ -117,7 +117,10 @@ final class AuthManager {
         serverRegistry: ServerRegistry = .shared,
         hermesConnections: HermesConnections? = nil,
         preferences: UserDefaults = .standard,
-        forgetPush: @escaping @MainActor (URL) async -> Void = { await PushRegistrar.shared?.forget(for: $0) },
+        forgetPush: @escaping @MainActor (URL) async -> Void = {
+            await PushRegistrar.shared?.forget(for: $0)
+            await SquaddPushRegistrar.shared.forget(server: $0)
+        },
         limitsPublisher: ProviderLimitsPublisher? = nil
     ) {
         self.keychain = keychain

@@ -24,6 +24,7 @@ final class PushAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
         UNUserNotificationCenter.current().delegate = self
         MXMetricManager.shared.add(diagnosticsLog)
         MainActor.assumeIsolated { PushRegistrar.shared?.refreshOnLaunch() }
+        Task { @MainActor in await SquaddPushRegistrar.shared.refreshOnLaunch() }
         return true
     }
 
@@ -44,13 +45,17 @@ final class PushAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
         didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
     ) {
         MainActor.assumeIsolated { PushRegistrar.shared?.didRegisterForRemoteNotifications(deviceToken: deviceToken) }
+        Task { @MainActor in await SquaddPushRegistrar.shared.didRegisterForRemoteNotifications(deviceToken: deviceToken) }
     }
 
     func application(
         _ application: UIApplication,
         didFailToRegisterForRemoteNotificationsWithError error: any Error
     ) {
-        MainActor.assumeIsolated { PushRegistrar.shared?.didFailToRegisterForRemoteNotifications(error: error) }
+        MainActor.assumeIsolated {
+            PushRegistrar.shared?.didFailToRegisterForRemoteNotifications(error: error)
+            SquaddPushRegistrar.shared.didFailToRegisterForRemoteNotifications(error: error)
+        }
     }
 
     /// A relay push that arrives while the app is open shows as a banner, except the
@@ -61,6 +66,11 @@ final class PushAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         let userInfo = notification.request.content.userInfo
+        // A Squadd push comes only when the computer has no live stream to this iPhone, so it always shows.
+        if SquaddPushPayload(userInfo: userInfo) != nil {
+            completionHandler([.banner, .list, .sound])
+            return
+        }
         Task { @MainActor in
             completionHandler(PushPresence.presentation(
                 userInfo: userInfo, viewer: PushPresence.shared.viewer, pairings: Self.configuredPairings() ?? [:]))
@@ -83,7 +93,11 @@ final class PushAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
         // The system does not promise a thread here, so hop rather than assume.
         Task { @MainActor in
             let activeServer = ServerRegistry.shared.activeServerID.flatMap(URL.init(string:))
-            if let destination = PushNotificationRouter.localAlertLink(userInfo: userInfo,
+            if let payload = SquaddPushPayload(userInfo: userInfo) {
+                if let server = SquaddPush.server(for: payload, among: ServerRegistry.shared.servers) {
+                    AppIntentRouter.shared.requestDeepLink(SquaddPush.threadURL(server: server, payload: payload))
+                }
+            } else if let destination = PushNotificationRouter.localAlertLink(userInfo: userInfo,
                                                                        servers: ServerRegistry.shared.servers) {
                 AppIntentRouter.shared.requestDeepLink(destination)
             } else if let pairings = Self.configuredPairings(),
