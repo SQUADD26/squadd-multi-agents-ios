@@ -17,14 +17,17 @@ struct ChatSettingsSheet<WorkspacePicker: View, ProfileControl: View>: View {
     var body: some View {
         NavigationStack {
             AppList {
-                Button { showsWorkspacePicker = true } label: {
-                    LabeledContent {
-                        Text(workspaceTitle).lineLimit(1).truncationMode(.middle)
-                    } label: {
-                        Label("Workspace", systemImage: "folder")
+                // Workspaces are a webui or Hermes host's (ADR 0002).
+                if HermesBackends.isEnabled {
+                    Button { showsWorkspacePicker = true } label: {
+                        LabeledContent {
+                            Text(workspaceTitle).lineLimit(1).truncationMode(.middle)
+                        } label: {
+                            Label("Workspace", systemImage: "folder")
+                        }
                     }
+                    .disabled(isWorkspaceDisabled)
                 }
-                .disabled(isWorkspaceDisabled)
 
                 LabeledContent {
                     profileControl()
