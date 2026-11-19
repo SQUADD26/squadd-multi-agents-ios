@@ -17,7 +17,7 @@ jobs:
   evidence:
     name: Tests, red lines, key grep and photos
     runs-on: xcode-27
-    timeout-minutes: 120
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
 
@@ -42,23 +42,23 @@ jobs:
           xcrun simctl bootstatus "${UDID}" -b
           xcrun simctl ui "${UDID}" appearance dark
           xcodebuild test -project HermesMobile.xcodeproj -scheme HermesMobile -configuration Debug \
-            -destination "platform=iOS Simulator,id=${UDID}" -derivedDataPath DerivedData \
+            -destination "platform=iOS Simulator,id=${UDID}" -derivedDataPath DerivedData -parallel-testing-enabled NO \
             -only-testing:HermesMobileTests/SquaddConnectorsTests -only-testing:HermesMobileTests/SquaddSettingsTests \
             -only-testing:HermesMobileTests/SquaddSettingsPhotoTests -only-testing:HermesMobileTests/LocalizationCatalogTests \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | tee evidence/tests.log | grep -E "Test Case|Executed|error:|failed" | tail -60
+            CODE_SIGNING_ALLOWED=NO 2>&1 | tee evidence/tests.log | grep -E "Test [Cc]ase|error:|TEST (SUCCEEDED|FAILED)" | tail -60
           python3 ci/check_string_catalog.py --derived-data DerivedData 2>&1 | tee evidence/string-catalog.log
 
       - name: Red lines
         env:
           UDID: ${{ steps.sim.outputs.udid }}
         run: |
-          set -uo pipefail
+          set +e -uo pipefail
           run() {
             echo "### $1" >> evidence/red-lines.log
             xcodebuild test -project HermesMobile.xcodeproj -scheme HermesMobile -configuration Debug \
-              -destination "platform=iOS Simulator,id=${UDID}" -derivedDataPath DerivedData \
+              -destination "platform=iOS Simulator,id=${UDID}" -derivedDataPath DerivedData -parallel-testing-enabled NO \
               -only-testing:HermesMobileTests/SquaddConnectorsTests CODE_SIGNING_ALLOWED=NO 2>&1 \
-              | grep -E "error: .*SquaddConnectorsTests|Executed .* tests" | sed 's#.*/HermesMobileTests/##' >> evidence/red-lines.log
+              | grep -E "Test case .*failed|\*\* TEST (SUCCEEDED|FAILED)" | sed 's#.*/HermesMobileTests/##' >> evidence/red-lines.log
             git checkout -- HermesMobile
           }
           run "0 no mutation"
