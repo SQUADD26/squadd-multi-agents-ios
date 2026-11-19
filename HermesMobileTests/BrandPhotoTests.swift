@@ -29,11 +29,13 @@ final class BrandPhotoTests: XCTestCase {
     }
 
     private func photograph(_ view: some View, named name: String, in folder: URL) throws {
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 402, height: 874))
+        // On the host app's scene, or the window never draws.
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
         window.overrideUserInterfaceStyle = .dark
         window.rootViewController = UIHostingController(rootView: view)
         window.makeKeyAndVisible()
-        // shortcut: a fixed settle for layout and the first async load, enough for static pages; a photo tool, not a check.
+        // test-wait: a photo tool, not a check; a fixed settle lets layout and the notices' first load finish.
         RunLoop.main.run(until: Date().addingTimeInterval(1.5))
         let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
             window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
