@@ -7,13 +7,16 @@ import Foundation
 /// Tasks, Usage, Screen) is hidden; `YES` builds the app as Hermex ships it. The hidden code stays
 /// compiled. Read here only: every gate asks `isEnabled`, never a server's name or kind.
 enum HermesBackends {
-    /// The build's value. The test bundle turns it on (`TestHostStateGuard`) so the Hermex
-    /// suite runs as before, and a flag-off test sets it off for its own duration.
-    nonisolated(unsafe) static var isEnabled: Bool = {
+    /// The build's value.
+    static let built: Bool = {
         #if HERMES_BACKENDS
         true
         #else
         false
         #endif
     }()
+
+    /// `built`, except that the test bundle turns it on (`TestHostStateGuard`) so the Hermex
+    /// suite runs as before, and a flag-off test sets it off for its own duration.
+    nonisolated(unsafe) static var isEnabled = built
 }

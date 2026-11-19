@@ -13,8 +13,16 @@ struct SlashCommandScope: Equatable, Sendable {
 
     static let webui = SlashCommandScope(builtins: SlashCommandCatalog.allCommands)
 
+    /// The commands only a webui or Hermes host runs: rewind, checkpoints, workspaces, Thinking.
+    static let hermesOnlyNames: Set<String> = ["retry", "rollback", "workspace", "reasoning"]
+
+    /// `builtins` this build offers: without the Hermes backends (ADR 0002), none of `hermesOnlyNames`.
+    var offeredBuiltins: [SlashCommand] {
+        HermesBackends.isEnabled ? builtins : builtins.filter { !Self.hermesOnlyNames.contains($0.name.lowercased()) }
+    }
+
     func command(named name: String) -> SlashCommand? {
-        builtins.first { $0.name.lowercased() == name.lowercased() }
+        offeredBuiltins.first { $0.name.lowercased() == name.lowercased() }
     }
 
     func completesOnHost(_ name: String) -> Bool {

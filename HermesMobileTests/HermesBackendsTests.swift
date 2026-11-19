@@ -13,6 +13,40 @@ final class HermesBackendsTests: XCTestCase {
         super.tearDown()
     }
 
+    /// `Config/Shared.xcconfig` ships `HERMES_BACKENDS = NO`; a `Local.xcconfig` that turns it on fails this.
+    func testTheSquaddBuildShipsWithTheBackendsOff() {
+        XCTAssertFalse(HermesBackends.built)
+    }
+
+    /// Every saved server is webui or Hermes, so none opens, at launch, after a switch or from a link.
+    func testNoSavedServerOpensWithTheBackendsOff() throws {
+        let server = try XCTUnwrap(URL(string: "https://hermes.example"))
+        XCTAssertEqual(AuthManager.State.loggedIn(server: server).openedServer, server)
+        XCTAssertEqual(AuthManager.State.loggedOut(server: server).openedServer, server)
+
+        HermesBackends.isEnabled = false
+
+        XCTAssertNil(AuthManager.State.loggedIn(server: server).openedServer)
+        XCTAssertNil(AuthManager.State.loggedOut(server: server).openedServer)
+    }
+
+    /// Rewind, checkpoints, workspaces and Thinking leave the `/` panel, in webui and Hermes chats.
+    func testTheSlashPanelDropsHermesOnlyCommandsWithTheBackendsOff() {
+        let scopes = [SlashCommandScope.webui, SlashCommandScope(builtins: SlashCommandCatalog.hermesCommands, isHermes: true)]
+        for scope in scopes {
+            XCTAssertNotNil(scope.command(named: "retry"))
+        }
+
+        HermesBackends.isEnabled = false
+
+        for scope in scopes {
+            let offered = Set(scope.offeredBuiltins.map(\.name))
+            XCTAssertTrue(offered.isDisjoint(with: SlashCommandScope.hermesOnlyNames), "\(offered)")
+            XCTAssertNil(scope.command(named: "rollback"))
+            XCTAssertNotNil(scope.command(named: "model"), "the rest stay")
+        }
+    }
+
     func testTheHomeDropsTasksKanbanAndUsageWithTheBackendsOff() {
         HermesBackends.isEnabled = false
         let home = SidebarSectionVisibility.showAll.withoutHermesOnlyRows

@@ -161,6 +161,17 @@ jobs:
             -showBuildTimingSummary \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee "${CI_LOG_DIR}/build.log"
 
+      - name: Show the Hermes backends flag
+        # ADR 0002: the shipped value and what YES turns on, for every target.
+        run: |
+          set -euo pipefail
+          for override in "" "HERMES_BACKENDS=YES"; do
+            echo "== xcodebuild ${override:-(as shipped)}"
+            xcodebuild -showBuildSettings -project "${PROJECT_PATH}" -scheme "${SCHEME}" \
+              -destination "generic/platform=iOS Simulator" ${override} 2>/dev/null \
+              | grep -E '^Build settings for|^ +(HERMES_BACKENDS|OTHER_SWIFT_FLAGS) = ' || true
+          done
+
       - name: Test without building
         id: tests
         # Bound worker clone/boot and suite execution, leaving time for diagnostics.

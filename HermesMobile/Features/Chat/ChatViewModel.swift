@@ -5056,7 +5056,8 @@ final class ChatViewModel {
     /// before restoring from one (`pendingHermesRollback`). A diff or restore reads the list
     /// first and sends the hash of the checkpoint the number names now.
     private func rollbackFromSlashCommand(_ args: String) async -> SlashCommandExecutionResult {
-        guard let hermes = hermesTurn else {
+        // Checkpoints are a Hermes host's (ADR 0002).
+        guard HermesBackends.isEnabled, let hermes = hermesTurn else {
             return .unsupported(friendlyMessage: SlashCommandExecutor.unsupportedMessage(for: "rollback"))
         }
         guard let command = HermesRollbackCommand(args) else {
@@ -6640,6 +6641,8 @@ final class ChatViewModel {
     /// `unsentHermesEdit` for the composer, and the reason says so.
     private func rewindHermesTranscript(before rowID: Int, sending text: String, on hermes: HermesChatTurnCoordinator,
                                         reconnect: String, retrying: HermesChatActivity.RetryTarget? = nil) async -> String? {
+        // Rewind is a Hermes host's (ADR 0002).
+        guard HermesBackends.isEnabled else { return String(localized: "Not available") }
         guard !isHermesSubmissionUncertain else { return reconnect }
         sendErrorMessage = nil
         lastError = nil
