@@ -236,8 +236,8 @@ struct SettingsServerPage: View {
 
             // Not behind the Bot Mode preview gate (#557): this login is what push pairing
             // needs. On a Hermes server it is the server's own sign-in, and saving it signs a
-            // signed-out server back in (#899).
-            if let server {
+            // signed-out server back in (#899). A Squadd server signs in with its pairing instead.
+            if let server, account.kind != .squadd {
                 NavigationLink {
                     BotConnectionView(server: server) { authManager.hermesSignInSaved(server: server) }
                 } label: {
