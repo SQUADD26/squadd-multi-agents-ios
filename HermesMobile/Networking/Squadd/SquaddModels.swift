@@ -124,9 +124,11 @@ struct SquaddInstance: Decodable, Equatable {
         let snapshot = try? container.nestedContainer(keyedBy: SnapshotKeys.self, forKey: .snapshot)
         isAvailable = (try? snapshot?.decodeIfPresent(String.self, forKey: .state)) == "available"
         let models = try? container.nestedContainer(keyedBy: ModelsKeys.self, forKey: .models)
-        self.models = ((try? models?.decodeIfPresent([Lossy<Model>].self, forKey: .options)) ?? nil)?.compactMap(\.value) ?? []
+        self.models = (try? models?.decodeIfPresent([Lossy<Model>].self, forKey: .options))?.compactMap(\.value) ?? []
     }
-} of an agent: its title and when it last changed.
+}
+
+/// One task thread of an agent: its title and when it last changed.
 struct SquaddTask: Decodable, Equatable, Identifiable {
     let threadId: String
     let title: String?
