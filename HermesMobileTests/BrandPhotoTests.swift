@@ -35,12 +35,26 @@ final class BrandPhotoTests: XCTestCase {
         window.overrideUserInterfaceStyle = .dark
         window.rootViewController = UIHostingController(rootView: view)
         window.makeKeyAndVisible()
-        // test-wait: a photo tool, not a check; a fixed settle lets layout and the notices' first load finish.
-        RunLoop.main.run(until: Date().addingTimeInterval(1.5))
-        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
-            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-        }
-        try XCTUnwrap(image.pngData()).write(to: folder.appendingPathComponent("\(name).png"))
+        try steadyPhoto(of: window).write(to: folder.appendingPathComponent("\(name).png"))
         window.isHidden = true
     }
+}
+
+/// The window's PNG once its picture holds still: three equal frames 0.1 s apart, at most `limit`
+/// seconds (a never-ending animation gets its photo at the limit). For photos, never an assertion.
+@MainActor
+func steadyPhoto(of window: UIWindow, limit: TimeInterval = 3) throws -> Data {
+    let renderer = UIGraphicsImageRenderer(bounds: window.bounds)
+    let frame = { renderer.image { _ in window.drawHierarchy(in: window.bounds, afterScreenUpdates: true) } }
+    let pixels = { (image: UIImage) in image.cgImage?.dataProvider?.data as Data? }
+    var last = frame(), same = 0
+    let end = Date().addingTimeInterval(limit)
+    while same < 3, Date() < end {
+        // test-wait: a photo, not a check; lets the next frame draw before comparing it with the last one
+        RunLoop.main.run(until: Date().addingTimeInterval(0.1))
+        let now = frame()
+        same = pixels(now) == pixels(last) ? same + 1 : 0
+        last = now
+    }
+    return try XCTUnwrap(last.pngData())
 }
