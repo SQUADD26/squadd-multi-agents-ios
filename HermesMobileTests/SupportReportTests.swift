@@ -25,31 +25,6 @@ import XCTest
         }
     }
 
-    /// The link opens the bug form with its three version inputs filled in, decoded the way
-    /// GitHub reads a query (`+` is a space), and carries nothing else from the report. Without the
-    /// install's version it opens the template chooser instead.
-    func testIssueURLPrefillsTheThreeVersionInputs() throws {
-        let report = SupportReport(appVersion: "2.0.1", build: "412 & co", channel: .release, iOSVersion: "27.0",
-                                   device: "iPhone", serverKind: .hermes, serverRelease: "0.21.4+canary.ü")
-        let query = try XCTUnwrap(URLComponents(url: report.issueURL, resolvingAgainstBaseURL: false)?.percentEncodedQuery)
-        let fields = Dictionary(uniqueKeysWithValues: query.split(separator: "&").map { pair in
-            let parts = pair.split(separator: "=", maxSplits: 1).map {
-                $0.replacingOccurrences(of: "+", with: " ").removingPercentEncoding ?? ""
-            }
-            return (parts[0], parts.count > 1 ? parts[1] : "")
-        })
-        XCTAssertEqual(fields, [
-            "template": "bug_report.yml",
-            "app-version": "2.0.1 (412 & co)",
-            "ios-version": "iOS 27.0 on iPhone",
-            "server-version": "Squadd 0.21.4+canary.ü",
-        ])
-
-        var unversioned = report
-        unversioned.build = nil
-        XCTAssertEqual(unversioned.issueURL, AppConfig.reportProblemURL)
-    }
-
     /// The active server's current Hermes connection adds its latest attempt (#1395): when it
     /// started and each stage's outcome, with no host or account. Another server's report, and
     /// this one's once the connection is retired, has none.

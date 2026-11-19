@@ -57,7 +57,7 @@ struct SettingsAboutPage: View {
                 SettingsExternalLink(
                     title: String(localized: "Report a Problem"),
                     systemImage: "ladybug",
-                    destination: report.issueURL,
+                    destination: AppConfig.reportProblemURL,
                     accessibilityLabel: String(localized: "Report a Problem, opens in browser")
                 )
             } header: {
