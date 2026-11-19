@@ -1,3 +1,5 @@
+import SwiftData
+import SwiftUI
 import XCTest
 @testable import HermesMobile
 
@@ -100,5 +102,99 @@ final class SquaddThreadLinkTests: XCTestCase {
     private nonisolated static func fixture(_ name: String) throws -> Data {
         try Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .appendingPathComponent("Fixtures/Squadd/\(name)"))
+    }
+}
+
+/// Photographs a thread link opening in the real `ContentView`, through the same deep-link path
+/// Siri and Shortcuts take, with the companion played back from the recordings: a link to a thread
+/// on the inactive computer, one to a deleted thread, and one to a computer never paired. Skipped
+/// unless `FOTO_DIR` is set (`TEST_RUNNER_FOTO_DIR`).
+@MainActor
+final class SquaddThreadLinkPhotoTests: XCTestCase {
+    private let studio = URL(string: "http://mac-studio.tailnet.test:8810")!
+    private let laptop = URL(string: "http://macbook.tailnet.test:8810")!
+    private var window: UIWindow?
+    nonisolated(unsafe) private static var served: [String] = []
+
+    override func tearDown() {
+        URLProtocol.unregisterClass(SquaddHTTPFixture.self)
+        SquaddHTTPFixture.handler = nil
+        AppIntentRouter.shared.pendingDeepLink = nil
+        window?.isHidden = true
+        super.tearDown()
+    }
+
+    func testPhotoThreadLinks() async throws {
+        let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
+        try XCTSkipIf(path == nil, "Only for photo runs")
+        let dir = URL(fileURLWithPath: path!)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let bots = try Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/Squadd/bots.json"))
+        SquaddHTTPFixture.handler = { request in
+            guard request.url?.path == "/api/bots" else { return (404, Data()) }
+            Self.served.append(request.value(forHTTPHeaderField: "Authorization") ?? "")
+            return (200, bots)
+        }
+        URLProtocol.registerClass(SquaddHTTPFixture.self)
+        let keychain = InMemoryKeychainStore()
+        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(),
+                                  serverRegistry: ServerRegistry.inMemory(keychain: keychain),
+                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
+        try manager.addSquaddServer(address: studio, token: "token-studio")
+        try manager.addSquaddServer(address: laptop, token: "token-laptop")
+        XCTAssertEqual(manager.state, .loggedIn(server: laptop))
+        try host(ContentView(authManager: manager))
+
+        // a. A link to Pesto's "Weekly menu" on the Mac Studio, with the MacBook active: the app
+        // switches computer, reads its agents and marks the thread.
+        let weeklyMenu = SquaddThreadLink(threadID: "e0196fb1-7f3b-44b7-93a0-e7b1e93f7af1",
+                                          botID: "b70a0bbd-64c1-491b-ad34-f441d52fe9f0", server: studio)
+        Self.served = []
+        AppIntentRouter.shared.requestDeepLink(weeklyMenu.url)
+        try await shoot("f1-link-opens-thread", dir: dir) {
+            manager.state == .loggedIn(server: self.studio) && Self.served.contains("Bearer token-studio")
+        }
+        XCTAssertEqual(manager.state, .loggedIn(server: studio))
+
+        // b. A thread deleted on the computer. Each alert gets a fresh app window.
+        try host(ContentView(authManager: manager))
+        AppIntentRouter.shared.requestDeepLink(SquaddThreadLink(threadID: "deleted-thread", server: studio).url)
+        try await shoot("f2-thread-not-found", dir: dir) { true }
+
+        // c. A computer this iPhone never paired.
+        try host(ContentView(authManager: manager))
+        AppIntentRouter.shared.requestDeepLink(SquaddThreadLink(threadID: "t", server: URL(string: "http://other.tailnet.test:8810")!).url)
+        try await shoot("f3-computer-not-paired", dir: dir) { true }
+        XCTAssertEqual(manager.state, .loggedIn(server: studio), "a link to an unpaired computer switches nothing")
+    }
+
+    private func host<V: View>(_ view: V) throws {
+        let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
+                                           configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        self.window?.isHidden = true
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+        window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
+        window.makeKeyAndVisible()
+        self.window = window
+    }
+
+    /// Waits for `ready` and the frames after it, then writes `<name>.png`.
+    private func shoot(_ name: String, dir: URL, until ready: @escaping @MainActor () -> Bool) async throws {
+        let landed = expectation(description: "\(name) landed")
+        func check(_ remaining: Int) {
+            if ready() || remaining == 0 { landed.fulfill(); return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { MainActor.assumeIsolated { check(remaining - 1) } }
+        }
+        check(100)
+        await fulfillment(of: [landed], timeout: 10)
+        try await Task.sleep(for: .seconds(1.5)) // test-wait: lets the scroll and the alert draw; a photo for review, never an assertion
+        let window = try XCTUnwrap(window)
+        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+        try XCTUnwrap(image.pngData()).write(to: dir.appendingPathComponent("\(name).png"))
     }
 }
