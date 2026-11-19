@@ -94,7 +94,7 @@ jobs:
               -destination "platform=iOS Simulator,id=$1" -derivedDataPath "${DERIVED_DATA}" \
               -disableAutomaticPackageResolution -parallel-testing-enabled NO -collect-test-diagnostics never \
               -resultBundlePath "${RUNNER_TEMP}/$2.xcresult" $(cat "${RUNNER_TEMP}/$2.txt") \
-              | grep -E "^Test (Case|Suite)|error:|\*\* TEST"
+              | grep -E "^Test (Case|Suite)|: error: -\[|\*\* TEST"
           }
           pids=()
           for half in one two; do
