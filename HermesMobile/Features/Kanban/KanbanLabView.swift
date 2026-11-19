@@ -2510,7 +2510,6 @@ struct KanbanView: View {
 
     var body: some View {
         KanbanStatusFocusView(model: model)
-            .onAppear { UsageReports.shared.record(.kanban) }
             .task {
                 await model.loadIfNeeded()
             }

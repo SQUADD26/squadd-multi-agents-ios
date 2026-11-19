@@ -68,43 +68,12 @@ final class SessionListCardTests: XCTestCase {
         }
     }
 
-    func testUsageReportsCardWinsThenTipAndOnlyOneCardShowsPerLaunch() {
-        XCTAssertEqual(SessionListCard.choose(eligible: [.usageReports, .tip, .star], shownThisLaunch: nil), .usageReports)
+    func testTipWinsAndOnlyOneCardShowsPerLaunch() {
         XCTAssertEqual(SessionListCard.choose(eligible: [.tip, .star], shownThisLaunch: nil), .tip)
-        // Answering the usage reports card leaves the slot empty until a later launch.
-        XCTAssertNil(SessionListCard.choose(eligible: [.tip, .star], shownThisLaunch: .usageReports))
         // Dismissing the tip card leaves the slot empty until a later launch.
         XCTAssertNil(SessionListCard.choose(eligible: [.star], shownThisLaunch: .tip))
         // A star card already showing keeps the slot when another card becomes eligible mid-launch.
-        XCTAssertEqual(SessionListCard.choose(eligible: [.usageReports, .tip, .star], shownThisLaunch: .star), .star)
-    }
-
-    @MainActor
-    func testUsageReportsCardAsksFromFiveResponsesUntilAnswered() throws {
-        let defaults = try makeDefaults()
-        let reports = UsageReports(defaults: defaults, servers: { [] })
-        let policy = RatingPromptState(defaults: defaults, now: now).policy
-        func eligible(_ responses: Int, sharedImport: Bool = false) -> Bool {
-            SessionListCard.usageReportsEligible(question: reports.consent.question(), completedResponses: responses,
-                                                 hasSharedImport: sharedImport, ratingPolicy: policy, now: now)
-        }
-        XCTAssertFalse(eligible(4))
-        XCTAssertTrue(eligible(5))
-        XCTAssertTrue(eligible(500), "Someone past the threshold when the card ships is asked too")
-        XCTAssertFalse(eligible(5, sharedImport: true))
-        reports.decline()
-        XCTAssertFalse(eligible(5), "No thanks never asks again")
-    }
-
-    func testUsageReportsReaskOnlyForANewerFormatAfterAllowing() {
-        XCTAssertEqual(UsageReportConsent().question(currentVersion: 1), .allow)
-        XCTAssertNil(UsageReportConsent(acceptedVersion: 1).question(currentVersion: 1))
-        XCTAssertEqual(UsageReportConsent(acceptedVersion: 1).question(currentVersion: 2),
-                       .moreFields(UsageReport.fieldsAdded(after: 1)))
-        XCTAssertNil(UsageReportConsent(acceptedVersion: 1, declinedVersion: 2).question(currentVersion: 2),
-                     "No thanks on the re-prompt keeps the old format and doesn't ask again")
-        XCTAssertNil(UsageReportConsent(declinedVersion: 1).question(currentVersion: 2),
-                     "A first No thanks is permanent")
+        XCTAssertEqual(SessionListCard.choose(eligible: [.tip, .star], shownThisLaunch: .star), .star)
     }
 
     @MainActor
