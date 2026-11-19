@@ -1,8 +1,9 @@
-# PR checks in under a minute, on Roberto's Mac (runner label `squadd-multi-ios`): build every target, run the
-# tests of the files the branch touches against dev (ci/pr_tests.py), keep their photos as the `foto` artifact,
-# check the String Catalog. Fast because the Mac keeps state between runs: each branch's checkout and DerivedData
-# (incremental build) and two booted simulators. Coverage and the index store are off. The full suite and Release
-# builds run at night (pr-ci.yml).
+# PR checks in under a minute, on Roberto's Mac (two runners, label `squadd-multi-ios-shared`): build every
+# target, run the tests of the files the branch touches against dev (ci/pr_tests.py), keep their photos as the
+# `foto` artifact, check the String Catalog. Fast because the Mac keeps state between runs: each runner keeps each
+# branch's checkout and DerivedData (incremental build), and the two runners share two booted simulators, so two
+# pushes at once don't queue. Coverage and the index store are off. The full suite and Release builds run at night
+# (pr-ci.yml).
 #
 # It runs on every push to a branch of this repo, so a PR to dev shows the result of its head commit, often before
 # it is opened; a push event also starts ~5 s sooner than a pull_request one. The repo is public and the runner is
@@ -25,7 +26,7 @@ jobs:
   prova:
     name: Build, touched tests, photos, catalog
     if: ${{ !github.event.deleted }}
-    runs-on: [self-hosted, squadd-multi-ios]
+    runs-on: [squadd-multi-ios-shared]
     timeout-minutes: 2
     env:
       HEAD_SHA: ${{ github.sha }}
@@ -59,6 +60,7 @@ jobs:
           git fetch -q --no-tags origin "${HEAD_SHA}" "${dev}"
           git checkout -qf --detach "${HEAD_SHA}"
           git clean -ffdq
+          python3 ci/pr_sims.py --busy
           git diff --name-only "$(git merge-base origin/dev HEAD)" HEAD > "${RUNNER_TEMP}/changed.txt"
           python3 ci/pr_tests.py < "${RUNNER_TEMP}/changed.txt" > "${RUNNER_TEMP}/tests.txt"
           echo "Tests of the touched files:"; cat "${RUNNER_TEMP}/tests.txt"
@@ -78,7 +80,10 @@ jobs:
 
       # Tests: classes split by the seconds they took last time (photo classes take seconds), so both simulators
       # end together. Then the photos no test reaches, and the String Catalog, which runs even when a test fails.
+      # The Mac has two runners sharing the two simulators (ci/pr_sims.py): with both runners busy each run
+      # gets one simulator, and TWO is empty.
       - name: Touched tests, photos and catalog
+        shell: python3 ci/pr_sims.py bash --noprofile --norc -eo pipefail {0}
         env:
           ONE: ${{ steps.sim.outputs.udid }}
           TWO: ${{ steps.sim.outputs.udid2 }}
@@ -96,6 +101,7 @@ jobs:
           failed=0
           if [[ -s "${RUNNER_TEMP}/tests.txt" ]]; then
             (cd "${RUNNER_TEMP}" && python3 "${GITHUB_WORKSPACE}/ci/pr_split.py" split "${TEST_TIMES}" < tests.txt)
+            if [[ -z "${TWO}" ]]; then cat "${RUNNER_TEMP}/two.txt" >> "${RUNNER_TEMP}/one.txt"; : > "${RUNNER_TEMP}/two.txt"; fi
             pids=()
             for half in one two; do
               [[ -s "${RUNNER_TEMP}/${half}.txt" ]] || continue
