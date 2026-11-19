@@ -97,14 +97,19 @@ final class SquaddCompanionTests: XCTestCase {
     private let sugarThread = "efb8fa96-47ef-4968-bb13-ce9aacada117"
 
     func testThreadsFollowTheDesktopOrderAndArchivedWaitApart() async throws {
-        SquaddHTTPFixture.handler = { _ in (200, try! Self.fixture("bots-organized.json")) }
+        SquaddHTTPFixture.handler = { request in
+            (200, try! Self.fixture(request.httpMethod == "PATCH" ? "task-patch.json" : "bots-organized.json"))
+        }
         let model = SquaddAgentListModel(client: client(token: "t"), onUnpaired: {})
-
         await model.load()
+        let loaded = try XCTUnwrap(sections(model).first)
 
-        let section = try XCTUnwrap(sections(model).first)
-        XCTAssertEqual(section.threads.map(\.title), ["Rinominato", "ciao zucchero"], "pinned first, then the newest")
-        XCTAssertEqual(section.archived.map(\.title), ["Prova B"])
+        _ = await model.setPinned(false, threadId: pinnedThread, botId: starter)
+        _ = await model.setPinned(true, threadId: sugarThread, botId: starter)
+
+        XCTAssertEqual(loaded.threads.map(\.title), ["Rinominato", "ciao zucchero"], "pinned first, then the newest")
+        XCTAssertEqual(loaded.archived.map(\.title), ["Prova B"])
+        XCTAssertEqual(try sections(model).first?.threads.map(\.title), ["ciao zucchero", "Rinominato"], "an older pinned thread goes above a newer one")
     }
 
     func testThreadActionsUseTheTaskRoutes() async throws {
