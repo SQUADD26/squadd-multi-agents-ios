@@ -81,6 +81,17 @@ enum SquaddPush {
         SHA256.hash(data: Data(server.absoluteString.utf8)).prefix(16).map { String(format: "%02x", $0) }.joined()
     }
 
+    /// A tapped notification: when it is a Squadd push, queues its thread on `AppIntentRouter` (which
+    /// `ContentView` routes through `SquaddThreadLink`) and returns true, opening nothing when no configured
+    /// computer sent it. False for any other notification.
+    @MainActor static func openTapped(userInfo: [AnyHashable: Any], servers: [ServerAccount]) -> Bool {
+        guard let payload = SquaddPushPayload(userInfo: userInfo) else { return false }
+        if let server = server(for: payload, among: servers) {
+            AppIntentRouter.shared.requestDeepLink(threadLink(payload, server: server).url)
+        }
+        return true
+    }
+
     /// The thread a tapped push opens, on the server that sent it (`ContentView` switches there first).
     static func threadLink(_ payload: SquaddPushPayload, server: URL) -> SquaddThreadLink {
         SquaddThreadLink(threadID: payload.threadId, botID: payload.botId, server: server)

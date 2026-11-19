@@ -4,6 +4,7 @@ import SwiftUI
 /// (`/api/push/device`), then the alerts every server shares. The computer is the record of whether it is on.
 @MainActor struct SquaddPushSettingsPage<SharedSections: View>: View {
     let server: URL
+    var registrar: SquaddPushRegistrar = .shared
     @ViewBuilder let sharedSections: () -> SharedSections
 
     @State private var state: LoadState = .loading
@@ -39,11 +40,11 @@ import SwiftUI
             Button(String(localized: "Try again")) { Task { await load() } }
         case .loaded(let answer) where answer.isRegistered:
             Button(isWorking ? String(localized: "Turning off…") : String(localized: "Turn off notifications…"),
-                   role: .destructive) { run { try await SquaddPushRegistrar.shared.disable(for: server) } }
+                   role: .destructive) { run { try await registrar.disable(for: server) } }
                 .disabled(isWorking)
         case .loaded:
             Button(isWorking ? String(localized: "Setting up…") : String(localized: "Turn on notifications…")) {
-                run { try await SquaddPushRegistrar.shared.enable(for: server) }
+                run { try await registrar.enable(for: server) }
             }
             .disabled(isWorking)
         }
@@ -60,7 +61,7 @@ import SwiftUI
     }
 
     private func load() async {
-        if let answer = await SquaddPushRegistrar.shared.isEnabled(for: server) {
+        if let answer = await registrar.isEnabled(for: server) {
             state = .loaded(answer)
         } else {
             state = .unreachable

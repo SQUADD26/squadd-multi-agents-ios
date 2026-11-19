@@ -1,3 +1,5 @@
+import SwiftData
+import SwiftUI
 import UserNotifications
 import XCTest
 @testable import HermesMobile
@@ -58,23 +60,28 @@ final class SquaddPushTests: XCTestCase {
         XCTAssertEqual(puts, ["127.0.0.1"])
     }
 
-    func testRecordedPushOpensItsThreadOnTheServerThatSentIt() throws {
-        let userInfo = try XCTUnwrap(JSONSerialization.jsonObject(with: Self.fixture("apns-done.json")) as? [String: Any])
-        let payload = try XCTUnwrap(SquaddPushPayload(userInfo: userInfo))
-        let servers = [account(otherServer), account(server)]
+    func testTappedRecordedPushOpensItsThreadOnTheServerThatSentIt() throws {
+        defer { AppIntentRouter.shared.pendingDeepLink = nil }
+        let userInfo = try Self.recordedPush()
 
-        let opened = try XCTUnwrap(SquaddPush.server(for: payload, among: servers))
-        let link = try XCTUnwrap(SquaddThreadLink(url: XCTUnwrap(SquaddPush.threadLink(payload, server: opened).url)))
-
-        XCTAssertEqual(opened, server)
+        XCTAssertTrue(SquaddPush.openTapped(userInfo: userInfo, servers: [account(otherServer), account(server)]))
+        let link = try XCTUnwrap(AppIntentRouter.shared.pendingDeepLink.flatMap(SquaddThreadLink.init(url:)))
         XCTAssertEqual(link.threadID, "6f85c7af-a71e-487f-8072-abd6b0765715")
         XCTAssertEqual(link.botID, "c813261f-bd3e-4d86-909c-27416feff813")
         XCTAssertEqual(link.server, server)
-        XCTAssertNil(SquaddPush.server(for: payload, among: [account(otherServer)]), "a computer this iPhone doesn't know opens nothing")
+
+        AppIntentRouter.shared.pendingDeepLink = nil
+        XCTAssertTrue(SquaddPush.openTapped(userInfo: userInfo, servers: [account(otherServer)]))
+        XCTAssertNil(AppIntentRouter.shared.pendingDeepLink, "a push from a computer this iPhone doesn't know opens nothing")
+    }
+
+    /// The hermex-push relay accepts only Hermex's bundle IDs, so this build can never register there (ADR 0004).
+    func testThisBuildCannotRegisterWithTheHermexRelay() {
+        XCTAssertNil(PushBuildIdentity(bundle: .main))
     }
 
     func testNotificationExtensionLeavesASquaddPushUntouched() throws {
-        let userInfo = try XCTUnwrap(JSONSerialization.jsonObject(with: Self.fixture("apns-done.json")) as? [String: Any])
+        let userInfo = try Self.recordedPush()
         let content = UNMutableNotificationContent()
         content.title = "Finch finished"
         content.userInfo = userInfo
@@ -101,7 +108,11 @@ final class SquaddPushTests: XCTestCase {
                       headerLogoColorHex: HeaderLogoColor.defaultHex, createdAt: .now, updatedAt: .now, kind: .squadd)
     }
 
-    private nonisolated static func fixture(_ name: String) throws -> Data {
+    static func recordedPush() throws -> [AnyHashable: Any] {
+        try XCTUnwrap(JSONSerialization.jsonObject(with: fixture("apns-done.json")) as? [String: Any])
+    }
+
+    nonisolated static func fixture(_ name: String) throws -> Data {
         try Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .appendingPathComponent("Fixtures/Squadd/\(name)"))
     }
@@ -141,5 +152,83 @@ private extension URLRequest {
             data.append(buffer, count: count)
         }
         return data
+    }
+}
+
+/// Photos for review (#30): the Notifications page of a Squadd computer with push on, and the thread a tapped
+/// push opens, switching to the computer that sent it. Skipped unless `FOTO_DIR` is set (`TEST_RUNNER_FOTO_DIR`).
+@MainActor
+final class SquaddPushPhotoTests: XCTestCase {
+    /// The computer the recorded push came from, and another one that is active when it is tapped.
+    private let sender = URL(string: "http://127.0.0.1:22020")!
+    private let laptop = URL(string: "http://macbook.tailnet.test:8810")!
+    private var window: UIWindow?
+
+    override func tearDown() {
+        URLProtocol.unregisterClass(SquaddHTTPFixture.self)
+        SquaddHTTPFixture.handler = nil
+        AppIntentRouter.shared.pendingDeepLink = nil
+        window?.isHidden = true
+        super.tearDown()
+    }
+
+    func testPhotoPushSettingsAndTappedThread() async throws {
+        let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
+        try XCTSkipIf(path == nil, "Only for photo runs")
+        let dir = URL(fileURLWithPath: path!)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let registered = try SquaddPushTests.fixture("push-device-registered.json")
+        // The agent and thread the recorded push names, as the sender's companion lists them.
+        let bots = Data("""
+        {"bots":[{"id":"c813261f-bd3e-4d86-909c-27416feff813","name":"Finch","threadId":"6f85c7af-a71e-487f-8072-abd6b0765715",
+          "tasks":[{"threadId":"t-menu","title":"Weekly menu","updatedAt":1795112300000}]}]}
+        """.utf8)
+        SquaddHTTPFixture.handler = { request in
+            switch request.url?.path {
+            case "/api/bots": return (200, bots)
+            case "/api/push/device": return (200, registered)
+            default: return (404, Data())
+            }
+        }
+        URLProtocol.registerClass(SquaddHTTPFixture.self)
+        let keychain = InMemoryKeychainStore()
+        let registry = ServerRegistry.inMemory(keychain: keychain)
+        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(), serverRegistry: registry,
+                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
+        try manager.addSquaddServer(address: sender, token: "token-sender")
+        try manager.addSquaddServer(address: laptop, token: "token-laptop")
+
+        // a. Settings → Notifications on the sender, with push on.
+        let client = SquaddCompanionClient(server: sender, token: "token-sender")
+        let registrar = SquaddPushRegistrar(clients: { [sender] in [sender: client] }, environment: .sandbox)
+        try host(NavigationStack { SquaddPushSettingsPage(server: sender, registrar: registrar) { EmptyView() } })
+        try await shoot("n1-notifications-push-on", dir: dir)
+
+        // b. The recorded push tapped while the laptop is active: the app switches to the sender and marks the thread.
+        try host(ContentView(authManager: manager))
+        XCTAssertTrue(SquaddPush.openTapped(userInfo: try SquaddPushTests.recordedPush(), servers: manager.servers))
+        try await shoot("n2-tap-opens-thread", dir: dir)
+        XCTAssertEqual(manager.state, .loggedIn(server: sender))
+    }
+
+    private func host<V: View>(_ view: V) throws {
+        let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
+                                           configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        self.window?.isHidden = true
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+        window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
+        window.makeKeyAndVisible()
+        self.window = window
+    }
+
+    private func shoot(_ name: String, dir: URL) async throws {
+        try await Task.sleep(for: .seconds(2.5)) // test-wait: lets the companion answers and the scroll draw; a photo for review, never an assertion
+        let window = try XCTUnwrap(window)
+        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+        try XCTUnwrap(image.pngData()).write(to: dir.appendingPathComponent("\(name).png"))
     }
 }

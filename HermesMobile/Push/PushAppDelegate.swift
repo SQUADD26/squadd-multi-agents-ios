@@ -93,11 +93,11 @@ final class PushAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
         // The system does not promise a thread here, so hop rather than assume.
         Task { @MainActor in
             let activeServer = ServerRegistry.shared.activeServerID.flatMap(URL.init(string:))
-            if let payload = SquaddPushPayload(userInfo: userInfo) {
-                if let server = SquaddPush.server(for: payload, among: ServerRegistry.shared.servers) {
-                    AppIntentRouter.shared.requestDeepLink(SquaddPush.threadLink(payload, server: server).url)
-                }
-            } else if let destination = PushNotificationRouter.localAlertLink(userInfo: userInfo,
+            if SquaddPush.openTapped(userInfo: userInfo, servers: ServerRegistry.shared.servers) {
+                completionHandler()
+                return
+            }
+            if let destination = PushNotificationRouter.localAlertLink(userInfo: userInfo,
                                                                        servers: ServerRegistry.shared.servers) {
                 AppIntentRouter.shared.requestDeepLink(destination)
             } else if let pairings = Self.configuredPairings(),
