@@ -926,6 +926,29 @@ final class AuthManagerStateTests: XCTestCase {
                             hermesGateway: .init(socketFactory: { _ in socket() }))
     }
 
+    /// Without the Hermes backends (ADR 0002) the connect form reads no host and adds nothing,
+    /// from onboarding or Add Server.
+    func testTheConnectFormAddsNoServerWithTheHermesBackendsOff() async throws {
+        HermesBackends.isEnabled = false
+        defer {
+            HermesBackends.isEnabled = true
+            HermesHostFixture.reset()
+        }
+        let manager = makeFormManager(keychain: InMemoryKeychainStore())
+        for entry in [OnboardingViewModel.Entry.onboarding, .addServer] {
+            let form = makeForm(entry: entry)
+            form.serverURLString = "hermes.example"
+
+            let added = await form.connect(authManager: manager)
+
+            XCTAssertNil(added, "\(entry)")
+            XCTAssertNotNil(form.errorMessage, "\(entry): the form says why")
+        }
+        XCTAssertTrue(manager.servers.isEmpty)
+        XCTAssertEqual(manager.state, .unconfigured)
+        XCTAssertEqual(HermesHostFixture.count("/api/status"), 0, "no host is read")
+    }
+
     func testTheConnectFormAddsAHermesServerFromOnboardingAndFromAddServer() async throws {
         defer { HermesHostFixture.reset() }
         for entry in [OnboardingViewModel.Entry.onboarding, .addServer] {

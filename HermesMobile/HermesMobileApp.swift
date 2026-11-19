@@ -59,10 +59,13 @@ struct HermexCommands: Commands {
             .disabled(actions == nil)
         }
 
-        CommandGroup(after: .sidebar) {
-            Button("Open Screen") { openScreen?() }
-                .keyboardShortcut("s", modifiers: [.command, .shift])
-                .disabled(openScreen == nil)
+        // Screen is a Hermes host's (ADR 0002).
+        if HermesBackends.isEnabled {
+            CommandGroup(after: .sidebar) {
+                Button("Open Screen") { openScreen?() }
+                    .keyboardShortcut("s", modifiers: [.command, .shift])
+                    .disabled(openScreen == nil)
+            }
         }
 
         // View menu, beside Toggle Sidebar. ⌘⇧] and ⌘⇧[ back up ⌃Tab in case

@@ -118,6 +118,8 @@ struct ContentView: View {
         switch authManager.state {
         case .unconfigured:
             OnboardingView(authManager: authManager)
+        case .loggedOut where authManager.state.openedServer == nil, .loggedIn where authManager.state.openedServer == nil:
+            OnboardingView(authManager: authManager)
         case .loggedOut(let server) where authManager.kind(of: server) == .hermes:
             HermesServerSignIn(authManager: authManager, server: server)
                 .id(server)
@@ -225,7 +227,7 @@ struct ContentView: View {
         // limits were read through (#1409), never switching servers; anything else opens the app as is.
         if let usage = HermesUsageDestination(url: url) {
             UsageReports.shared.record(.homeWidget)
-            if usage.opens(state: authManager.state, servers: authManager.servers) { pendingLinks.hermesUsage = usage }
+            if HermesBackends.isEnabled, usage.opens(state: authManager.state, servers: authManager.servers) { pendingLinks.hermesUsage = usage }
             return
         }
 
@@ -1195,4 +1197,17 @@ struct PendingLinks {
 
 #Preview {
     ContentView(authManager: AuthManager())
+}
+
+extension AuthManager.State {
+    /// The saved server the root opens, its home or its sign-in; nil when the root shows
+    /// onboarding. With the Hermes backends off (ADR 0002) no saved server opens, since every one
+    /// is webui or Hermes, whichever way it became active: launch, a switch or a link.
+    var openedServer: URL? {
+        guard HermesBackends.isEnabled else { return nil }
+        switch self {
+        case .unconfigured: return nil
+        case .loggedOut(let server), .loggedIn(let server): return server
+        }
+    }
 }

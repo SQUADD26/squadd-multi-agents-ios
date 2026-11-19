@@ -396,7 +396,9 @@ struct MessageComposerView: View {
     @State private var voiceNoteIsHeld = true
     @State private var didAutoStartVoiceInput = false
     @AppStorage(ComposerSTTProviderPreference.storageKey) private var sttProviderPreferenceRawValue = ComposerSTTProviderPreference.defaultValue.rawValue
-    @AppStorage(SectionVisibilitySettings.chatGitKey) private var showsGitControls = true
+    @AppStorage(SectionVisibilitySettings.chatGitKey) private var storedShowsGitControls = true
+    /// Git and workspaces are a webui or Hermes host's (ADR 0002).
+    private var showsGitControls: Bool { HermesBackends.isEnabled && storedShowsGitControls }
 
     private var isReadOnly: Bool {
         !access.allowsEditing
@@ -1108,7 +1110,9 @@ struct MessageComposerView: View {
     /// holds these from then on. The labels truncate instead of scrolling.
     private var newChatControlsRow: some View {
         HStack(alignment: .center, spacing: 8) {
-            workspaceSelector
+            if HermesBackends.isEnabled {
+                workspaceSelector
+            }
 
             gitBranchPicker
 

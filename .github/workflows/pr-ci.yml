@@ -161,6 +161,17 @@ jobs:
             -showBuildTimingSummary \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee "${CI_LOG_DIR}/build.log"
 
+      - name: Show the Hermes backends flag
+        # ADR 0002: the shipped value and what YES turns on, for every target.
+        run: |
+          set -euo pipefail
+          for override in "" "HERMES_BACKENDS=YES"; do
+            echo "== xcodebuild ${override:-(as shipped)}"
+            xcodebuild -showBuildSettings -project "${PROJECT_PATH}" -scheme "${SCHEME}" \
+              -destination "generic/platform=iOS Simulator" ${override} 2>/dev/null \
+              | grep -E '^Build settings for|^ +(HERMES_BACKENDS|OTHER_SWIFT_FLAGS) = ' || true
+          done
+
       - name: Test without building
         id: tests
         # Bound worker clone/boot and suite execution, leaving time for diagnostics.
@@ -185,6 +196,25 @@ jobs:
             -parallel-testing-worker-count "${TEST_WORKER_COUNT}" \
             -collect-test-diagnostics never \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee "${CI_LOG_DIR}/tests.log"
+
+      - name: Export kept test screenshots
+        # Images a test keeps as evidence (`XCTAttachment.lifetime = .keepAlways`), such as
+        # HermesBackendsTests' screens with the Hermes backends off and on.
+        if: ${{ !cancelled() && steps.tests.outcome != 'skipped' }}
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          xcrun xcresulttool export attachments --path "${RESULT_BUNDLE_PATH}" --output-path test-screenshots
+          ls test-screenshots
+
+      - name: Upload screenshots artifact
+        if: ${{ !cancelled() && steps.tests.outcome != 'skipped' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: test-screenshots
+          path: test-screenshots
+          if-no-files-found: ignore
 
       - name: Check String Catalog coverage
         # Reads the .stringsdata the build step already wrote; no extra build.
