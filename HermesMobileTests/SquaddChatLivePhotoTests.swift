@@ -33,15 +33,22 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         let chat = SquaddThreadChat(server: address, token: token, botId: bot.id, threadId: thread.threadId,
                                     title: thread.title ?? bot.name)
         let continuity = ChatContinuity()
-        let window = try show(NavigationStack {
-            ChatView(session: SessionSummary(sessionId: chat.threadId, title: chat.title), server: address,
-                     onAPIError: { _ in }, continuity: continuity, squaddThread: chat)
+        // Pushed, as `SquaddServerHome` opens it: the chat loads once its navigation appearance completes.
+        let window = try show(NavigationStack(path: .constant([chat])) {
+            Color.clear.navigationDestination(for: SquaddThreadChat.self) { chat in
+                ChatView(session: SessionSummary(sessionId: chat.threadId, title: chat.title), server: address,
+                         onAPIError: { _ in }, continuity: continuity, squaddThread: chat)
+            }
         })
         defer { window.isHidden = true }
 
         // The thread may hold no row the chat shows yet, so loaded means a row or an error.
-        let model = try XCTUnwrap(settle(seconds: 20) { continuity.model.map { !$0.isLoading && (!$0.messages.isEmpty || $0.errorMessage != nil) ? $0 : nil } ?? nil },
-                                  "the thread loaded")
+        let loaded = settle(seconds: 20) { continuity.model.map { !$0.isLoading && (!$0.messages.isEmpty || $0.errorMessage != nil) ? $0 : nil } ?? nil }
+        if loaded == nil {
+            note("not loaded: model \(continuity.model == nil ? "missing" : "on screen"), loading \(continuity.model?.isLoading ?? false), rows \(continuity.model?.messages.count ?? 0)")
+            try? photograph(window, named: "7-squadd-chat-open", in: folder)
+        }
+        let model = try XCTUnwrap(loaded, "the thread loaded")
         note("transcript: \(model.messages.count) rows, error: \(model.errorMessage ?? "none")")
         try photograph(window, named: "7-squadd-chat-open", in: folder)
 
