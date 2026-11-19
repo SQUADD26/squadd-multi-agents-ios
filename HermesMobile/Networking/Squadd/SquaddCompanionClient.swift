@@ -26,6 +26,24 @@ struct SquaddCompanionClient {
         return try JSONDecoder().decode(SquaddBotList.self, from: data).bots
     }
 
+    /// Tells the computer the person has the app open (`POST /api/presence/active`, the route the
+    /// companion's whitelist allows), so it knows to reach them on the phone. `threadId` is the chat
+    /// on screen, if one is.
+    func presenceActive(timeZone: String = TimeZone.current.identifier,
+                        language: String? = Bundle.main.preferredLocalizations.first,
+                        threadId: String? = nil) async throws {
+        var request = URLRequest(url: server.appendingPathComponent("api/presence/active"))
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        var body = ["source": "phone", "timeZone": timeZone]
+        // The companion takes a BCP 47 tag in lower case (`it`, `pt-br`).
+        if let language { body["language"] = language.lowercased() }
+        if let threadId { body["threadId"] = threadId }
+        request.httpBody = try JSONEncoder().encode(body)
+        _ = try await Self.send(request, session: session)
+    }
+
     /// Redeems a six-digit pairing code (or the QR credential) shown on the computer for a
     /// device token. The code is single-use and lasts two minutes.
     static func pair(server: URL, code: String, deviceName: String, session: URLSession = .shared) async throws -> SquaddPairResponse {

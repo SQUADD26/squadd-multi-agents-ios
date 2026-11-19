@@ -26,6 +26,7 @@ struct SquaddRoute<Webui: View>: View {
 struct SquaddServerHome: View {
     @Bindable var authManager: AuthManager
     let server: URL
+    @Environment(\.scenePhase) private var scenePhase
     /// Made once in `.task`, not in `init`, so a pass of the parent reads no Keychain.
     @State private var model: SquaddAgentListModel?
     @State private var isShowingSettings = false
@@ -51,6 +52,12 @@ struct SquaddServerHome: View {
                 )
             }
             await model?.load()
+        }
+        // Present for Squadd while the app is in front; leaving cancels the pings (`SquaddPresence`).
+        .task(id: scenePhase == .active) {
+            guard scenePhase == .active, let token = authManager.squaddToken(for: server) else { return }
+            let client = SquaddCompanionClient(server: server, token: token)
+            await SquaddPresence.keepAlive { try await client.presenceActive() }
         }
         .sheet(isPresented: $isShowingSettings) {
             NavigationStack {
