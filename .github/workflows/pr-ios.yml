@@ -54,16 +54,18 @@ jobs:
           python3 ci/pr_tests.py < "${RUNNER_TEMP}/changed.txt" > "${RUNNER_TEMP}/tests.txt"
           echo "Tests of the touched files:"; cat "${RUNNER_TEMP}/tests.txt"
 
-      - name: Simulator
+      # Two simulators, booted once and kept on between runs: the touched tests split across them.
+      - name: Simulators
         id: sim
         run: |
           set -euo pipefail
-          udid=$(xcrun simctl list devices available --json | python3 -c '
+          for name in "${SIMULATOR_NAME}" "${SIMULATOR_NAME} 2"; do
+            udid=$(xcrun simctl list devices available --json | NAME="${name}" python3 -c '
           import json, os, sys
-          print(next(d["udid"] for ds in json.load(sys.stdin)["devices"].values() for d in ds if d["name"] == os.environ["SIMULATOR_NAME"]))')
-          # Stays booted between runs; booting it again is a no-op.
-          xcrun simctl bootstatus "${udid}" -b > /dev/null
-          echo "udid=${udid}" >> "$GITHUB_OUTPUT"
+          print(next(d["udid"] for ds in json.load(sys.stdin)["devices"].values() for d in ds if d["name"] == os.environ["NAME"]))')
+            xcrun simctl bootstatus "${udid}" -b > /dev/null
+            echo "${udid}"
+          done | { read -r one; read -r two; echo "udid=${one}"; echo "udid2=${two}"; } >> "$GITHUB_OUTPUT"
 
       - name: Build
         run: |
@@ -73,16 +75,36 @@ jobs:
             -derivedDataPath "${DERIVED_DATA}" -disableAutomaticPackageResolution -enableCodeCoverage NO \
             COMPILER_INDEX_STORE_ENABLE=NO CODE_SIGNING_ALLOWED=NO -quiet
 
+      # Photo classes are the slow ones (seconds each): they alternate between the two simulators.
       - name: Tests of the touched files
+        env:
+          ONE: ${{ steps.sim.outputs.udid }}
+          TWO: ${{ steps.sim.outputs.udid2 }}
         run: |
           set -euo pipefail
           mkdir -p "${TEST_RUNNER_FOTO_DIR}"
           [[ -s "${RUNNER_TEMP}/tests.txt" ]] || { echo "No test touched."; exit 0; }
-          xcodebuild test-without-building -project HermesMobile.xcodeproj -scheme HermesMobile \
-            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
-            -derivedDataPath "${DERIVED_DATA}" -disableAutomaticPackageResolution \
-            -parallel-testing-enabled NO -collect-test-diagnostics never $(cat "${RUNNER_TEMP}/tests.txt") \
-            | grep -E "^Test (Case|Suite)|error:|\*\* TEST|Testing started"
+          cd "${RUNNER_TEMP}"
+          grep -v Photo tests.txt > one.txt || true
+          grep Photo tests.txt | awk '{ print > (NR % 2 ? "two.txt" : "one-photos.txt") }'
+          cat one-photos.txt >> one.txt 2> /dev/null || true
+          cd "${GITHUB_WORKSPACE}"
+          run() {
+            xcodebuild test-without-building -project HermesMobile.xcodeproj -scheme HermesMobile \
+              -destination "platform=iOS Simulator,id=$1" -derivedDataPath "${DERIVED_DATA}" \
+              -disableAutomaticPackageResolution -parallel-testing-enabled NO -collect-test-diagnostics never \
+              -resultBundlePath "${RUNNER_TEMP}/$2.xcresult" $(cat "${RUNNER_TEMP}/$2.txt") \
+              | grep -E "^Test (Case|Suite)|error:|\*\* TEST"
+          }
+          pids=()
+          for half in one two; do
+            [[ -s "${RUNNER_TEMP}/${half}.txt" ]] || continue
+            udid=${ONE}; [[ ${half} == two ]] && udid=${TWO}
+            run "${udid}" "${half}" & pids+=($!)
+          done
+          failed=0
+          for pid in "${pids[@]}"; do wait "${pid}" || failed=1; done
+          exit "${failed}"
 
       # Icon, launch screen and first screen: no test reaches them, so the installed app is photographed.
       - name: Home screen, launch and welcome photos
