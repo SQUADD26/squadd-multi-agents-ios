@@ -8,9 +8,7 @@ struct BotRoomComposerView: View {
     let avatars: [String: UIImage]
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @AppStorage(HeaderLogoColor.storageKey) private var themeHex = HeaderLogoColor.defaultHex
-    @AppStorage(PrimaryActionTintSettings.isEnabledKey) private var tintsPrimaryActions = false
-    @AppStorage(AppAppearanceSettings.accentHexKey) private var accentHex: String?
+    @AppStorage(PrimaryActionTintSettings.isEnabledKey) private var tintsPrimaryActions = true
     @AppStorage(AppHaptics.isEnabledKey) private var isHapticsEnabled = true
     @State private var selection = ComposerSelection()
     @State private var focused = false
@@ -62,7 +60,7 @@ struct BotRoomComposerView: View {
         let enabled = stop ? reader.mayStop : reader.maySend(in: threadID)
         let appearance = ChatComposerActionAppearance(isStop: stop, isDisabled: !enabled,
             colorScheme: colorScheme, tintsPrimaryActions: tintsPrimaryActions,
-            tint: PrimaryActionTintSettings.colors(accentHex: accentHex, serverHex: themeHex))
+            tint: PrimaryActionTintSettings.colors)
         return Button {
             if stop { Task { await reader.stop() } } else { send() }
         } label: {

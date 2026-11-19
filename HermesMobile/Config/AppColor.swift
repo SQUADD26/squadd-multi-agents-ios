@@ -64,7 +64,8 @@ final class ThemePalette {
         groupedRaised: .tertiarySystemGroupedBackground,
         text: .label, textSecondary: .secondaryLabel, textTertiary: .tertiaryLabel, placeholder: .placeholderText,
         separator: .separator, fill: .systemFill, fillSecondary: .secondarySystemFill, fillTertiary: .tertiarySystemFill,
-        accent: .systemBlue, onAccent: .white,
+        // Squadd's accent, the desktop app's `--color-accent`.
+        accent: UIColor(rgb: 0x5E6AD2), onAccent: .white,
         link: UIColor { $0.userInterfaceStyle == .dark ? UIColor(rgb: 0x4C8EF8) : UIColor(rgb: 0x2C65CF) },
         code: UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.04, green: 0.05, blue: 0.07, alpha: 1) : .secondarySystemBackground },
         inlineCode: UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0.08, green: 0.09, blue: 0.12, alpha: 1) : .tertiarySystemGroupedBackground },

@@ -20,13 +20,13 @@ struct OnboardingPrimaryButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .font(AppFont.subheadline(weight: .semibold))
-            .foregroundStyle(.black)
+            .foregroundStyle(Color(.appOnAccent))
             .lineLimit(1)
             .minimumScaleFactor(0.78)
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 10)
             .padding(.vertical, 15)
-            .background(Color(red: 0.90, green: 0.91, blue: 0.92), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(Color(.appAccent), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .opacity(configuration.isPressed ? 0.78 : 1)
     }
 }

@@ -57,7 +57,7 @@ final class AppColorTests: XCTestCase {
         }
     }
 
-    /// Default must look exactly like the app before themes.
+    /// Default must look exactly like the app before themes, with Squadd's accent.
     func testDefaultResolvesToSystemColors() {
         let appearance = UITraitCollection { $0[AppAppearanceTrait.self] = .default }
         for style in [UIUserInterfaceStyle.light, .dark] {
@@ -68,7 +68,7 @@ final class AppColorTests: XCTestCase {
                 (.appText, .label),
                 (.appTextSecondary, .secondaryLabel),
                 (.appSeparator, .separator),
-                (.appAccent, .systemBlue)
+                (.appAccent, UIColor(rgb: 0x5E6AD2))
             ] {
                 XCTAssertEqual(token.resolvedColor(with: traits), system.resolvedColor(with: traits))
             }
@@ -97,7 +97,7 @@ final class AppColorTests: XCTestCase {
 
     /// Teal is the swatch the server color's luminance rule would label white, at 2.39:1.
     func testPrimaryActionsUseTheAccentWithAReadableLabel() {
-        let tint = PrimaryActionTintSettings.colors(accentHex: "#30B8C4", serverHex: "#FFD700")
+        let tint = PrimaryActionTintSettings.colors
         let appearance = AppAppearance(lightTheme: .default, darkTheme: .default, accentHex: "#30B8C4")
         for isDark in [false, true] {
             let traits = UITraitCollection { $0[AppAppearanceTrait.self] = appearance; $0.userInterfaceStyle = isDark ? .dark : .light }
@@ -107,7 +107,8 @@ final class AppColorTests: XCTestCase {
         }
     }
 
-    func testPrimaryActionsUseTheServerColorWithNoAccent() {
-        XCTAssertEqual(PrimaryActionTintSettings.colors(accentHex: nil, serverHex: "#5B7CFF").fill, HeaderLogoColor.color(for: "#5B7CFF"))
+    func testPrimaryActionsAreSquaddBlueWithNoAccentPicked() {
+        let traits = UITraitCollection { $0[AppAppearanceTrait.self] = .default; $0.userInterfaceStyle = .dark }
+        XCTAssertEqual(UIColor(PrimaryActionTintSettings.colors.fill).resolvedColor(with: traits), UIColor(rgb: 0x5E6AD2))
     }
 }

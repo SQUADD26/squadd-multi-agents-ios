@@ -2,7 +2,7 @@ import UIKit
 
 /// What a bug report needs to know about this install and the active server (#1396), from
 /// values the app already has: it makes no request. It holds no server address, name,
-/// username, header or credential, so neither `text` nor `issueURL` can carry one.
+/// username, header or credential, so `text` can carry none.
 struct SupportReport {
     /// Debug builds, the side-by-side Hermex Branch build, or any other Release build. App Store
     /// and TestFlight builds can't be told apart from inside the app, so both read Release.
@@ -20,7 +20,7 @@ struct SupportReport {
     /// The release the server reported at its last saved sign-in; nil for webui servers.
     var serverRelease: String?
     /// The active server's latest Hermes connection attempt, while its connection is current
-    /// (#1395). Only its time and each stage's outcome are reported, never in `issueURL`.
+    /// (#1395). Only its time and each stage's outcome are reported.
     var lastAttempt: HermesAttemptRecord? = nil
 
     /// The report as plain text: a header line, then one "Key: value" line per field. About's
@@ -48,38 +48,15 @@ struct SupportReport {
         return lines.joined(separator: "\n")
     }
 
-    /// The chat text Troubleshoot with Hermes queues (#1476): the triage playbook's starter
-    /// prompt, then this report. English like the report; the agent fetches the playbook only
-    /// once the user sends it.
+    /// The chat text Troubleshoot with Hermes queues (#1476): a request to triage, then this
+    /// report. English like the report; nothing is sent until the user does.
     var troubleshootingPrompt: String {
         """
-        I'm having a problem with Hermex, the iPhone app I use to reach you. Fetch
-        \(AppConfig.triagePlaybookURL.absoluteString)
-        and follow it to help me triage it.
+        I'm having a problem with Squadd Multi-Agents, the iPhone app I use to reach you. Help me \
+        triage it from these details.
 
         \(text)
         """
-    }
-
-    /// The bug report form with its app, iOS and server version inputs filled in from the
-    /// report; an uncached server release is left for the user. Without the install's version and
-    /// build it is the template chooser instead. Only these versions leave the phone, and only
-    /// once the user opens the link; the full text stays copy-only.
-    var issueURL: URL {
-        guard let appVersion, let build,
-              var components = URLComponents(url: AppConfig.bugReportURL, resolvingAgainstBaseURL: false) else {
-            return AppConfig.reportProblemURL
-        }
-        let fields: [(String, String?)] = [
-            ("app-version", "\(appVersion) (\(build))"),
-            ("ios-version", "iOS \(iOSVersion) on \(device)"),
-            ("server-version", serverKindName.flatMap { kind in serverRelease.map { "\(kind) \($0)" } }),
-        ]
-        components.queryItems = (components.queryItems ?? [])
-            + fields.compactMap { name, value in value.map { URLQueryItem(name: name, value: $0) } }
-        // `URLComponents` leaves `+` as is, and GitHub reads it as a space: a canary release is `0.21.4+…`.
-        components.percentEncodedQuery = components.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
-        return components.url ?? AppConfig.reportProblemURL
     }
 
     private var serverKindName: String? {

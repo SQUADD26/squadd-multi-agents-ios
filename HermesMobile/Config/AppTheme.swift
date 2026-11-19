@@ -149,10 +149,11 @@ struct HeaderLogoColorPreset: Identifiable, Equatable {
 
 enum HeaderLogoColor {
     static let storageKey = "headerLogoColorHex"
-    static let defaultHex = "#FFD700"
+    /// Silver, like the desktop app's steel Maus.
+    static let defaultHex = "#C9CED6"
 
     static let presets: [HeaderLogoColorPreset] = [
-        HeaderLogoColorPreset(name: String(localized: "Yellow"), hex: "#FFD700"),
+        HeaderLogoColorPreset(name: String(localized: "Silver"), hex: "#C9CED6"),
         HeaderLogoColorPreset(name: String(localized: "Blue"), hex: "#5B7CFF"),
         HeaderLogoColorPreset(name: String(localized: "Purple"), hex: "#AF52DE"),
         HeaderLogoColorPreset(name: String(localized: "Red"), hex: "#FF3B30"),
@@ -174,7 +175,7 @@ enum HeaderLogoColor {
     }
 
     static func color(for rawValue: String) -> Color {
-        Color(hexRGB: normalizedHex(rawValue) ?? defaultHex) ?? Color(red: 1.0, green: 0.843, blue: 0.0)
+        Color(hexRGB: normalizedHex(rawValue) ?? defaultHex) ?? Color(red: 0.788, green: 0.808, blue: 0.839)
     }
 
     static func prefersDarkForeground(for rawValue: String) -> Bool {
@@ -267,17 +268,9 @@ enum PrimaryActionTintSettings {
         isEnabled && controlIsEnabled
     }
 
-    /// A tinted primary action's fill and label: the accent at its readable color if one is
-    /// chosen, otherwise the server's color.
-    static func colors(accentHex: String?, serverHex: String) -> (fill: Color, label: Color) {
-        if accentHex.flatMap(HeaderLogoColor.normalizedHex) != nil {
-            return (Color(.appAccent), Color(.appOnAccent))
-        }
-        return (
-            HeaderLogoColor.color(for: serverHex),
-            HeaderLogoColor.prefersDarkForeground(for: serverHex) ? .black : .white
-        )
-    }
+    /// A tinted primary action's fill and label: the theme's accent at its readable color,
+    /// Squadd's blue on the default theme.
+    static let colors: (fill: Color, label: Color) = (Color(.appAccent), Color(.appOnAccent))
 }
 
 enum AppHaptics {

@@ -154,9 +154,7 @@ struct MessageComposerView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.scenePhase) private var scenePhase
-    @AppStorage(HeaderLogoColor.storageKey) private var headerLogoColorHex = HeaderLogoColor.defaultHex
-    @AppStorage(PrimaryActionTintSettings.isEnabledKey) private var tintsPrimaryActions = false
-    @AppStorage(AppAppearanceSettings.accentHexKey) private var accentHex: String?
+    @AppStorage(PrimaryActionTintSettings.isEnabledKey) private var tintsPrimaryActions = true
     @AppStorage(AppHaptics.isEnabledKey) private var isHapticsEnabled = true
     @ScaledMetric(relativeTo: .body) private var actionIconSize: CGFloat = 16
     @ScaledMetric(relativeTo: .body) private var plusIconSize: CGFloat = 20
@@ -1668,7 +1666,7 @@ struct MessageComposerView: View {
         ChatComposerActionAppearance(
             isStop: isStop, isDisabled: isDisabled,
             colorScheme: colorScheme, tintsPrimaryActions: tintsPrimaryActions,
-            tint: PrimaryActionTintSettings.colors(accentHex: accentHex, serverHex: headerLogoColorHex)
+            tint: PrimaryActionTintSettings.colors
         )
     }
 
