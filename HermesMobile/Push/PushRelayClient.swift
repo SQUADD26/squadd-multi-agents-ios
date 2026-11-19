@@ -45,7 +45,7 @@ enum PushRelayTestOutcome: Equatable {
 /// The install key is a bearer capability and it sits in the *path*, so no URL
 /// built here is ever logged, attached to an error, or shown to the user.
 @MainActor struct PushRelayClient: PushRelayRegistering, PushActivityRelaying {
-    private static let logger = Logger(subsystem: "com.uzairansar.hermesmobile", category: "push")
+    private static let logger = Logger(subsystem: "com.squaddcrm.multiagents", category: "push")
 
     private let session: URLSession
 
