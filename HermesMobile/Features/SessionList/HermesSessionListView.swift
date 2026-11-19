@@ -607,7 +607,7 @@ struct HermesSessionListView: View {
             bots: false, tasks: isHome && showsTasks, kanban: isHome && showsKanban, skills: isHome && showsSkills,
             memory: isHome && showsMemory, insights: isHome && showsInsights, activeProfile: false,
             projects: showsProjects && !viewModel.hermesShowsAllProfiles
-        )
+        ).withoutHermesOnlyRows
     }
 
     /// Pushes a home row's screen: Tasks, Skills, Memory and Usage on the listed Profile (the one

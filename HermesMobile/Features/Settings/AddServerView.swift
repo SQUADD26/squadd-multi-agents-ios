@@ -403,6 +403,8 @@ private struct ConnectionOptionsPage: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
+                // Both cards send custom headers, which only webui and Hermes servers take (ADR 0002).
+                if HermesBackends.isEnabled {
                 SettingsCard(title: "Cloudflare Access") {
                     SettingsTextFieldRow(
                         title: String(localized: "Client ID"),
@@ -427,6 +429,7 @@ private struct ConnectionOptionsPage: View {
                     CustomHeadersEditor(headers: $form.otherHeaders)
                 }
                 .disabled(form.isConnectionLocked)
+                }
 
                 SettingsCard(title: String(localized: "Identity")) {
                     ServerIdentityEditor(

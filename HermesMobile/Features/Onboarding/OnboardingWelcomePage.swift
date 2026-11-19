@@ -37,14 +37,17 @@ struct OnboardingWelcomePage: View {
             }
             .buttonStyle(OnboardingPrimaryButtonStyle())
 
-            Button(action: setUp) {
-                Text("I don’t have one yet")
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .contentShape(Rectangle())
+            // Its setup prompts set up a Hermes host or webui (ADR 0002).
+            if HermesBackends.isEnabled {
+                Button(action: setUp) {
+                    Text("I don’t have one yet")
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .font(AppFont.footnote(weight: .medium))
+                .foregroundStyle(.white.opacity(0.55))
+                .buttonStyle(.plain)
             }
-            .font(AppFont.footnote(weight: .medium))
-            .foregroundStyle(.white.opacity(0.55))
-            .buttonStyle(.plain)
         }
         .padding(.horizontal, 24)
         .padding(.top, 12)

@@ -518,6 +518,17 @@ struct SidebarSectionVisibility: Equatable {
     var showsAnyUtilityLink: Bool {
         bots || tasks || kanban || skills || memory || insights
     }
+
+    /// Without the Hermes and webui backends (ADR 0002), Tasks, Kanban and Usage, which only they
+    /// serve, are gone whatever Settings says.
+    var withoutHermesOnlyRows: SidebarSectionVisibility {
+        guard !HermesBackends.isEnabled else { return self }
+        var visibility = self
+        visibility.tasks = false
+        visibility.kanban = false
+        visibility.insights = false
+        return visibility
+    }
 }
 
 struct SessionSidebarUtilityRows: View {

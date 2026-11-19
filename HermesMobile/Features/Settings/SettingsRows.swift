@@ -274,12 +274,15 @@ struct MainPageSettingsSection: View {
 
     var body: some View {
         Section {
-            Toggle(isOn: $showsTasks) {
-                SettingsLabel(title: String(localized: "Tasks"), systemImage: "calendar.badge.clock")
-            }
+            // Only webui and Hermes servers serve Tasks and Kanban (ADR 0002).
+            if HermesBackends.isEnabled {
+                Toggle(isOn: $showsTasks) {
+                    SettingsLabel(title: String(localized: "Tasks"), systemImage: "calendar.badge.clock")
+                }
 
-            Toggle(isOn: $showsKanban) {
-                SettingsLabel(title: String(localized: "Kanban"), systemImage: "rectangle.split.3x1")
+                Toggle(isOn: $showsKanban) {
+                    SettingsLabel(title: String(localized: "Kanban"), systemImage: "rectangle.split.3x1")
+                }
             }
 
             Toggle(isOn: $showsSkills) {
@@ -290,8 +293,11 @@ struct MainPageSettingsSection: View {
                 SettingsLabel(title: String(localized: "Memory"), systemImage: "brain")
             }
 
-            Toggle(isOn: $showsInsights) {
-                SettingsLabel(title: String(localized: "Usage"), systemImage: "chart.bar")
+            // Only webui and Hermes servers serve Usage (ADR 0002).
+            if HermesBackends.isEnabled {
+                Toggle(isOn: $showsInsights) {
+                    SettingsLabel(title: String(localized: "Usage"), systemImage: "chart.bar")
+                }
             }
 
             if includesWebuiEntries {

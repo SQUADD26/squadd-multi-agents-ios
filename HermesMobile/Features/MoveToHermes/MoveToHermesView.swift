@@ -833,7 +833,8 @@ struct MoveToHermesBanner: View {
 
     var body: some View {
         let notice = notices.banner(for: serverID, in: auth.servers) ?? request?.notice
-        if notice != nil || request != nil || auth.showsMoveInvite(for: serverID) {
+        // Moves go from a webui server to a Hermes one (ADR 0002).
+        if HermesBackends.isEnabled, notice != nil || request != nil || auth.showsMoveInvite(for: serverID) {
             // One row for every card, so a sheet survives the invite turning into a notice.
             VStack(spacing: 0) {
                 if let notice { banner(notice) } else { invite }
@@ -964,6 +965,11 @@ private struct MoveToHermesNoticesRefresh: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
 
     func body(content: Content) -> some View {
+        // Moves go from a webui server to a Hermes one (ADR 0002); the banners still read `auth`.
+        if HermesBackends.isEnabled { notices(content) } else { content.environment(auth) }
+    }
+
+    private func notices(_ content: Content) -> some View {
         content
             .environment(auth)
             .task(id: auth.servers) { await MoveToHermesNotices.shared.refresh(auth) }

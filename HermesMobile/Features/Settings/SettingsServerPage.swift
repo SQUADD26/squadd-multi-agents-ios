@@ -68,7 +68,7 @@ struct SettingsServerPage: View {
                 inactiveServerSection
             }
 
-            if account.kind == .webui {
+            if HermesBackends.isEnabled, account.kind == .webui {
                 MoveToHermesSection(authManager: authManager, account: account, request: $moveRequest)
             }
 

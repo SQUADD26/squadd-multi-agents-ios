@@ -65,7 +65,6 @@ struct NewChatIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        UsageReports.shared.record(.appIntents)
         AppIntentRouter.shared.requestDeepLink(HermesDeepLink.newChatURL)
         return .result()
     }
@@ -86,7 +85,6 @@ struct NewChatVoiceIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        UsageReports.shared.record(.appIntents)
         AppIntentRouter.shared.requestDeepLink(HermesDeepLink.newChatVoiceURL)
         return .result()
     }
@@ -114,7 +112,6 @@ struct NewChatInProfileIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        UsageReports.shared.record(.appIntents)
         let hermes = profile.hermesNewChat
         AppIntentRouter.shared.requestDeepLink(
             HermesDeepLink.newChatInProfileURL(profileName: hermes?.profile ?? profile.id, server: hermes?.server)
@@ -147,7 +144,6 @@ struct NewChatWithContentIntent: AppIntent {
 
     @MainActor
     func perform() async throws -> some IntentResult {
-        UsageReports.shared.record(.appIntents)
         let destination = try Self.destination(profile: profile, active: ProfileEntityProvider.savedServerURL(),
                                                servers: ServerRegistry.shared.servers)
         try AppIntentRouter.shared.openNewChat(prefilling: content, server: destination.server, profile: destination.profile)

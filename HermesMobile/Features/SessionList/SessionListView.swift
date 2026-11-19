@@ -919,7 +919,7 @@ struct SessionListView: View {
             insights: showsInsightsSection,
             activeProfile: showsActiveProfileSection,
             projects: showsProjectsSection
-        )
+        ).withoutHermesOnlyRows
     }
 
     /// Bottom-of-list entry to the Archived screen (issue #17). Hidden while

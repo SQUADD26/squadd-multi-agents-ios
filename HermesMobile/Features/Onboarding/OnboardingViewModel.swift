@@ -443,6 +443,11 @@ final class OnboardingViewModel {
     func connect(authManager: AuthManager, replacingWebuiServer: Bool = false,
                  browser: HermesBrowserSignIn.Presenter = .unavailable) async -> URL? {
         guard !isConnectionLocked else { return nil }
+        // Every server this sheet adds is webui or Hermes (ADR 0002).
+        guard HermesBackends.isEnabled else {
+            errorMessage = String(localized: "Not available")
+            return nil
+        }
         errorMessage = nil
         offersWebuiReplace = false
         lastAttempt = nil

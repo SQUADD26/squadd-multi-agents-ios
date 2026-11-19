@@ -71,6 +71,8 @@ For simulator-only testing, `http://localhost:8787` can work when the server is 
 
 ## Hermes Host Setup
 
+The Squadd build ships with the Hermes and webui backends off (ADR 0002): `HERMES_BACKENDS = NO` in `Config/Shared.xcconfig`, read only by `HermesBackends.isEnabled`. To run against a Hermes host or webui, put `HERMES_BACKENDS = YES` in `Config/Local.xcconfig`. The test bundle turns them on for the whole suite.
+
 A Hermes host (`hermes dashboard`, default port 9119) should have basic auth: off loopback, or with a non-loopback `dashboard.public_url`, it refuses to run without its sign-in gate. One bound to loopback without `dashboard.public_url` runs with no sign-in (`"auth_required": false`); the app connects to it through a proxy to loopback and warns that it is open (`docs/agents/hermes-server.md` § No sign-in). In the host's `config.yaml`, set `dashboard.basic_auth.username` and a `password_hash` (from `plugins.dashboard_auth.basic.hash_password`). Also set `dashboard.basic_auth.secret` to 32 or more random bytes: without it the signing key is per process, so every restart signs the app out. Set `dashboard.public_url` to the exact address the app uses, or the dashboard answers `400 Invalid Host header`. `curl https://<your-host>/api/status` should then report `"auth_required": true`. Onboarding's Hermes prompt (`OnboardingFlowPolicy.hermesSetupPrompt`) walks an agent through the same steps.
 
 ## Example Server Setup (macOS + launchd)

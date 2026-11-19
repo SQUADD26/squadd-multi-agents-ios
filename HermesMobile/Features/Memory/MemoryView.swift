@@ -28,7 +28,6 @@ struct MemoryView: View {
         content
             .themedPageBackground()
             .navigationTitle("Memory")
-            .onAppear { UsageReports.shared.record(.memory) }
             .modifier(MemoryProfileSubtitle(profile: profile))
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {

@@ -712,7 +712,7 @@ final class AuthManagerStateTests: XCTestCase {
         XCTAssertEqual(manager.state, .loggedIn(server: webuiServer))
     }
 
-    /// A sign-in records which gateway the Hermes server reached, for the usage report (#1724);
+    /// A sign-in records which gateway the Hermes server reached, (#1724);
     /// a webui server's own Hermes connection records nothing on the webui server.
     func testASignInRecordsTheGatewayOnlyOnTheHermesServer() async throws {
         defer { HermesHostFixture.reset() }
@@ -924,6 +924,29 @@ final class AuthManagerStateTests: XCTestCase {
                           host script: @escaping (URLRequest) -> HermesHostFixture.Reply? = { _ in nil }) -> OnboardingViewModel {
         OnboardingViewModel(entry: entry, moveSource: moveSource, hermesConfiguration: { HermesHostFixture.configuration(script) },
                             hermesGateway: .init(socketFactory: { _ in socket() }))
+    }
+
+    /// Without the Hermes backends (ADR 0002) the connect form reads no host and adds nothing,
+    /// from onboarding or Add Server.
+    func testTheConnectFormAddsNoServerWithTheHermesBackendsOff() async throws {
+        HermesBackends.isEnabled = false
+        defer {
+            HermesBackends.isEnabled = true
+            HermesHostFixture.reset()
+        }
+        let manager = makeFormManager(keychain: InMemoryKeychainStore())
+        for entry in [OnboardingViewModel.Entry.onboarding, .addServer] {
+            let form = makeForm(entry: entry)
+            form.serverURLString = "hermes.example"
+
+            let added = await form.connect(authManager: manager)
+
+            XCTAssertNil(added, "\(entry)")
+            XCTAssertNotNil(form.errorMessage, "\(entry): the form says why")
+        }
+        XCTAssertTrue(manager.servers.isEmpty)
+        XCTAssertEqual(manager.state, .unconfigured)
+        XCTAssertEqual(HermesHostFixture.count("/api/status"), 0, "no host is read")
     }
 
     func testTheConnectFormAddsAHermesServerFromOnboardingAndFromAddServer() async throws {
