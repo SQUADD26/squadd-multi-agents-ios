@@ -1,0 +1,49 @@
+# Simulator photos for a review: the home screen icon, the launch screen and the first screen,
+# in dark appearance. Push a branch named foto/<anything> to run it; the photos are the artifact.
+name: Foto simulatore
+
+on:
+  push:
+    branches: ['foto/**']
+
+permissions:
+  contents: read
+
+jobs:
+  photos:
+    name: Simulator photos
+    runs-on: xcode-27
+    timeout-minutes: 40
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+      SIMULATOR_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-27-0
+      SIMULATOR_NAME: iPhone 17
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select simulator
+        id: sim
+        run: |
+          set -euo pipefail
+          udid=$(xcrun simctl list devices available --json | python3 -c '
+          import json, os, sys
+          devices = json.load(sys.stdin)["devices"].get(os.environ["SIMULATOR_RUNTIME"], [])
+          print(next(d["udid"] for d in devices if d["name"] == os.environ["SIMULATOR_NAME"]))')
+          echo "udid=${udid}" >> "$GITHUB_OUTPUT"
+
+      - name: Screen photos from the photo test
+        env:
+          UDID: ${{ steps.sim.outputs.udid }}
+          TEST_RUNNER_FOTO_DIR: ${{ github.workspace }}/photos
+        run: |
+          set -euo pipefail
+          mkdir -p photos
+          xcodebuild test -project HermesMobile.xcodeproj -scheme HermesMobile -configuration Debug \\
+            -destination "platform=iOS Simulator,id=${UDID}" -derivedDataPath DerivedData \\
+            -only-testing:HermesMobileTests/ScreenPhotoTests CODE_SIGNING_ALLOWED=NO
+          ls photos
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: simulator-photos
+          path: photos
