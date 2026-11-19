@@ -19,6 +19,7 @@ final class StreamingRevealGateTests: XCTestCase {
         let first = StreamingRevealGate.cut("你好世界", heldPreviousTick: false)
         XCTAssertEqual(first.shown, "")
         XCTAssertEqual(first.held, "你好世界")
+        XCTAssertFalse(StreamingRevealGate.showsSomething("你好世界", heldPreviousTick: false))
 
         let second = StreamingRevealGate.cut("你好世界，再见", heldPreviousTick: true)
         XCTAssertEqual(second.shown, "你好世界，再见")
