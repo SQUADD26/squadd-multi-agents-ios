@@ -7,6 +7,10 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5D0A30000000000000000041 /* SquaddPushTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A30000000000000000040 /* SquaddPushTests.swift */; };
+		5D0A30000000000000000031 /* SquaddPushSettingsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A30000000000000000030 /* SquaddPushSettingsPage.swift */; };
+		5D0A30000000000000000021 /* SquaddPushRegistrar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A30000000000000000020 /* SquaddPushRegistrar.swift */; };
+		5D0A30000000000000000011 /* SquaddPush.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A30000000000000000010 /* SquaddPush.swift */; };
 		A15740000000000000000002 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = A15740000000000000000001 /* AppIcon.icon */; };
 		D14090000000000000000014 /* ProviderLimitsWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D14090000000000000000003 /* ProviderLimitsWidget.swift */; };
 		D14090000000000000000011 /* ProviderLimitsSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = D14090000000000000000001 /* ProviderLimitsSnapshot.swift */; };
@@ -799,6 +803,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		5D0A30000000000000000040 /* SquaddPushTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddPushTests.swift; sourceTree = "<group>"; };
+		5D0A30000000000000000030 /* SquaddPushSettingsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddPushSettingsPage.swift"; sourceTree = "<group>"; };
+		5D0A30000000000000000020 /* SquaddPushRegistrar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddPushRegistrar.swift; sourceTree = "<group>"; };
+		5D0A30000000000000000010 /* SquaddPush.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddPush.swift"; sourceTree = "<group>"; };
 		A15740000000000000000001 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
 		D14090000000000000000003 /* ProviderLimitsWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderLimitsWidget.swift; sourceTree = "<group>"; };
 		D14090000000000000000001 /* ProviderLimitsSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderLimitsSnapshot.swift; sourceTree = "<group>"; };
@@ -1893,6 +1901,7 @@
 				5D0ADD000000000000000007 /* SquaddCompanionTests.swift */,
 				27A1E0000000000000000003 /* SquaddThreadLinkTests.swift */,
 				5D2200000000000000000003 /* SquaddAgentEditorTests.swift */,
+				5D0A30000000000000000040 /* SquaddPushTests.swift */,
 				B5A1000000000000000FA002 /* TestHostStateGuard.swift */,
 				B5A220000000000000000006 /* ChatMarkerMessageClassifierTests.swift */,
 				D1FF76200000000000000003 /* MarkdownDiffFormatterTests.swift */,
@@ -1921,6 +1930,7 @@
 				559000000000000000000015 /* PushNotificationRouter.swift */,
 				A4790000000000000000F003 /* PushRelayClient.swift */,
 				A4790000000000000000F004 /* PushRegistrar.swift */,
+				5D0A30000000000000000020 /* SquaddPushRegistrar.swift */,
 				A4790000000000000000F005 /* PushAppDelegate.swift */,
 			);
 			path = Push;
@@ -2000,6 +2010,7 @@
 				C86900000000000000000002 /* NetworkPathMonitor.swift */,
 				5D0ADD000000000000000002 /* SquaddModels.swift */,
 				5D0ADD000000000000000003 /* SquaddCompanionClient.swift */,
+				5D0A30000000000000000010 /* SquaddPush.swift */,
 			);
 			path = Networking;
 			sourceTree = "<group>";
@@ -2119,6 +2130,7 @@
 				5D2200000000000000000001 /* SquaddAgentEditor.swift */,
 				5D0ADD000000000000000005 /* SquaddServerHome.swift */,
 				5D0ADD000000000000000006 /* SquaddPairingViews.swift */,
+				5D0A30000000000000000030 /* SquaddPushSettingsPage.swift */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -2934,6 +2946,9 @@
 				5D0ADD000000000000000101 /* AuthManager+Squadd.swift in Sources */,
 				5D0ADD000000000000000102 /* SquaddModels.swift in Sources */,
 				5D0ADD000000000000000103 /* SquaddCompanionClient.swift in Sources */,
+				5D0A30000000000000000031 /* SquaddPushSettingsPage.swift in Sources */,
+				5D0A30000000000000000021 /* SquaddPushRegistrar.swift in Sources */,
+				5D0A30000000000000000011 /* SquaddPush.swift in Sources */,
 				5D0ADD000000000000000104 /* SquaddAgentListModel.swift in Sources */,
 				27A1E0000000000000000101 /* SquaddThreadLink.swift in Sources */,
 				5D2200000000000000000102 /* SquaddAgentEditorView.swift in Sources */,
@@ -3332,6 +3347,7 @@
 				5D0ADD000000000000000107 /* SquaddCompanionTests.swift in Sources */,
 				27A1E0000000000000000103 /* SquaddThreadLinkTests.swift in Sources */,
 				5D2200000000000000000103 /* SquaddAgentEditorTests.swift in Sources */,
+				5D0A30000000000000000041 /* SquaddPushTests.swift in Sources */,
 				A1213000000000000000A005 /* MoveToHermesTransferTests.swift in Sources */,
 				A1214000000000000000A003 /* MoveToHermesReconcileTests.swift in Sources */,
 				A1216000000000000000A005 /* MoveToHermesRunnerTests.swift in Sources */,
