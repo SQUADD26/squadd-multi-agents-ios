@@ -134,6 +134,7 @@ final class ScreenPhotoTests: XCTestCase {
         window.rootViewController = controller
         window.makeKeyAndVisible()
         defer { window.isHidden = true }
+        // test-wait: photo runs only (skipped without FOTO_DIR); lets SwiftUI lay out before the capture
         RunLoop.main.run(until: Date().addingTimeInterval(2))
         controller.view.layoutIfNeeded()
         let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
