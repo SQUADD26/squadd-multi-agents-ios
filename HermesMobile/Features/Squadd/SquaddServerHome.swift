@@ -28,6 +28,9 @@ struct SquaddServerHome: View {
     let server: URL
     /// Made once in `.task`, not in `init`, so a pass of the parent reads no Keychain.
     @State private var model: SquaddAgentListModel?
+    @State private var client: SquaddCompanionClient?
+    @State private var editingAgent: SquaddBot?
+    @State private var isCreatingAgent = false
     @State private var isShowingSettings = false
     @State private var isAddingServer = false
 
@@ -44,9 +47,10 @@ struct SquaddServerHome: View {
         }
         .task {
             if model == nil {
-                let token = authManager.squaddToken(for: server) ?? ""
+                let client = SquaddCompanionClient(server: server, token: authManager.squaddToken(for: server) ?? "")
+                self.client = client
                 model = SquaddAgentListModel(
-                    fetch: { [server] in try await SquaddCompanionClient(server: server, token: token).bots() },
+                    fetch: { try await client.bots() },
                     onUnpaired: { [weak authManager, server] in authManager?.squaddUnpaired(server: server) }
                 )
             }
@@ -63,6 +67,30 @@ struct SquaddServerHome: View {
             }
         }
         .sheet(isPresented: $isAddingServer) { SquaddAddServerSheet(authManager: authManager) }
+        .sheet(item: $editingAgent) { agentEditor(for: $0) }
+        .sheet(isPresented: $isCreatingAgent) { agentEditor(for: nil) }
+    }
+
+    @ViewBuilder
+    private func agentEditor(for bot: SquaddBot?) -> some View {
+        if let client {
+            SquaddAgentEditorView(
+                client: client, bot: bot,
+                onChange: { Task { await model?.load() } },
+                onUnpaired: { [weak authManager, server] in authManager?.squaddUnpaired(server: server) }
+            )
+        }
+    }
+
+    private var newAgentButton: some View {
+        Button { isCreatingAgent = true } label: {
+            Label("New Agent", systemImage: "plus")
+                .font(AppFont.subheadline().bold())
+        }
+        .disabled(client == nil)
+        .padding(.horizontal, 24)
+        .padding(.top, 20)
+        .sessionsScreenListRow()
     }
 
     @ViewBuilder
@@ -86,9 +114,11 @@ struct SquaddServerHome: View {
             ContentUnavailableView("No Agents", systemImage: "person.2",
                                    description: Text("Agents created on the computer show here."))
                 .sessionsScreenListRow()
+            newAgentButton
         case .loaded(let sections):
+            newAgentButton
             ForEach(sections) { section in
-                SquaddAgentHeader(section: section)
+                SquaddAgentHeader(section: section, client: client) { editingAgent = section.bot }
                     .sessionsScreenListRow()
                 if section.threads.isEmpty {
                     Text("No threads yet")
@@ -128,11 +158,23 @@ struct SquaddServerHome: View {
 }
 
 /// An agent's name over its threads, set like the Sessions list's own title row.
+/// Tapping it opens the agent's editor.
 private struct SquaddAgentHeader: View {
     let section: SquaddAgentSection
+    let client: SquaddCompanionClient?
+    let edit: () -> Void
 
     var body: some View {
+        Button(action: edit) { content }
+            .buttonStyle(.plain)
+            .accessibilityHint(Text("Edits the agent"))
+    }
+
+    private var content: some View {
         HStack(spacing: 8) {
+            if let client {
+                SquaddAgentAvatar(client: client, path: section.bot.avatarUrl, name: section.name)
+            }
             Text(section.name)
                 .font(AppFont.title3().bold())
                 .foregroundStyle(.appPrimary)
@@ -151,6 +193,7 @@ private struct SquaddAgentHeader: View {
         .padding(.horizontal, 24)
         .padding(.top, 28)
         .padding(.bottom, 12)
+        .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(.isHeader)
     }

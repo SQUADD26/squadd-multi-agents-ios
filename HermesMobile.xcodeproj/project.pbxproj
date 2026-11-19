@@ -110,6 +110,8 @@
 		5D0ADE280000000000001101 /* SquaddCompanionClient+Connectors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000001100 /* SquaddCompanionClient+Connectors.swift */; };
 		5D0ADE280000000000000101 /* SquaddCompanionClient+Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000000100 /* SquaddCompanionClient+Settings.swift */; };
 		5D0ADD000000000000000104 /* SquaddAgentListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADD000000000000000004 /* SquaddAgentListModel.swift */; };
+		5D2200000000000000000102 /* SquaddAgentEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D2200000000000000000002 /* SquaddAgentEditorView.swift */; };
+		5D2200000000000000000101 /* SquaddAgentEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D2200000000000000000001 /* SquaddAgentEditor.swift */; };
 		5D0ADD000000000000000105 /* SquaddServerHome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADD000000000000000005 /* SquaddServerHome.swift */; };
 		5D0ADE280000000000001401 /* SquaddConnectorsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000001400 /* SquaddConnectorsView.swift */; };
 		5D0ADE280000000000001301 /* SquaddConnectorsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000001300 /* SquaddConnectorsModel.swift */; };
@@ -120,6 +122,7 @@
 		5D0ADD000000000000000107 /* SquaddCompanionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADD000000000000000007 /* SquaddCompanionTests.swift */; };
 		5D0ADE280000000000001501 /* SquaddConnectorsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000001500 /* SquaddConnectorsTests.swift */; };
 		5D0ADE280000000000000601 /* SquaddSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000000600 /* SquaddSettingsTests.swift */; };
+		5D2200000000000000000103 /* SquaddAgentEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D2200000000000000000003 /* SquaddAgentEditorTests.swift */; };
 		C0DE88500000000000000001 /* AppLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE88500000000000000002 /* AppLock.swift */; };
 		C0DE88500000000000000005 /* AppLockWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE88500000000000000006 /* AppLockWindow.swift */; };
 		1A2B3C4D5E6F7000000000A2 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7000000000B2 /* APIClient.swift */; };
@@ -892,6 +895,8 @@
 		5D0ADE280000000000001100 /* SquaddCompanionClient+Connectors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddCompanionClient+Connectors.swift"; sourceTree = "<group>"; };
 		5D0ADE280000000000000100 /* SquaddCompanionClient+Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddCompanionClient+Settings.swift"; sourceTree = "<group>"; };
 		5D0ADD000000000000000004 /* SquaddAgentListModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddAgentListModel.swift"; sourceTree = "<group>"; };
+		5D2200000000000000000002 /* SquaddAgentEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddAgentEditorView.swift"; sourceTree = "<group>"; };
+		5D2200000000000000000001 /* SquaddAgentEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddAgentEditor.swift"; sourceTree = "<group>"; };
 		5D0ADD000000000000000005 /* SquaddServerHome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddServerHome.swift"; sourceTree = "<group>"; };
 		5D0ADE280000000000001400 /* SquaddConnectorsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddConnectorsView.swift"; sourceTree = "<group>"; };
 		5D0ADE280000000000001300 /* SquaddConnectorsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddConnectorsModel.swift"; sourceTree = "<group>"; };
@@ -902,6 +907,7 @@
 		5D0ADD000000000000000007 /* SquaddCompanionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddCompanionTests.swift; sourceTree = "<group>"; };
 		5D0ADE280000000000001500 /* SquaddConnectorsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddConnectorsTests.swift; sourceTree = "<group>"; };
 		5D0ADE280000000000000600 /* SquaddSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddSettingsTests.swift; sourceTree = "<group>"; };
+		5D2200000000000000000003 /* SquaddAgentEditorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddAgentEditorTests.swift; sourceTree = "<group>"; };
 		C0DE88500000000000000002 /* AppLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLock.swift; sourceTree = "<group>"; };
 		C0DE88500000000000000006 /* AppLockWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockWindow.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F7000000000B2 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
@@ -1903,6 +1909,7 @@
 				5D0ADD000000000000000007 /* SquaddCompanionTests.swift */,
 				5D0ADE280000000000001500 /* SquaddConnectorsTests.swift */,
 				5D0ADE280000000000000600 /* SquaddSettingsTests.swift */,
+				5D2200000000000000000003 /* SquaddAgentEditorTests.swift */,
 				B5A1000000000000000FA002 /* TestHostStateGuard.swift */,
 				B5A220000000000000000006 /* ChatMarkerMessageClassifierTests.swift */,
 				D1FF76200000000000000003 /* MarkdownDiffFormatterTests.swift */,
@@ -2128,6 +2135,8 @@
 				B50E1CE3A8912B92B1924714 /* Insights */,
 				C1490000000000000000000D /* Kanban */,
 				5D0ADD000000000000000004 /* SquaddAgentListModel.swift */,
+				5D2200000000000000000002 /* SquaddAgentEditorView.swift */,
+				5D2200000000000000000001 /* SquaddAgentEditor.swift */,
 				5D0ADD000000000000000005 /* SquaddServerHome.swift */,
 				5D0ADE280000000000001400 /* SquaddConnectorsView.swift */,
 				5D0ADE280000000000001300 /* SquaddConnectorsModel.swift */,
@@ -2953,6 +2962,8 @@
 				5D0ADE280000000000001101 /* SquaddCompanionClient+Connectors.swift in Sources */,
 				5D0ADE280000000000000101 /* SquaddCompanionClient+Settings.swift in Sources */,
 				5D0ADD000000000000000104 /* SquaddAgentListModel.swift in Sources */,
+				5D2200000000000000000102 /* SquaddAgentEditorView.swift in Sources */,
+				5D2200000000000000000101 /* SquaddAgentEditor.swift in Sources */,
 				5D0ADD000000000000000105 /* SquaddServerHome.swift in Sources */,
 				5D0ADE280000000000001401 /* SquaddConnectorsView.swift in Sources */,
 				5D0ADE280000000000001301 /* SquaddConnectorsModel.swift in Sources */,
@@ -3352,6 +3363,7 @@
 				5D0ADD000000000000000107 /* SquaddCompanionTests.swift in Sources */,
 				5D0ADE280000000000001501 /* SquaddConnectorsTests.swift in Sources */,
 				5D0ADE280000000000000601 /* SquaddSettingsTests.swift in Sources */,
+				5D2200000000000000000103 /* SquaddAgentEditorTests.swift in Sources */,
 				A1213000000000000000A005 /* MoveToHermesTransferTests.swift in Sources */,
 				A1214000000000000000A003 /* MoveToHermesReconcileTests.swift in Sources */,
 				A1216000000000000000A005 /* MoveToHermesRunnerTests.swift in Sources */,

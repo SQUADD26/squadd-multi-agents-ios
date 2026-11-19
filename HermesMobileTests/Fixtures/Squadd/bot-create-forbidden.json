@@ -1,0 +1,3 @@
+{
+  "error": "forbidden: a paired device may say who a new bot is and how it looks, not \"approvalMode\"; set that on the host computer"
+}
