@@ -30,8 +30,10 @@ jobs:
       DERIVED_DATA: ${{ github.workspace }}/../../DerivedData
       SIMULATOR_NAME: Squadd multi CI
       TEST_RUNNER_HERMEX_CI: "1"
-      TEST_RUNNER_FOTO_DIR: ${{ github.workspace }}/.ci-foto
-      TEST_RUNNER_BRAND_PHOTOS_DIR: ${{ github.workspace }}/.ci-foto
+      TEST_RUNNER_FOTO_DIR: ${{ github.workspace }}/ci-foto
+      TEST_RUNNER_BRAND_PHOTOS_DIR: ${{ github.workspace }}/ci-foto
+      # Untracked: the runner neither waits for nor kills the build daemons (ibtoold) at the end; they stay warm.
+      RUNNER_TRACKING_ID: ""
     steps:
       # A fetch of the two commits into the checkout that stays on the Mac: unchanged files keep their dates, so
       # the build recompiles only what differs from the last run. Public repo: no credentials written.
@@ -94,8 +96,8 @@ jobs:
         run: python3 ci/check_string_catalog.py --derived-data "${DERIVED_DATA}"
 
       - name: Photos
-        if: ${{ !cancelled() && hashFiles('.ci-foto/**') != '' }}
+        if: ${{ !cancelled() && hashFiles('ci-foto/**') != '' }}
         uses: actions/upload-artifact@v7
         with:
           name: foto
-          path: .ci-foto
+          path: ci-foto
