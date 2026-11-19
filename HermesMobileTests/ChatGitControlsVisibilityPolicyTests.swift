@@ -3,6 +3,8 @@ import XCTest
 
 final class ChatGitControlsVisibilityPolicyTests: XCTestCase {
     func testDisabledSettingHidesBothTurnEndGitSurfaces() {
+        XCTAssertFalse(ChatGitControlsVisibilityPolicy.showsAnything(
+            showsGitControls: false, hasRepository: true, isStreaming: false, latestMessageRole: "assistant"))
         XCTAssertFalse(
             ChatGitControlsVisibilityPolicy.showsInlineCommitButton(
                 showsGitControls: false,

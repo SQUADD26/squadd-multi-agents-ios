@@ -32,4 +32,10 @@ enum ChatGitControlsVisibilityPolicy {
             && !isStreaming
             && latestMessageRole == "assistant"
     }
+
+    /// Whether any turn-end git surface shows.
+    static func showsAnything(showsGitControls: Bool, hasRepository: Bool, isStreaming: Bool, latestMessageRole: String?) -> Bool {
+        showsTurnChangesRecap(showsGitControls: showsGitControls, hasRepository: hasRepository,
+                              isStreaming: isStreaming, latestMessageRole: latestMessageRole)
+    }
 }
