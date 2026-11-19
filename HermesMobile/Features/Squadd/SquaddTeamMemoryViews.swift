@@ -142,12 +142,18 @@ struct SquaddMemoryEditor: View {
         isSaving = true
         defer { isSaving = false }
         let (kind, name, detail) = (kind, trimmedName, detail.trimmingCharacters(in: .whitespacesAndNewlines))
+        // After a conflict the list holds the computer's latest revision: a second Save applies over it.
+        let base = entry.map(latest)
         let saved = await model.changeMemory { client in
-            // After a conflict the list holds the computer's latest revision: a second Save applies over it.
-            if let entry { try await client.editMemory(latest(entry), kind: kind, name: name, detail: detail) }
+            if let base { try await client.editMemory(base, kind: kind, name: name, detail: detail) }
             else { try await client.addMemory(kind: kind, name: name, detail: detail) }
         }
-        if saved { dismiss() }
+        if saved {
+            dismiss()
+        } else if let base, case let fresh = latest(base), fresh.revision != base.revision {
+            // Shows the computer's version, so a second Save is made knowing what it replaces.
+            (self.kind, self.name, self.detail) = (fresh.kind, fresh.name, fresh.detail ?? "")
+        }
     }
 
     private func latest(_ entry: SquaddMemoryEntry) -> SquaddMemoryEntry {
