@@ -20,11 +20,11 @@
 
 name: PR CI
 
+# Di notte sulla punta di dev, mai su PR o push: la suite iOS dura 15 minuti (regola di Roberto: i controlli lunghi girano di notte).
 on:
-  pull_request:
-    branches: [main, dev]
-  push:
-    branches: [main, dev]
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -52,8 +52,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          if [[ "${{ github.event_name }}" == "push" ]]; then
-            echo "Push to ${{ github.ref_name }} — running the full suite."
+          if [[ "${{ github.event_name }}" != "pull_request" ]]; then
+            echo "${{ github.event_name }} — running the full suite."
             echo "run_ios=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -105,6 +105,8 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || '' }}
 
       - name: Verify Xcode
         id: toolchain
@@ -252,6 +254,8 @@ jobs:
     steps:
       - name: Check out
         uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || '' }}
 
       - name: Run tooling tests
         run: |
