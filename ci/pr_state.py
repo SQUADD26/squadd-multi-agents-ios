@@ -3,8 +3,8 @@
 
 The runner builds in one fixed place (the workspace and _work/DerivedData: DerivedData keeps absolute
 paths). Between runs each branch's checkout and DerivedData are parked in _work/pr-states/<branch>/ by
-renaming, which is instant. A branch seen for the first time starts from an APFS clone (copy-on-write,
-~0.1 s) of the parked state closest to its head: the fewest app files to recompile, and never one that
+renaming, which is instant. A branch seen for the first time takes the parked state closest to its head,
+which keeps an APFS clone (copy-on-write, ~0.1 s) for itself: the fewest app files to recompile, and never one that
 would delete Swift files (a deleted input makes the Swift driver rebuild the whole module).
 
     python3 ci/pr_state.py <branch> <head sha>
@@ -81,11 +81,17 @@ def main(branch, head):
         candidates = [(p.name, git(p / "src", "rev-parse", "HEAD").stdout.strip())
                       for p in states.iterdir() if (p / "dd").is_dir() and (p / "src").is_dir()]
         base = closest(parked / "src", head, sorted(candidates, key=lambda c: c[0] != current))
-        clone(states / base / "src", workspace)
-        clone(states / base / "dd", derived)
-        # The clone has new inodes: without this the checkout rewrites every file and the build starts over.
-        git(workspace, "update-index", "-q", "--refresh")
-        print(f"Build state: {mine}, new, cloned from {base}")
+        # The build system records each file's inode, and a clone has new ones: a no-op build after a clone
+        # redoes the asset catalog and the copies (~6 s). So the new branch takes the base's own files and the
+        # base keeps the clone, paying that once if its branch runs again.
+        for part, dest in (("src", workspace), ("dd", derived)):
+            spare = states / base / f"{part}-clone"
+            clone(states / base / part, spare)
+            (states / base / part).rename(dest)
+            spare.rename(states / base / part)
+        print(f"Build state: {mine}, new, from {base} (which keeps a clone)")
+    # After a clone git's index holds old inodes: without this the checkout rewrites every file.
+    git(workspace, "update-index", "-q", "--refresh")
     marker.write_text(mine)
     old = sorted((p for p in states.iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime, reverse=True)[KEEP:]
     for p in old:
