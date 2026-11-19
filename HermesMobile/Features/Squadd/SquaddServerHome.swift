@@ -22,7 +22,7 @@ struct SquaddRoute<Webui: View>: View {
 
 /// A Squadd server's home, built like the Hermes Sessions home (`HermesSessionListView`): the same
 /// header with the server's avatar and switcher, then each agent's task threads in session rows,
-/// read from the companion's `GET /api/bots`. Threads don't open yet: chat is its own ticket.
+/// read from the companion's `GET /api/bots`. A thread opens in the chat (#11).
 struct SquaddServerHome: View {
     @Bindable var authManager: AuthManager
     let server: URL
@@ -31,6 +31,7 @@ struct SquaddServerHome: View {
     @State private var client: SquaddCompanionClient?
     @State private var editingAgent: SquaddBot?
     @State private var isCreatingAgent = false
+    @State private var token = ""
     @State private var isShowingSettings = false
     @State private var isAddingServer = false
 
@@ -44,10 +45,13 @@ struct SquaddServerHome: View {
             }
             .refreshable { await model?.load() }
             .toolbar(.hidden, for: .navigationBar)
+            .navigationDestination(for: SquaddThreadChat.self) { ChatView(squaddThread: $0).id($0.id) }
         }
         .task {
             if model == nil {
-                let client = SquaddCompanionClient(server: server, token: authManager.squaddToken(for: server) ?? "")
+                let token = authManager.squaddToken(for: server) ?? ""
+                self.token = token
+                let client = SquaddCompanionClient(server: server, token: token)
                 self.client = client
                 model = SquaddAgentListModel(
                     fetch: { try await client.bots() },
@@ -128,10 +132,14 @@ struct SquaddServerHome: View {
                         .sessionsScreenListRow()
                 }
                 ForEach(section.threads) { thread in
-                    SessionRowView(session: thread, showsMessageCount: false, showsWorkspace: false,
-                                   isUnread: section.unreadThreadIDs.contains(thread.id))
-                        .padding(.horizontal, 12)
-                        .sessionsScreenListRow()
+                    NavigationLink(value: SquaddThreadChat(server: server, token: token, botId: section.id,
+                                                           threadId: thread.id, title: thread.title)) {
+                        SessionRowView(session: thread, showsMessageCount: false, showsWorkspace: false,
+                                       isUnread: section.unreadThreadIDs.contains(thread.id))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 12)
+                    .sessionsScreenListRow()
                 }
             }
         }

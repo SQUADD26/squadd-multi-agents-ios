@@ -334,6 +334,8 @@ struct ChatView: View {
     /// A Hermes session's chat (#1010): webui-only controls are hidden and its turns run
     /// on the gateway socket.
     let isHermesSession: Bool
+    /// A Squadd agent's thread (#11): its turns run on the companion, and no webui route is called.
+    let isSquaddThread: Bool
     /// The parent the row this Hermes chat opened from named, which its "Forked from" row
     /// checks (#1051).
     let hermesParentKey: String?
@@ -538,7 +540,8 @@ struct ChatView: View {
         onOpenHermesSessions: ((HermesSessionListEntry) -> Void)? = nil,
         onHermesDraftKeyChange: ((ChatDraftKey) -> Void)? = nil,
         waitingShortcut: WaitingShortcutText? = nil,
-        continuity: ChatContinuity? = nil
+        continuity: ChatContinuity? = nil,
+        squaddThread: SquaddThreadChat? = nil
     ) {
         self.session = session
         self.server = server
@@ -551,6 +554,7 @@ struct ChatView: View {
         self.restoresDraftSettings = restoresDraftSettings
         self.onConversationStarted = onConversationStarted
         isHermesSession = hermesSession != nil
+        isSquaddThread = squaddThread != nil
         hermesSessionChatID = hermesSession?.id.uuidString
         hermesParentKey = hermesSession?.parentKey
         hermesRowWorkspace = hermesSession?.workspace
@@ -573,7 +577,8 @@ struct ChatView: View {
             ),
             draftAttachmentStore: resolvedDraftAttachmentStore,
             draftStore: self.draftStore,
-            backend: hermesSession.map { .hermes(HermesChatTurnCoordinator($0)) } ?? .webui
+            backend: hermesSession.map { .hermes(HermesChatTurnCoordinator($0)) }
+                ?? squaddThread.map { .squadd(SquaddChatTurnCoordinator($0)) } ?? .webui
         )
         model.hermesBotChatRoot = hermesSession?.botChatRoot
         model.hermesLineageRoot = hermesSession?.lineageRoot
@@ -582,10 +587,15 @@ struct ChatView: View {
         // Until its first report, a reader who wasn't following reads as away from the live edge,
         // so the bottom a rebuilt transcript opens at doesn't re-arm follow.
         _isScrolledNearBottom = State(initialValue: model.followLatch.isFollowing)
-        _gitAvailabilityViewModel = State(initialValue: GitWorkspaceAvailabilityViewModel(
-            session: session,
-            server: server
-        ))
+        _gitAvailabilityViewModel = State(initialValue: squaddThread != nil ? GitWorkspaceAvailabilityViewModel(git: nil)
+            : GitWorkspaceAvailabilityViewModel(session: session, server: server))
+    }
+
+    /// A Squadd agent's thread (#11): the transcript, sends and the streamed reply go through the
+    /// companion; the rest of the screen is the same chat.
+    init(squaddThread: SquaddThreadChat) {
+        self.init(session: SessionSummary(sessionId: squaddThread.threadId, title: squaddThread.title),
+                  server: squaddThread.server, onAPIError: { _ in }, squaddThread: squaddThread)
     }
 
     /// A Hermes session on its Profile (#1010). It has no webui session, so nothing here
@@ -656,7 +666,7 @@ struct ChatView: View {
             selectedWorkspacePath: viewModel.selectedWorkspacePath,
             workspaceSuggestions: viewModel.workspaceSuggestions,
             // A Hermes host has no workspace registry to manage (#1117).
-            workspaceManagementServer: isHermesSession ? nil : server,
+            workspaceManagementServer: isHermesSession || isSquaddThread ? nil : server,
             personalitySuggestions: viewModel.personalitySuggestions,
             skillSuggestions: viewModel.composerSkillSuggestions,
             // A Hermes chat's skills come with the catalog it reads on connect.
@@ -821,7 +831,7 @@ struct ChatView: View {
             onRefreshGitBranches: {
                 Task { await gitAvailabilityViewModel.loadBranches() }
             },
-            showsSessionControls: !isHermesSession,
+            showsSessionControls: !isHermesSession && !isSquaddThread,
             slashScope: viewModel.hermesSlashCommands?.scope ?? .webui,
             hostSlashCompletion: viewModel.hermesSlashCommands?.completion,
             onCompleteHostSlashArgument: { text in
@@ -2311,8 +2321,8 @@ struct ChatView: View {
     /// until the host names the session's folder, instead of the button arriving a moment later.
     /// A folder Files can't read (not a `local` backend) then takes it away again.
     private var showsFilesLink: Bool {
-        showsFilesButton && (!isHermesSession || browsableHermesWorkspace != nil
-                             || hermesRowWorkspace != nil && viewModel.hermesWorkspace == nil)
+        !isSquaddThread && showsFilesButton && (!isHermesSession || browsableHermesWorkspace != nil
+                                             || hermesRowWorkspace != nil && viewModel.hermesWorkspace == nil)
     }
 
     private var showsGitMenu: Bool { showsGitControls && gitAvailabilityViewModel.hasRepository }
@@ -2992,7 +3002,9 @@ struct ChatView: View {
     /// while Files can read it (#1114), which syncs only through hermex-push (#1236). Without one,
     /// Git stays hidden.
     private func loadInitialGitAvailability() async {
-        let availabilityViewModel = if isHermesSession {
+        let availabilityViewModel = if isSquaddThread {
+            GitWorkspaceAvailabilityViewModel(git: nil)
+        } else if isHermesSession {
             GitWorkspaceAvailabilityViewModel(git: browsableHermesWorkspace == nil ? nil : viewModel.hermesWorkspaceGit)
         } else {
             GitWorkspaceAvailabilityViewModel(session: session, server: server)
