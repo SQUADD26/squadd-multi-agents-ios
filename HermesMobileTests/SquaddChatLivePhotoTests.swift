@@ -1,0 +1,101 @@
+import SwiftUI
+import XCTest
+@testable import HermesMobile
+
+/// The Squadd chat (#11) against a live companion, photographed: the thread as it opens, the
+/// reply halfway through its stream, and the finished reply, plus a log of what arrived when.
+/// Runs only from `.github/workflows/foto-simulatore.yml` when the repository's secrets name a
+/// disposable companion (`SQUADD_LIVE_URL`, `SQUADD_LIVE_TOKEN`); skipped everywhere else.
+@MainActor
+final class SquaddChatLivePhotoTests: XCTestCase {
+    func testPhotographALiveConversation() async throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let directory = environment["BRAND_PHOTOS_DIR"],
+              let address = environment["SQUADD_LIVE_URL"].flatMap(URL.init(string:)),
+              let token = environment["SQUADD_LIVE_TOKEN"], !token.isEmpty else {
+            throw XCTSkip("Live photos only: foto-simulatore.yml with a companion in the secrets.")
+        }
+        let folder = URL(fileURLWithPath: directory, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var log: [String] = []
+        let started = Date()
+        func note(_ line: String) { log.append(String(format: "%6.2fs  ", Date().timeIntervalSince(started)) + line) }
+
+        let bots = try await SquaddCompanionClient(server: address, token: token).bots()
+        let bot = try XCTUnwrap(bots.first { !$0.tasks.isEmpty }, "the companion has an agent with a thread")
+        let thread = try XCTUnwrap(bot.tasks.first)
+        note("agent \(bot.name ?? bot.id), thread \(thread.threadId)")
+        let chat = SquaddThreadChat(server: address, token: token, botId: bot.id, threadId: thread.threadId,
+                                    title: thread.title ?? bot.name)
+        let continuity = ChatContinuity()
+        let window = try show(NavigationStack {
+            ChatView(session: SessionSummary(sessionId: chat.threadId, title: chat.title), server: address,
+                     onAPIError: { _ in }, continuity: continuity, squaddThread: chat)
+        })
+        defer { window.isHidden = true }
+
+        let model = try XCTUnwrap(settle(seconds: 20) { continuity.model.map { !$0.isLoading && !$0.messages.isEmpty ? $0 : nil } ?? nil },
+                                  "the thread loaded")
+        note("transcript: \(model.messages.count) rows, error: \(model.errorMessage ?? "none")")
+        try photograph(window, named: "7-squadd-chat-open", in: folder)
+
+        let prompt = "Ciao dal simulatore iPhone: rispondimi parola per parola"
+        let sending = Task { await model.send(prompt) }
+        let shown = settle(seconds: 2) { model.messages.last?.content == prompt ? true : nil }
+        note("prompt on screen before the companion answered: \(shown == true)")
+
+        let partial = settle(seconds: 30) { () -> String? in
+            guard model.activeStreamID != nil, let id = model.streamingAssistantMessageID,
+                  let text = model.messages.first(where: { $0.messageId == id })?.content, text.count > 20 else { return nil }
+            return text
+        }
+        note("partial reply: \(partial?.count ?? 0) characters")
+        try photograph(window, named: "8-squadd-chat-streaming", in: folder)
+        let outcome = await sending.value
+        note("send outcome: \(outcome)")
+
+        let reply = settle(seconds: 60) { () -> String? in
+            guard model.activeStreamID == nil, let last = model.messages.last, last.role == "assistant",
+                  last.content != model.messages.dropLast().last?.content else { return nil }
+            return last.content
+        }
+        note("final reply: \(reply?.count ?? 0) characters: \(reply?.prefix(80) ?? "none")")
+        note("rows: " + model.messages.map { "\($0.role ?? "?"):\($0.messageId ?? "?")" }.joined(separator: " "))
+        try photograph(window, named: "9-squadd-chat-reply", in: folder)
+        try log.joined(separator: "\n").write(to: folder.appendingPathComponent("squadd-live-log.txt"), atomically: true, encoding: .utf8)
+
+        XCTAssertEqual(outcome, .started)
+        XCTAssertEqual(shown, true)
+        let final = try XCTUnwrap(reply)
+        let piece = try XCTUnwrap(partial)
+        XCTAssertTrue(piece.count < final.count, "the reply arrived in pieces")
+    }
+
+    private func show(_ view: some View) throws -> UIWindow {
+        // On the host app's scene, or the window never draws.
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.overrideUserInterfaceStyle = .dark
+        window.rootViewController = UIHostingController(rootView: view)
+        window.makeKeyAndVisible()
+        return window
+    }
+
+    /// Runs the main loop until `value` gives something or `seconds` pass.
+    private func settle<T>(seconds: TimeInterval, _ value: () -> T?) -> T? {
+        let deadline = Date().addingTimeInterval(seconds)
+        while Date() < deadline {
+            if let found = value() { return found }
+            // test-wait: a photo tool against a live server, not a check; the main loop must turn for the chat to draw.
+            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        }
+        return value()
+    }
+
+    private func photograph(_ window: UIWindow, named name: String, in folder: URL) throws {
+        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+        try XCTUnwrap(image.pngData()).write(to: folder.appendingPathComponent("\(name).png"))
+    }
+}
