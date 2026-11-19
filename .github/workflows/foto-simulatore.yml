@@ -79,15 +79,25 @@ jobs:
       - name: Squadd chat tests and live photos
         env:
           TEST_RUNNER_BRAND_PHOTOS_DIR: ${{ github.workspace }}/photos
-          TEST_RUNNER_SQUADD_LIVE_URL: ${{ secrets.SQUADD_LIVE_URL }}
+          # Where the disposable companion's tunnel publishes its current address.
+          SQUADD_LIVE_LOOKUP: ${{ secrets.SQUADD_LIVE_LOOKUP }}
           TEST_RUNNER_SQUADD_LIVE_TOKEN: ${{ secrets.SQUADD_LIVE_TOKEN }}
         run: |
           set -uo pipefail
           mkdir -p photos
-          xcodebuild test -project HermesMobile.xcodeproj -scheme HermesMobile -configuration Debug \
-            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
-            -derivedDataPath DerivedData -resultBundlePath squadd.xcresult -only-testing:HermesMobileTests/SquaddChatTests \
-            -only-testing:HermesMobileTests/SquaddChatLivePhotoTests CODE_SIGNING_ALLOWED=NO > photos/squadd-tests.log 2>&1
+          dest="platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}"
+          only=(-only-testing:HermesMobileTests/SquaddChatTests -only-testing:HermesMobileTests/SquaddChatLivePhotoTests)
+          xcodebuild build-for-testing -project HermesMobile.xcodeproj -scheme HermesMobile -configuration Debug \
+            -destination "${dest}" -derivedDataPath DerivedData CODE_SIGNING_ALLOWED=NO > photos/squadd-build.log 2>&1 \
+            || { tail -50 photos/squadd-build.log; exit 1; }
+          # Read just before the tests start: the tunnel's address changes every few minutes.
+          if [ -n "${SQUADD_LIVE_LOOKUP}" ]; then
+            TEST_RUNNER_SQUADD_LIVE_URL="$(curl -fsS -m 15 "${SQUADD_LIVE_LOOKUP}" || true)"
+            export TEST_RUNNER_SQUADD_LIVE_URL
+          fi
+          xcodebuild test-without-building -project HermesMobile.xcodeproj -scheme HermesMobile -configuration Debug \
+            -destination "${dest}" -derivedDataPath DerivedData -resultBundlePath squadd.xcresult "${only[@]}" \
+            CODE_SIGNING_ALLOWED=NO > photos/squadd-tests.log 2>&1
           status=$?
           # The failure messages live only in the result bundle.
           xcrun xcresulttool get test-results tests --path squadd.xcresult > photos/squadd-results.json || true
