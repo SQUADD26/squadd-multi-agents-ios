@@ -25,6 +25,7 @@ import UserNotifications
     private let clients: @MainActor () -> [URL: SquaddCompanionClient]
     private let environment: PushEnvironment?
     private var currentToken: String?
+    private var pendingLaunchRefresh = false
     private var tokenWaiters: [CheckedContinuation<String, any Error>] = []
 
     init(
@@ -76,16 +77,22 @@ import UserNotifications
     /// re-registers it everywhere it is on.
     func refreshOnLaunch() async {
         guard !clients().isEmpty, await isAuthorized() else { return }
+        pendingLaunchRefresh = true
         remoteNotifications.registerForRemoteNotifications()
     }
 
     func didRegisterForRemoteNotifications(deviceToken: Data) async {
         let token = deviceToken.map { String(format: "%02x", $0) }.joined()
+        let previous = currentToken
+        let isLaunchRefresh = pendingLaunchRefresh
+        pendingLaunchRefresh = false
         currentToken = token
         let waiters = tokenWaiters
         tokenWaiters = []
         waiters.forEach { $0.resume(returning: token) }
-        guard let environment else { return }
+        // A first token minted for `enable` is registered by that call; only a launch, or a token iOS rotated,
+        // needs every computer told.
+        guard let environment, isLaunchRefresh || (previous != nil && previous != token) else { return }
         for (server, client) in clients() {
             guard (try? await client.pushDevice())?.isRegistered == true else { continue }
             try? await client.registerPush(token: token, environment: environment, pairing: SquaddPush.pairingTag(for: server))

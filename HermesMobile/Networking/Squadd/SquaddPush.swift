@@ -81,6 +81,11 @@ enum SquaddPush {
         SHA256.hash(data: Data(server.absoluteString.utf8)).prefix(16).map { String(format: "%02x", $0) }.joined()
     }
 
+    /// The thread a tapped push opens, on the server that sent it (`ContentView` switches there first).
+    static func threadLink(_ payload: SquaddPushPayload, server: URL) -> SquaddThreadLink {
+        SquaddThreadLink(threadID: payload.threadId, botID: payload.botId, server: server)
+    }
+
     /// The configured Squadd server a push names, or nil when none of them sent it.
     static func server(for payload: SquaddPushPayload, among servers: [ServerAccount]) -> URL? {
         servers.lazy.filter { $0.kind == .squadd }.compactMap { URL(string: $0.urlString) }

@@ -95,7 +95,7 @@ final class PushAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
             let activeServer = ServerRegistry.shared.activeServerID.flatMap(URL.init(string:))
             if let payload = SquaddPushPayload(userInfo: userInfo) {
                 if let server = SquaddPush.server(for: payload, among: ServerRegistry.shared.servers) {
-                    AppIntentRouter.shared.requestDeepLink(SquaddPush.threadURL(server: server, payload: payload))
+                    AppIntentRouter.shared.requestDeepLink(SquaddPush.threadLink(payload, server: server).url)
                 }
             } else if let destination = PushNotificationRouter.localAlertLink(userInfo: userInfo,
                                                                        servers: ServerRegistry.shared.servers) {
