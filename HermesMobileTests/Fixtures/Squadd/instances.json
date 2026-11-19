@@ -1,0 +1,237 @@
+{
+  "instances": [
+    {
+      "instanceId": "claude",
+      "driverKind": "claudeAgent",
+      "displayName": "Verification fixture",
+      "snapshot": {
+        "state": "available",
+        "version": "2.1.232 (Claude Code)",
+        "authenticated": true,
+        "billing": "subscription",
+        "update": {
+          "title": "Update Claude Code for context controls",
+          "message": "Claude Code 2.1.232 predates 2.1.267, so bots run without --system-prompt-snapshot, --restricted, --tools: resumed turns cannot refresh stale system prompts. Update it, then refresh Engines.",
+          "command": "/opt/openmausbot/server/testing/fake-claude-cli.ts update",
+          "code": "claude-context-controls",
+          "current": "2.1.232",
+          "minimum": "2.1.267"
+        }
+      },
+      "models": {
+        "default": "claude-sonnet-5-5",
+        "options": [
+          {
+            "id": "claude-fable-5-2",
+            "label": "Claude Fable 5.2",
+            "contextWindow": 1000000,
+            "needsCliUpdate": "2.1.321"
+          },
+          {
+            "id": "claude-opus-5-5",
+            "label": "Claude Opus 5.5",
+            "contextWindow": 1000000
+          },
+          {
+            "id": "claude-sonnet-5-5",
+            "label": "Claude Sonnet 5.5",
+            "contextWindow": 1000000
+          },
+          {
+            "id": "claude-haiku-5-5",
+            "label": "Claude Haiku 5.5",
+            "contextWindow": 1000000
+          },
+          {
+            "id": "claude-fable-5-1",
+            "label": "Claude Fable 5.1",
+            "older": true
+          },
+          {
+            "id": "claude-fable-5",
+            "label": "Claude Fable 5",
+            "older": true
+          },
+          {
+            "id": "claude-opus-5",
+            "label": "Claude Opus 5",
+            "older": true
+          },
+          {
+            "id": "claude-sonnet-5",
+            "label": "Claude Sonnet 5",
+            "older": true
+          },
+          {
+            "id": "claude-haiku-4-5",
+            "label": "Claude Haiku 4.5",
+            "older": true
+          }
+        ]
+      },
+      "capabilities": {
+        "computerMcp": true,
+        "agentsMcp": true,
+        "composioMcp": true,
+        "phoneMcp": true,
+        "deviceMcp": true,
+        "dataMcp": true,
+        "emailMcp": true,
+        "browserMcp": true,
+        "images": true,
+        "effortLevels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ],
+        "modelVariants": false,
+        "queueing": true,
+        "localComputerMcp": true,
+        "approvalReview": true,
+        "backgroundText": true
+      },
+      "access": "subscription",
+      "install": {
+        "command": {
+          "darwin": "npm install -g @anthropic-ai/claude-code",
+          "linux": "npm install -g @anthropic-ai/claude-code",
+          "win32": "npm install -g @anthropic-ai/claude-code"
+        },
+        "needsNode": true,
+        "docsUrl": "https://claude.com/claude-code",
+        "signInCommand": "(unset CLAUDE_CODE_OAUTH_TOKEN CLAUDE_CODE_OAUTH_REFRESH_TOKEN CLAUDE_CODE_OAUTH_SCOPES CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR CLAUDE_CODE_API_KEY_FILE_DESCRIPTOR ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_BASE_URL ANTHROPIC_CUSTOM_HEADERS CLAUDE_CODE_USE_BEDROCK CLAUDE_CODE_USE_VERTEX CLAUDE_CODE_USE_FOUNDRY CLAUDE_CONFIG_DIR; '/opt/openmausbot/server/testing/fake-claude-cli.ts' 'auth' 'login')",
+        "platform": "linux",
+        "server": {
+          "package": "@anthropic-ai/claude-code"
+        }
+      },
+      "authentication": {
+        "method": "paste-code",
+        "signOut": true
+      },
+      "cli": "/opt/openmausbot/server/testing/fake-claude-cli.ts",
+      "cliDefault": "claude",
+      "cliCandidates": [
+        "/usr/local/bin/claude"
+      ],
+      "claudeAccount": {
+        "configDir": "",
+        "signInCommand": "(unset CLAUDE_CODE_OAUTH_TOKEN CLAUDE_CODE_OAUTH_REFRESH_TOKEN CLAUDE_CODE_OAUTH_SCOPES CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR CLAUDE_CODE_API_KEY_FILE_DESCRIPTOR ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN ANTHROPIC_BASE_URL ANTHROPIC_CUSTOM_HEADERS CLAUDE_CODE_USE_BEDROCK CLAUDE_CODE_USE_VERTEX CLAUDE_CODE_USE_FOUNDRY CLAUDE_CONFIG_DIR; '/opt/openmausbot/server/testing/fake-claude-cli.ts' 'auth' 'login')",
+        "signInShell": "sh",
+        "isDefault": true
+      }
+    },
+    {
+      "instanceId": "chatgpt",
+      "driverKind": "codex",
+      "displayName": "ChatGPT plan",
+      "snapshot": {
+        "state": "unavailable",
+        "reason": "`codex` CLI not found",
+        "chatgptPlan": true
+      },
+      "models": {
+        "default": "",
+        "options": []
+      },
+      "capabilities": {
+        "computerMcp": true,
+        "agentsMcp": true,
+        "composioMcp": true,
+        "phoneMcp": true,
+        "deviceMcp": true,
+        "dataMcp": true,
+        "emailMcp": true,
+        "browserMcp": true,
+        "images": true,
+        "effortLevels": [
+          "low",
+          "medium",
+          "high",
+          "xhigh",
+          "max"
+        ],
+        "modelVariants": false,
+        "queueing": true,
+        "localComputerMcp": true,
+        "approvalReview": false,
+        "backgroundText": true
+      },
+      "access": "subscription",
+      "install": {
+        "command": {
+          "darwin": "npm install -g @openai/codex",
+          "linux": "npm install -g @openai/codex",
+          "win32": "npm install -g @openai/codex"
+        },
+        "needsNode": true,
+        "docsUrl": "https://github.com/openai/codex",
+        "signInCommand": "codex login",
+        "platform": "linux",
+        "server": {
+          "package": "@openai/codex"
+        }
+      },
+      "authentication": {
+        "method": "browser-pkce",
+        "signOut": true
+      },
+      "cliDefault": "codex",
+      "cliCandidates": []
+    },
+    {
+      "instanceId": "openrouter",
+      "driverKind": "openai-compat",
+      "displayName": "OpenRouter",
+      "snapshot": {
+        "state": "unavailable",
+        "reason": "No API key — open Settings → AI → Providers."
+      },
+      "models": {
+        "default": "meta-llama/llama-3.3-70b-instruct",
+        "options": [
+          {
+            "id": "meta-llama/llama-3.3-70b-instruct",
+            "label": "Llama 3.3 70B (OpenRouter)",
+            "custom": true
+          },
+          {
+            "id": "llama-3.3-70b-versatile",
+            "label": "Llama 3.3 70B (Groq)",
+            "custom": true
+          }
+        ]
+      },
+      "capabilities": {
+        "computerMcp": true,
+        "agentsMcp": true,
+        "composioMcp": true,
+        "phoneMcp": false,
+        "deviceMcp": true,
+        "dataMcp": true,
+        "emailMcp": true,
+        "browserMcp": true,
+        "images": true,
+        "modelVariants": false,
+        "queueing": true,
+        "localComputerMcp": true,
+        "approvalReview": false,
+        "backgroundText": true
+      },
+      "access": "api",
+      "install": {
+        "docsUrl": "https://openrouter.ai/keys",
+        "settings": "connections",
+        "signInCommand": "Save an OpenAI-compatible API key in Settings → AI → Providers, or set OPENAI_COMPAT_API_KEY on the server.",
+        "platform": "linux"
+      },
+      "cliCandidates": [],
+      "icon": {
+        "kind": "preset",
+        "preset": "openrouter"
+      }
+    }
+  ]
+}
