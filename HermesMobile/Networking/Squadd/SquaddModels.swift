@@ -28,19 +28,22 @@ struct SquaddBot: Decodable, Equatable, Identifiable {
     let createdAt: Double?
     let tasks: [SquaddTask]
     let description: String?
+    /// The agent's standing instructions (the desktop's «soul»).
+    let soul: String?
     /// A path on the companion (`/api/attachments/<file>`), read with the device token.
     let avatarUrl: String?
     let modelSelection: SquaddModelSelection?
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, title, threadId, unread, busy, createdAt, tasks, description, avatarUrl, modelSelection
+        case id, name, title, threadId, unread, busy, createdAt, tasks, description, soul, avatarUrl, modelSelection
     }
 
     init(id: String, name: String?, title: String? = nil, threadId: String? = nil, unread: Bool? = nil,
-         busy: Bool? = nil, createdAt: Double? = nil, tasks: [SquaddTask] = [], description: String? = nil,
+         busy: Bool? = nil, createdAt: Double? = nil, tasks: [SquaddTask] = [], description: String? = nil, soul: String? = nil,
          avatarUrl: String? = nil, modelSelection: SquaddModelSelection? = nil) {
         self.id = id
         self.description = description
+        self.soul = soul
         self.avatarUrl = avatarUrl
         self.modelSelection = modelSelection
         self.name = name
@@ -63,6 +66,7 @@ struct SquaddBot: Decodable, Equatable, Identifiable {
         createdAt = try? container.decodeIfPresent(Double.self, forKey: .createdAt)
         tasks = (try? container.decodeIfPresent([Lossy<SquaddTask>].self, forKey: .tasks))?.compactMap(\.value) ?? []
         description = try? container.decodeIfPresent(String.self, forKey: .description)
+        soul = try? container.decodeIfPresent(String.self, forKey: .soul)
         avatarUrl = try? container.decodeIfPresent(String.self, forKey: .avatarUrl)
         modelSelection = try? container.decodeIfPresent(SquaddModelSelection.self, forKey: .modelSelection)
     }

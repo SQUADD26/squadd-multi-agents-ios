@@ -36,16 +36,19 @@ struct SquaddCompanionClient {
 
     /// Makes an agent. A paired device may give only who it is and its model: the companion refuses
     /// anything else and makes no agent.
-    func createBot(name: String, title: String, description: String, model: SquaddModelSelection?) async throws -> SquaddBot {
+    func createBot(name: String, title: String, description: String, instructions: String, model: SquaddModelSelection?) async throws -> SquaddBot {
         var body: [String: AnyEncodable] = ["name": .init(name), "title": .init(title), "description": .init(description)]
+        // At creation the computer reads instructions from `settings`, as the desktop's New bot sends them.
+        if !instructions.isEmpty { body["settings"] = .init(["soul": instructions]) }
         if let model { body["modelSelection"] = .init(model) }
         return try await botReply(request("api/bots", method: "POST", body: body))
     }
 
-    /// Changes an agent's name, title and description. The computer refuses a name over 100 characters.
-    func updateProfile(botID: String, name: String, title: String, description: String) async throws -> SquaddBot {
+    /// Changes an agent's name, title, description and instructions. The computer refuses a name over
+    /// 100 characters and instructions over its byte cap.
+    func updateProfile(botID: String, name: String, title: String, description: String, instructions: String) async throws -> SquaddBot {
         try await botReply(request("api/bots/\(botID)/profile", method: "PATCH",
-                                   body: ["name": name, "title": title, "description": description]))
+                                   body: ["name": name, "title": title, "description": description, "soul": instructions]))
     }
 
     /// Moves an agent to another model. The computer refuses a model its engine no longer offers

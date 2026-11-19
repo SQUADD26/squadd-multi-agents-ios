@@ -12,6 +12,7 @@ final class SquaddAgentEditor {
         var name = ""
         var title = ""
         var description = ""
+        var instructions = ""
     }
 
     /// Nil while making a new agent.
@@ -83,14 +84,16 @@ final class SquaddAgentEditor {
         defer { isSaving = false }
         let profile = Profile(name: draft.name.trimmingCharacters(in: .whitespacesAndNewlines),
                               title: draft.title.trimmingCharacters(in: .whitespacesAndNewlines),
-                              description: draft.description.trimmingCharacters(in: .whitespacesAndNewlines))
+                              description: draft.description.trimmingCharacters(in: .whitespacesAndNewlines),
+                              instructions: draft.instructions.trimmingCharacters(in: .whitespacesAndNewlines))
         do {
             if let bot {
                 show(try await client.updateProfile(botID: bot.id, name: profile.name, title: profile.title,
-                                                    description: profile.description))
+                                                    description: profile.description, instructions: profile.instructions))
             } else {
                 show(try await client.createBot(name: profile.name, title: profile.title,
-                                                description: profile.description, model: model))
+                                                description: profile.description, instructions: profile.instructions,
+                                                model: model))
             }
             onChange()
             return true
@@ -144,7 +147,8 @@ final class SquaddAgentEditor {
     }
 
     private static func profile(of bot: SquaddBot?) -> Profile {
-        Profile(name: bot?.name ?? "", title: bot?.title ?? "", description: bot?.description ?? "")
+        Profile(name: bot?.name ?? "", title: bot?.title ?? "", description: bot?.description ?? "",
+                instructions: bot?.soul ?? "")
     }
 
     private func message(for error: Error) -> String {

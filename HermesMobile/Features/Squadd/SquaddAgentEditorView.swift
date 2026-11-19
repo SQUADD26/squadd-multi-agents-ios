@@ -1,8 +1,9 @@
 import SwiftUI
 import UIKit
 
-/// Makes a Squadd agent (`bot` nil) or changes one: name, title, description, model and, once
-/// the agent exists, an avatar drawn from a description. Mirrors the desktop's bot card, limited
+/// Makes a Squadd agent (`bot` nil) or changes one: name, title, description, instructions, model
+/// and an avatar drawn from a description. The avatar route needs the agent's id, so a new agent
+/// stays open here once made, with its avatar section. Mirrors the desktop's bot card, limited
 /// to what the companion lets a paired iPhone change.
 struct SquaddAgentEditorView: View {
     @Environment(\.dismiss) private var dismiss
@@ -29,6 +30,10 @@ struct SquaddAgentEditorView: View {
                     TextField("Title", text: $editor.draft.title)
                     TextField("Description", text: $editor.draft.description, axis: .vertical)
                         .lineLimit(2...6)
+                }
+                Section {
+                    TextField("Instructions", text: $editor.draft.instructions, axis: .vertical)
+                        .lineLimit(3...10)
                 } footer: {
                     if let errorMessage = editor.errorMessage {
                         Text(verbatim: errorMessage)
@@ -61,10 +66,7 @@ struct SquaddAgentEditorView: View {
                         ProgressView()
                     } else {
                         Button(editor.isNew ? LocalizedStringKey("Create") : "Save") {
-                            Task {
-                                let wasNew = editor.isNew
-                                if await editor.save(), wasNew { dismiss() }
-                            }
+                            Task { await editor.save() }
                         }
                         .disabled(!editor.canSave)
                     }
@@ -101,6 +103,7 @@ struct SquaddAgentEditorView: View {
                 Spacer()
             }
             .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
             TextField("A tiny orange cat holding a wrench", text: $editor.avatarPrompt, axis: .vertical)
                 .lineLimit(1...3)
             if editor.isGeneratingAvatar {
