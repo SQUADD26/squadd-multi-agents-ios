@@ -122,7 +122,7 @@ final class SquaddSettingsModel {
         case SquaddError.status(409):
             return String(localized: "The computer is busy. Try again when the agents have finished.")
         case SquaddError.status(403):
-            return String(localized: "The computer only allows this from the computer itself.")
+            return String(localized: "This can only be changed on the computer.")
         case SquaddError.status(let code):
             return String(localized: "The computer answered with an error (\(code)).")
         default:
