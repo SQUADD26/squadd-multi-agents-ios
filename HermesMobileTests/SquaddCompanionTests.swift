@@ -251,7 +251,8 @@ final class SquaddCompanionTests: XCTestCase {
         XCTAssertEqual(calls[2].2["projectIds"] as? [String], [clienti, interni], "the whole saved order, the moved folder one place up")
         XCTAssertEqual(calls[4].2["name"] as? String, "Clienti")
         XCTAssertEqual(afterDelete.savedFolderOrder, [interni])
-        XCTAssertTrue(afterDelete.threads.contains { $0.id == pinnedThread }, "the deleted folder's thread stays, in no folder")
+        let kept = try XCTUnwrap(afterDelete.threads.first { $0.id == pinnedThread }, "the deleted folder's thread stays")
+        XCTAssertNil(kept.projectId, "in no folder, so its menu ticks No Folder")
         XCTAssertEqual(try sections(model).first?.savedFolderOrder, [interni, clienti], "a new folder goes last")
     }
 
