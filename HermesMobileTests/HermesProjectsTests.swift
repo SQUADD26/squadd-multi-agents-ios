@@ -228,7 +228,7 @@ import Observation
         let undo = await list.moveHermesSession(try XCTUnwrap(list.sessions.first), toFolder: "/Users/me/gone")
 
         XCTAssertNil(undo)
-        XCTAssertEqual(list.actionErrorMessage, "Hermes can't find the folder /Users/me/gone, so the session didn't move.")
+        XCTAssertEqual(list.actionErrorMessage, "Squadd can't find the folder /Users/me/gone, so the session didn't move.")
         XCTAssertEqual(writes(host, ["session.workspace.move"]), [
             ["session_key": .string("a"), "cwd": .string("/Users/me/gone"), "profile": .string("research")]
         ])

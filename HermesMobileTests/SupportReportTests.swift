@@ -8,10 +8,10 @@ import XCTest
     func testReportNamesTheTestedReleaseOnlyForHermes() {
         let hermes = SupportReport(server: Self.account(kind: .hermes, serverVersion: "0.21.4"))
         let hermesLines = hermes.text.components(separatedBy: "\n")
-        XCTAssertEqual(hermesLines.first, "Hermex support details")
-        XCTAssertTrue(hermesLines.contains("Server kind: Hermes"))
+        XCTAssertEqual(hermesLines.first, "Squadd Multi-Agents support details")
+        XCTAssertTrue(hermesLines.contains("Server kind: Squadd"))
         XCTAssertTrue(hermesLines.contains("Server release: 0.21.4"))
-        XCTAssertTrue(hermesLines.contains("Tested Hermes release: \(HermesCompatibility.testedVersion)"))
+        XCTAssertTrue(hermesLines.contains("Tested server release: \(HermesCompatibility.testedVersion)"))
 
         let webui = SupportReport(server: Self.account(kind: .webui, serverVersion: nil))
         let webuiLines = webui.text.components(separatedBy: "\n")

@@ -626,7 +626,7 @@ import SwiftUI
         chat.host.always("prompt.submit", .init(result: .object(["status": .string("something new")])))
         let sent = await chat.model.sendMessage("Deploy it")
         XCTAssertFalse(sent, "false keeps the draft in the composer")
-        XCTAssertEqual(chat.model.sendErrorMessage, "Hermes did not confirm this message. Your draft is still here.")
+        XCTAssertEqual(chat.model.sendErrorMessage, "Squadd did not confirm this message. Your draft is still here.")
         XCTAssertEqual(chat.model.messages, [])
         XCTAssertEqual(chat.writes("prompt.submit").count, 1)
     }

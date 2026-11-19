@@ -26,7 +26,7 @@ struct OnboardingPrimaryButtonStyle: ButtonStyle {
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 10)
             .padding(.vertical, 15)
-            .background(Color(red: 1.0, green: 0.74, blue: 0.10), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(Color(red: 0.90, green: 0.91, blue: 0.92), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .opacity(configuration.isPressed ? 0.78 : 1)
     }
 }
@@ -37,7 +37,7 @@ struct OnboardingStepHeader: View {
     let title: String
     let description: String
 
-    private let accent = Color(red: 1.0, green: 0.74, blue: 0.10)
+    private let accent = Color(red: 0.90, green: 0.91, blue: 0.92)
 
     var body: some View {
         VStack(spacing: 20) {

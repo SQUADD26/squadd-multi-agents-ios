@@ -34,7 +34,7 @@ import XCTest
         XCTAssertEqual(BotComposerPill.room(link: .live, blocked: true, hasActions: true, mayRetry: true, errorText: nil),
                        .retrySend, "An uncertain send must remain recoverable while another member waits")
         XCTAssertEqual(BotComposerPill.room(link: .live, blocked: true, hasActions: false, mayRetry: false, errorText: nil),
-                       .notice("Waiting on Hermes Desktop"))
+                       .notice("Waiting on Squadd Desktop"))
         XCTAssertEqual(BotComposerPill.room(link: .stopped, blocked: true, hasActions: true, mayRetry: false, errorText: nil),
                        .reconnect, "Stale approval state must not hide connection recovery")
         XCTAssertEqual(BotComposerPill.room(link: .live, blocked: false, hasActions: false, mayRetry: true, errorText: nil), .retrySend)
@@ -47,8 +47,8 @@ import XCTest
         XCTAssertEqual(BotComposerPill.room(link: .idle, blocked: false, hasActions: false, mayRetry: false,
                                             needsSignIn: true, errorText: nil), .updateSignIn)
         XCTAssertEqual(BotComposerPill.room(link: .stopped, blocked: false, hasActions: false, mayRetry: false,
-                                            needsSignIn: true, errorText: "Hermes didn't accept the username or password."),
-                       .error("Hermes didn't accept the username or password."), "the error still shows first")
+                                            needsSignIn: true, errorText: "Squadd didn't accept the username or password."),
+                       .error("Squadd didn't accept the username or password."), "the error still shows first")
     }
 
     func testAnsweringARoomApprovalKeepsTheNextCardsSummaryLoading() async throws {

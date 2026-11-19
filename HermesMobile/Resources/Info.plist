@@ -110,23 +110,23 @@
 		</dict>
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Hermex connects to your Hermes backend on your local network to load bots and chat.</string>
+	<string>Squadd Multi-Agents connects to your Squadd server on your local network to load bots and chat.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Hermex needs microphone access to dictate text into the message composer.</string>
+	<string>Squadd Multi-Agents needs microphone access to dictate text into the message composer.</string>
 	<key>NSCameraUsageDescription</key>
-	<string>Hermex needs camera access to capture and attach photos directly in chat.</string>
+	<string>Squadd Multi-Agents needs camera access to capture and attach photos directly in chat.</string>
 	<key>NSFaceIDUsageDescription</key>
-	<string>Hermex uses Face ID to unlock the app when the lock is on.</string>
+	<string>Squadd Multi-Agents uses Face ID to unlock the app when the lock is on.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Hermex needs photo library access to attach images to chat messages.</string>
+	<string>Squadd Multi-Agents needs photo library access to attach images to chat messages.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Hermex needs permission to save exported workspace images to Photos.</string>
+	<string>Squadd Multi-Agents needs permission to save exported workspace images to Photos.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
 	<key>NSSupportsLiveActivitiesFrequentUpdates</key>
 	<true/>
 	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Hermex uses speech recognition to turn dictated audio into editable draft text.</string>
+	<string>Squadd Multi-Agents uses speech recognition to turn dictated audio into editable draft text.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -137,7 +137,12 @@
 		<string>audio</string>
 	</array>
 	<key>UILaunchScreen</key>
-	<dict/>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+		<key>UIImageName</key>
+		<string>LaunchMark</string>
+	</dict>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

@@ -695,7 +695,7 @@ final class AuthManagerStateTests: XCTestCase {
         do { try await connections.connection(for: saved, server: hermesServer).signIn(); XCTFail("The login was refused") } catch {}
 
         XCTAssertEqual(manager.state, .loggedOut(server: hermesServer))
-        XCTAssertEqual(manager.lastErrorMessage, "Hermes didn't accept the username or password.")
+        XCTAssertEqual(manager.lastErrorMessage, "Squadd didn't accept the username or password.")
         XCTAssertEqual(HermesHostFixture.count("/auth/password-login"), 1)
 
         // A changed record saved from the sign-in form signs the server back in.
@@ -754,7 +754,7 @@ final class AuthManagerStateTests: XCTestCase {
         do { try await connections.connection(for: saved, server: hermesServer).signIn(); XCTFail("The refresh was refused") } catch {}
 
         XCTAssertEqual(manager.state, .loggedOut(server: hermesServer))
-        XCTAssertEqual(manager.lastErrorMessage, "Your Hermes sign-in expired. Sign in again.")
+        XCTAssertEqual(manager.lastErrorMessage, "Your Squadd sign-in expired. Sign in again.")
     }
 
     func testOtherSignInFailuresKeepAHermesServerSignedIn() async throws {
@@ -1116,7 +1116,7 @@ final class AuthManagerStateTests: XCTestCase {
 
             let refused = await form.connect(authManager: manager, replacingWebuiServer: true)
             XCTAssertNil(refused, "\(entry)")
-            XCTAssertEqual(form.errorMessage, "Hermes didn't accept the username or password.", "\(entry)")
+            XCTAssertEqual(form.errorMessage, "Squadd didn't accept the username or password.", "\(entry)")
             XCTAssertEqual(manager.servers.map(\.kind), [.webui], "\(entry): a refused sign-in keeps the webui server")
             XCTAssertNil(try BotConnectionStore(keychain: keychain).load(server: hermesServer), "\(entry)")
 
@@ -1236,7 +1236,7 @@ final class AuthManagerStateTests: XCTestCase {
         let added = await form.connect(authManager: manager)
 
         XCTAssertNil(added)
-        XCTAssertEqual(form.errorMessage, "The Hermes host at this address reports a different identity than the one you connected to. Check the address in the Hermes connection.")
+        XCTAssertEqual(form.errorMessage, "The Squadd host at this address reports a different identity than the one you connected to. Check the address in the Squadd connection.")
         XCTAssertEqual(HermesHostFixture.count("/auth/password-login"), 0)
         XCTAssertEqual(manager.servers.map(\.id), [webuiServer.absoluteString])
     }

@@ -225,7 +225,7 @@ struct PluginCatalogReview: View {
                 }
             }
             if entry.needsDesktop {
-                LabeledContent(String(localized: "Needs")) { Text("Hermes Desktop") }
+                LabeledContent(String(localized: "Needs")) { Text(verbatim: "Squadd Desktop") }
             }
             if !entry.platforms.isEmpty {
                 LabeledContent(String(localized: "Runs on")) { Text(verbatim: entry.platforms.joined(separator: ", ")) }

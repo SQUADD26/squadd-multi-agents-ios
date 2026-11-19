@@ -752,7 +752,7 @@ extension APIClientGitTests {
             _ = try await git.push()
             XCTFail("Expected the refusal to fail the push")
         } catch {
-            XCTAssertEqual(error.localizedDescription, String(localized: "Git couldn’t finish this change on your Hermes host."))
+            XCTAssertEqual(error.localizedDescription, String(localized: "Git couldn’t finish this change on your Squadd host."))
         }
     }
 }
@@ -783,7 +783,7 @@ extension APIClientGitTests {
                 _ = try await git.discard(files, deleteUntracked: true)
                 XCTFail("Expected \(files.map(\.path)) to be refused")
             } catch {
-                XCTAssertEqual(error.localizedDescription, String(localized: "Git couldn’t finish this change on your Hermes host."))
+                XCTAssertEqual(error.localizedDescription, String(localized: "Git couldn’t finish this change on your Squadd host."))
             }
         }
         let refusedWrites = HermesGitHost.writes
@@ -909,7 +909,7 @@ extension APIClientGitTests {
         })
         XCTAssertEqual(local.currentBranch, "dev")
         XCTAssertEqual(local.resolvedStatus?.isGit, true)
-        XCTAssertEqual(refusal, String(localized: "Git couldn’t finish this change on your Hermes host."))
+        XCTAssertEqual(refusal, String(localized: "Git couldn’t finish this change on your Squadd host."))
     }
 
     /// Nothing is sent for a dirty tree, a name the host would rewrite or a stash, none of which a
@@ -1033,7 +1033,7 @@ extension APIClientGitTests {
             } catch { refusals.append(error as? HermesGitRefusal) }
         }
 
-        XCTAssertEqual(messages, Array(repeating: String(localized: "Git couldn’t finish this change on your Hermes host."), count: 2))
+        XCTAssertEqual(messages, Array(repeating: String(localized: "Git couldn’t finish this change on your Squadd host."), count: 2))
         XCTAssertEqual(sent, ["pull", "fetch"])
         XCTAssertEqual(refusals, [.failed, .failed, .failed])
         XCTAssertEqual(HermesGitHost.writes, sent)

@@ -1714,37 +1714,18 @@ enum SessionListDestinationReturn {
     }
 }
 
+/// The Squadd wordmark, tinted with the header logo colour the user picks in Settings.
 struct HermesHeaderLogo: View {
     let selectedColor: Color
 
-    private static let aspectRatio = 643.0 / 185.0
-
     var body: some View {
-        ZStack {
-            Image("hermes-fill-mask")
-                .renderingMode(.template)
-                .resizable()
-                .scaledToFit()
-                .foregroundStyle(selectedColor)
-
-            Image("hermes-shading-overlay")
-                .resizable()
-                .scaledToFit()
-                .blendMode(.multiply)
-
-            Image("hermes-highlight")
-                .resizable()
-                .scaledToFit()
-                .blendMode(.screen)
-
-            Image("hermes-outline-shadow")
-                .resizable()
-                .scaledToFit()
-        }
-        .aspectRatio(Self.aspectRatio, contentMode: .fit)
-        .compositingGroup()
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("HERMEX")
+        Text(verbatim: "Squadd")
+            .font(AppFont.largeTitle(weight: .heavy))
+            .foregroundStyle(selectedColor)
+            .lineLimit(1)
+            .minimumScaleFactor(0.5)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityLabel(Text(verbatim: "Squadd Multi-Agents"))
     }
 }
 
@@ -2156,7 +2137,7 @@ private struct PendingNewChatView: View {
     }
 }
 
-#Preview("Hermes Header Logo") {
+#Preview("Header Logo") {
     VStack(spacing: 16) {
         ForEach(HeaderLogoColor.presets.prefix(4)) { preset in
             HermesHeaderLogo(selectedColor: preset.color)

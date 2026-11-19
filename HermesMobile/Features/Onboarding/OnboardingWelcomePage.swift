@@ -73,15 +73,15 @@ struct OnboardingWelcomePage: View {
                                 lineWidth: 1
                             )
                     )
-                    .shadow(color: Color(red: 1.0, green: 0.62, blue: 0.08).opacity(0.35), radius: 24, y: 10)
+                    .shadow(color: Color(red: 0.90, green: 0.91, blue: 0.92).opacity(0.35), radius: 24, y: 10)
                     // A background takes no layout, so a short display (iPhone Duo folded) gives the
                     // glow's overflow to the copy instead of scrolling it behind the buttons.
                     .background {
                         ZStack {
                             RadialGradient(
                                 colors: [
-                                    Color(red: 1.0, green: 0.74, blue: 0.10).opacity(0.55),
-                                    Color(red: 1.0, green: 0.62, blue: 0.08).opacity(0.22),
+                                    Color(red: 0.90, green: 0.91, blue: 0.92).opacity(0.55),
+                                    Color(red: 0.90, green: 0.91, blue: 0.92).opacity(0.22),
                                     .clear
                                 ],
                                 center: .center,
@@ -93,7 +93,7 @@ struct OnboardingWelcomePage: View {
 
                             RadialGradient(
                                 colors: [
-                                    Color(red: 1.0, green: 0.78, blue: 0.18).opacity(0.35),
+                                    Color(red: 0.90, green: 0.91, blue: 0.92).opacity(0.35),
                                     .clear
                                 ],
                                 center: .center,
@@ -104,7 +104,7 @@ struct OnboardingWelcomePage: View {
                         }
                     }
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Hermex")
+                .accessibilityLabel(Text(verbatim: "Squadd Multi-Agents"))
 
                 Spacer(minLength: 32)
 

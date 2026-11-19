@@ -286,9 +286,9 @@ private struct SessionListCardShell<Actions: View>: View {
         let appearance = BotProfileAppearance(
             look: ["shape": .string(faceShape), "color": .string("#ffe000"),
                    "expression": .string(expression)],
-            fallbackTitle: "Hermex"
+            fallbackTitle: "Squadd"
         )
-        return BotAvatarMarkView(name: "Hermex", appearance: appearance,
+        return BotAvatarMarkView(name: "Squadd", appearance: appearance,
                                  size: faceSize,
                                  pose: pose,
                                  eyeLayout: eyeLayout)

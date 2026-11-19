@@ -294,7 +294,7 @@ import Observation
         for word in ["show", "hide", "off"] {
             let refused = await chat.model.executeSlashCommand(Self.command("reasoning"), args: word)
             XCTAssertEqual(refused, .unsupported(friendlyMessage:
-                "On a Hermes host, /reasoning \(word) changes display settings for every client, so Hermex doesn't send it."))
+                "On a Squadd host, /reasoning \(word) changes display settings for every client, so Squadd Multi-Agents doesn't send it."))
         }
         let usage = await chat.model.executeSlashCommand(Self.command("reasoning"), args: "")
         XCTAssertEqual(usage, .unsupported(friendlyMessage: "Usage: /reasoning none|minimal|low|medium|high|xhigh|max|ultra"))
@@ -1013,7 +1013,7 @@ import Observation
         let moved = await chat.model.confirmHermesFolderMove("/Users/me/gone")
         XCTAssertFalse(moved)
         XCTAssertEqual(chat.model.composerConfigurationErrorMessage,
-                       "Hermes can't find the folder /Users/me/gone, so the session didn't move.")
+                       "Squadd can't find the folder /Users/me/gone, so the session didn't move.")
         XCTAssertEqual(chat.writes("session.workspace.move").count, 1)
         XCTAssertEqual(chat.model.selectedWorkspacePath, "/Users/me/notes")
     }
