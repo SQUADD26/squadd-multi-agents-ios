@@ -83,9 +83,11 @@ struct ModelPickerSheet: View {
                         .listRowSeparator(.hidden)
                 }
 
-                customModelEntry
-                    .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 12))
-                    .listRowSeparator(.hidden)
+                if configuration.showsCustomEntry {
+                    customModelEntry
+                        .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 8, trailing: 12))
+                        .listRowSeparator(.hidden)
+                }
 
                 statusPlaceholder(groups: groups)
                     .listRowSeparator(.hidden)
