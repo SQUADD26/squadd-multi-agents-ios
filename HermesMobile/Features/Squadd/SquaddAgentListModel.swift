@@ -118,14 +118,16 @@ final class SquaddAgentListModel {
         }
     }
 
-    /// Searches every conversation's messages; an empty query ends the search.
-    func search(_ query: String) async {
+    /// Searches every conversation's messages; an empty query ends the search. False when the
+    /// search failed: the last results stay, since an empty list would say nothing matched.
+    func search(_ query: String) async -> Bool {
         let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { searchHits = nil; return }
+        guard !query.isEmpty else { searchHits = nil; return true }
         do {
             searchHits = try await client.search(query)
+            return true
         } catch {
-            if handled(error) { searchHits = [] }
+            return !handled(error)
         }
     }
 
@@ -135,6 +137,7 @@ final class SquaddAgentListModel {
             let data = try await client.exportMarkdown(threadId: threadId)
             let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            // A slash or colon in a title would name a folder or fail the write.
             let name = title.components(separatedBy: CharacterSet(charactersIn: "/:\\")).joined(separator: "-")
             let file = folder.appendingPathComponent((name.isEmpty ? "Thread" : name) + ".md")
             try data.write(to: file)

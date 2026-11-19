@@ -179,18 +179,22 @@ final class SquaddCompanionTests: XCTestCase {
         SquaddHTTPFixture.handler = { request in
             let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "q" }?.value
             queries.append(query)
+            if query == "offline" { return (500, Data()) }
             return (200, try! Self.fixture(query == "zucchero" ? "search-hits.json" : "search-empty.json"))
         }
         let model = SquaddAgentListModel(client: client(token: "t"), onUnpaired: {})
 
-        await model.search("zucchero")
+        _ = await model.search("zucchero")
         XCTAssertEqual(model.searchHits?.map(\.task), ["ciao zucchero"])
         XCTAssertEqual(model.searchHits?.first?.snippet, "ciao zucchero")
-        await model.search("nessunrisultatoxyz")
+        let failed = await model.search("offline")
+        XCTAssertFalse(failed)
+        XCTAssertEqual(model.searchHits?.map(\.task), ["ciao zucchero"], "a failed search is not an empty one")
+        _ = await model.search("nessunrisultatoxyz")
         XCTAssertEqual(model.searchHits, [])
-        await model.search("  ")
+        _ = await model.search("  ")
         XCTAssertNil(model.searchHits, "clearing the field ends the search")
-        XCTAssertEqual(queries, ["zucchero", "nessunrisultatoxyz"])
+        XCTAssertEqual(queries, ["zucchero", "offline", "nessunrisultatoxyz"])
     }
 
     func testExportWritesTheDesktopMarkdownToAFile() async throws {
@@ -338,10 +342,17 @@ final class SquaddScreenPhotoTests: XCTestCase {
         let dir = URL(fileURLWithPath: path!)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let organized = try Self.fixture("bots-organized.json")
+        var served: [String] = []
         SquaddHTTPFixture.handler = { request in
-            guard request.url?.path == "/api/bots" else { return (404, Data()) }
-            Self.botsServed += 1
-            return (200, organized)
+            let path = request.url?.path ?? ""
+            served.append("\(request.httpMethod ?? "") \(path)")
+            if path == "/api/bots" { Self.botsServed += 1; return (200, organized) }
+            if path == "/api/search" {
+                let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first?.value
+                return (200, try! Self.fixture(query == "zucchero" ? "search-hits.json" : "search-empty.json"))
+            }
+            if path.hasSuffix("/export") { return (200, try! Self.fixture("export.md")) }
+            return (404, Data())
         }
         URLProtocol.registerClass(SquaddHTTPFixture.self)
         let keychain = InMemoryKeychainStore()
@@ -352,9 +363,22 @@ final class SquaddScreenPhotoTests: XCTestCase {
         Self.botsServed = 0
         try await shoot("f1-threads", home(manager, studio), dir: dir) { Self.botsServed > 0 }
 
-        let hits = try JSONDecoder().decode(SquaddSearchResponse.self, from: try Self.fixture("search-hits.json")).hits
-        try await shoot("f2-search-hits", AppList(rows: .plain) { SquaddSearchResults(hits: hits, query: "zucchero") }, dir: dir) { true }
-        try await shoot("f3-search-empty", AppList(rows: .plain) { SquaddSearchResults(hits: [], query: "nessunrisultatoxyz") }, dir: dir) { true }
+        // The real home, each started on one step through the handlers a tap reaches.
+        let steps: [(String, SquaddHomeStart, String)] = [
+            ("f2-search-hits", .search("zucchero"), "GET /api/search"),
+            ("f3-search-empty", .search("nessunrisultatoxyz"), "GET /api/search"),
+            ("f4-archived-open", .showArchived, "GET /api/bots"),
+            ("f5-delete-confirm", .act(.delete, threadTitle: "ciao zucchero"), "GET /api/bots"),
+            ("f6-rename", .act(.rename, threadTitle: "ciao zucchero"), "GET /api/bots"),
+            ("f7-export-share", .act(.export, threadTitle: "ciao zucchero"), "GET /api/threads/\(sugarThread)/export"),
+        ]
+        for (name, start, awaited) in steps {
+            let from = served.count
+            try await shoot(name, SquaddServerHome(authManager: manager, server: studio, start: start), dir: dir) {
+                served[from...].contains(awaited)
+            }
+        }
+        XCTAssertFalse(served.contains { $0.hasPrefix("DELETE") || $0.hasPrefix("PATCH") }, "showing a confirmation or a sheet changes nothing")
     }
 
     private func add(_ url: URL, name: String, initials: String, color: String, token: String, to manager: AuthManager) throws {
