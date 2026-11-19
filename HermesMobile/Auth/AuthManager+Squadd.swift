@@ -60,3 +60,8 @@ extension AuthManager {
         try? keychain.delete(.squaddDeviceToken, scope: server.absoluteString)
     }
 }
+
+extension AuthManager {
+    /// Measurement only (PR iOS timing): how many configured servers are Squadd servers.
+    var squaddServerCount: Int { servers.filter { $0.kind == .squadd }.count }
+}

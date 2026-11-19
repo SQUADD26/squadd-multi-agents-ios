@@ -34,6 +34,10 @@ final class SquaddCompanionTests: XCTestCase {
         XCTAssertEqual(pesto.unreadThreadIDs.count, 2)
     }
 
+    func testNoServerIsASquaddServerAtStart() {
+        XCTAssertEqual(makeManager(keychain: InMemoryKeychainStore()).squaddServerCount, 0)
+    }
+
     func testCompanionDriftNeverFailsTheList() throws {
         let json = Data("""
         {"bots":[
