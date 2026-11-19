@@ -192,7 +192,7 @@ Per ogni chiamata di rete di `HermesMobile/Networking`, la route del companion c
 | POST /api/crons/pause, /resume | HermesMobile/Networking/APIClient+Cron.swift:237 | PATCH /api/routines/:id | routes.ts:235 |
 | GET /api/crons/run, /history, /status, /output | HermesMobile/Networking/APIClient+Cron.swift:252 | manca (solo cancel e seen di un run) | routes.ts:238 |
 | GET /api/crons/delivery-options, /recent | HermesMobile/Networking/APIClient+Cron.swift:210 | manca | — |
-| Kanban (config, boards, board, tasks, log, comments, links, bulk, dispatch, block) | HermesMobile/Networking/APIClient+Kanban.swift:138 | manca | — |
+| Kanban (config, boards, board, stats, assignees, events, tasks, log, comments, links, bulk, dispatch, block, unblock) | HermesMobile/Networking/APIClient+Kanban.swift:138 | manca | — |
 | SSE /api/kanban/events/stream | HermesMobile/Networking/KanbanEventStreamClient.swift:111 | manca | — |
 | GET /api/memory, POST /api/memory/write | HermesMobile/Networking/APIClient+Memory.swift:29 | GET, POST, PATCH, DELETE /api/team-memory | routes.ts:145-148 |
 | GET /api/skills, /api/skills/content | HermesMobile/Networking/APIClient+Skills.swift:27 | GET /api/bots/:id/skills | routes.ts:137 |
@@ -211,7 +211,7 @@ Per ogni chiamata di rete di `HermesMobile/Networking`, la route del companion c
 | POST auth/native/refresh, /token; GET auth/native/authorize | HermesMobile/Networking/Hermes/HermesREST.swift:439, :443 | manca: il token del device non scade | companion/src/devices.ts:343 |
 | GET api/auth/me, api/profiles/active | HermesMobile/Networking/Hermes/HermesREST.swift:446, :447 | manca | — |
 | POST api/auth/ws-ticket, api/webapp/socket-ticket | HermesMobile/Networking/Hermes/HermesREST.swift:448, :450 | manca: lo stream usa lo stesso bearer | companion/src/proxy.ts:407 |
-| GET e POST api/gateway/migrate | HermesMobile/Networking/Hermes/HermesREST.swift:417 | manca | — |
+| GET api/gateway/migrate/plan, POST api/gateway/migrate | HermesMobile/Networking/Hermes/HermesREST.swift:417 | manca | — |
 | api/hermes/update (check, update, status, receipt) | HermesMobile/Networking/Hermes/HermesREST.swift:420 | POST /api/instances/:id/claude-update | routes.ts:89 |
 | DELETE api/profiles/{name} | HermesMobile/Networking/Hermes/HermesREST.swift:456 | DELETE /api/bots/:id | routes.ts:99 |
 | POST api/chat/image-upload | HermesMobile/Networking/Hermes/HermesREST.swift:460 | POST /api/attachments | routes.ts:193 |
@@ -242,7 +242,7 @@ Per ogni chiamata di rete di `HermesMobile/Networking`, la route del companion c
 | GET api/skills, api/skills/content | HermesMobile/Networking/Hermes/HermesREST.swift:623 | GET /api/bots/:id/skills | routes.ts:137 |
 | PUT api/skills/toggle | HermesMobile/Networking/Hermes/HermesREST.swift:627 | manca | — |
 | GET api/fs/list, api/fs/read-text, api/fs/git-root | HermesMobile/Networking/Hermes/HermesREST.swift:635 | manca | — |
-| api/git/... (status, review, diff, stage, commit, push, branches, switch) | HermesMobile/Networking/Hermes/HermesREST.swift:653 | manca | — |
+| api/git/... (status, review/list, diff, file-diff, stage, unstage, revert, commit, push, rev-parse, commit-context, ship-info, branches, branch/switch) | HermesMobile/Networking/Hermes/HermesREST.swift:653 | manca | — |
 | GET api/files/read, POST api/files/upload | HermesMobile/Networking/Hermes/HermesREST.swift:712 | POST /api/files | routes.ts:200 |
 | GET e PUT api/config | HermesMobile/Networking/Hermes/HermesREST.swift:720 | solo GET /api/config | routes.ts:84 |
 | GET e PUT api/profiles/{name}/soul | HermesMobile/Networking/Hermes/HermesREST.swift:728 | PATCH /api/bots/:id/profile | routes.ts:151 |
