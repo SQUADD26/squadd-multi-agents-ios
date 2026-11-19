@@ -4,7 +4,7 @@
 The runner builds in one fixed place (the workspace and _work/DerivedData: DerivedData keeps absolute
 paths). Between runs each branch's checkout and DerivedData are parked in _work/pr-states/<branch>/ by
 renaming, which is instant. A branch seen for the first time starts from an APFS clone (copy-on-write,
-~2 s) of the parked state closest to its head: the fewest Swift files to recompile, and never one that
+~2 s) of the parked state closest to its head: the fewest app files to recompile, and never one that
 would delete Swift files (a deleted input makes the Swift driver rebuild the whole module).
 
     python3 ci/pr_state.py <branch> <head sha>
@@ -27,9 +27,10 @@ def git(repo, *args):
 
 
 def cost(name_status):
-    """Swift files to recompile for `git diff --name-status` output; a deletion costs a whole module."""
+    """Rebuild cost for `git diff --name-status` output. A deletion rebuilds a whole module; any other app file
+    re-emits the app module (~20 s) and may recompile every test; a test file recompiles only itself."""
     swift = [line.split("\t") for line in name_status.splitlines() if line.endswith(".swift")]
-    return sum(1000 if fields[0].startswith("D") else 1 for fields in swift)
+    return sum(100_000 if fields[0].startswith("D") else 1 if "Tests/" in fields[-1] else 100 for fields in swift)
 
 
 def closest(repo, head, candidates):

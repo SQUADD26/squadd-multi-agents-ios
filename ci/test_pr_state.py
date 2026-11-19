@@ -19,6 +19,9 @@ class PRStateTests(unittest.TestCase):
     def test_deleting_a_swift_file_costs_more_than_any_number_of_changes(self):
         self.assertGreater(pr_state.cost("D\tA.swift\n"), pr_state.cost("M\tB.swift\n" * 500 + "A\tC.swift\nM\tdocs.md"))
 
+    def test_one_app_file_costs_more_than_many_test_files(self):
+        self.assertGreater(pr_state.cost("M\tApp/A.swift\n"), pr_state.cost("M\tAppTests/B.swift\n" * 50))
+
     def test_each_branch_gets_its_own_state_back(self):
         work = Path(tempfile.mkdtemp())
         workspace = work / "repo" / "repo"
