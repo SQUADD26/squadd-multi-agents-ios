@@ -71,7 +71,7 @@ final class SquaddThreadLinkTests: XCTestCase {
         let again = await SquaddAgentProvider.entities(for: [pesto.id], servers: servers, keychain: keychain, session: session())
         XCTAssertEqual(again, [pesto])
 
-        var intent = OpenSquaddAgentIntent()
+        let intent = OpenSquaddAgentIntent()
         intent.agent = pesto
         _ = try await intent.perform()
         let opened = try XCTUnwrap(AppIntentRouter.shared.pendingDeepLink.flatMap(SquaddThreadLink.init(url:)))
@@ -144,41 +144,46 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         try manager.addSquaddServer(address: studio, token: "token-studio")
         try manager.addSquaddServer(address: laptop, token: "token-laptop")
         XCTAssertEqual(manager.state, .loggedIn(server: laptop))
-        try host(ContentView(authManager: manager))
+        var router = try host(manager)
 
         // a. A link to Pesto's "Weekly menu" on the Mac Studio, with the MacBook active: the app
         // switches computer, reads its agents and marks the thread.
         let weeklyMenu = SquaddThreadLink(threadID: "e0196fb1-7f3b-44b7-93a0-e7b1e93f7af1",
                                           botID: "b70a0bbd-64c1-491b-ad34-f441d52fe9f0", server: studio)
         Self.served = []
-        AppIntentRouter.shared.requestDeepLink(weeklyMenu.url)
+        router.requestDeepLink(weeklyMenu.url)
         try await shoot("f1-link-opens-thread", dir: dir) {
             manager.state == .loggedIn(server: self.studio) && Self.served.contains("Bearer token-studio")
         }
         XCTAssertEqual(manager.state, .loggedIn(server: studio))
 
         // b. A thread deleted on the computer. Each alert gets a fresh app window.
-        try host(ContentView(authManager: manager))
-        AppIntentRouter.shared.requestDeepLink(SquaddThreadLink(threadID: "deleted-thread", server: studio).url)
+        router = try host(manager)
+        router.requestDeepLink(SquaddThreadLink(threadID: "deleted-thread", server: studio).url)
         try await shoot("f2-thread-not-found", dir: dir) { true }
 
         // c. A computer this iPhone never paired.
-        try host(ContentView(authManager: manager))
-        AppIntentRouter.shared.requestDeepLink(SquaddThreadLink(threadID: "t", server: URL(string: "http://other.tailnet.test:8810")!).url)
+        router = try host(manager)
+        router.requestDeepLink(SquaddThreadLink(threadID: "t", server: URL(string: "http://other.tailnet.test:8810")!).url)
         try await shoot("f3-computer-not-paired", dir: dir) { true }
         XCTAssertEqual(manager.state, .loggedIn(server: studio), "a link to an unpaired computer switches nothing")
     }
 
-    private func host<V: View>(_ view: V) throws {
+    /// Shows a fresh `ContentView` and returns the router it drains: the test host app's own
+    /// ContentView drains `AppIntentRouter.shared`, so each window gets its own.
+    private func host(_ manager: AuthManager) throws -> AppIntentRouter {
+        let router = AppIntentRouter()
         let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         self.window?.isHidden = true
         let window = UIWindow(windowScene: scene)
         window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
-        window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
+        window.rootViewController = UIHostingController(
+            rootView: ContentView(authManager: manager, intentRouter: router).modelContainer(container))
         window.makeKeyAndVisible()
         self.window = window
+        return router
     }
 
     /// Waits for `ready` and the frames after it, then writes `<name>.png`.

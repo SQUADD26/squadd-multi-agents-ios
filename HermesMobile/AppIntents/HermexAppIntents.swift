@@ -17,7 +17,8 @@ final class AppIntentRouter {
     /// appeared (cold launch) or after (warm launch).
     var pendingDeepLink: URL?
 
-    private init() {}
+    /// Tests pass their own to a `ContentView`, so the host app's view doesn't drain its links.
+    init() {}
 
     /// Records a deep link for the view layer to route. No-op on a nil URL so callers can
     /// pass the optional `HermesDeepLink` builders without unwrapping.

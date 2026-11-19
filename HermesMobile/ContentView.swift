@@ -13,6 +13,11 @@ struct ContentView: View {
     @State private var intentRouter = AppIntentRouter.shared
     @AppStorage(BotModeGate.isEnabledKey) private var isBotModeEnabled = false
 
+    init(authManager: AuthManager, intentRouter: AppIntentRouter = .shared) {
+        _authManager = Bindable(authManager)
+        _intentRouter = State(initialValue: intentRouter)
+    }
+
     var body: some View {
         content
             .moveToHermesNotices(authManager)
