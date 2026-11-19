@@ -9,4 +9,9 @@ enum InAppBrowserPolicy {
         guard let scheme = url.scheme?.lowercased(), scheme == "http" || scheme == "https" else { return false }
         return url.host()?.isEmpty == false
     }
+
+    /// Whether `link` parses and opens in the app.
+    static func opensInApp(_ link: String) -> Bool {
+        URL(string: link).map(opensInApp) ?? false
+    }
 }

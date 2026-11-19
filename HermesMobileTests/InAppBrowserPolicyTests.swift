@@ -7,7 +7,7 @@ import XCTest
 final class InAppBrowserPolicyTests: XCTestCase {
     func testWebLinksOpenInApp() {
         for link in ["http://example.com", "https://example.com/docs?page=2#setup", "HTTPS://Example.com"] {
-            XCTAssertTrue(InAppBrowserPolicy.opensInApp(URL(string: link)!), link)
+            XCTAssertTrue(InAppBrowserPolicy.opensInApp(link), link)
         }
     }
 
