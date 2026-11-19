@@ -310,7 +310,7 @@ final class APIClientAuthAndErrorTests: APIClientTestCase {
     }
 
     func testStaleAgentRuntimeConflictUsesRestartCopy() {
-        let updated = "Hermes was updated on your server. Restart Hermes WebUI there, then try again."
+        let updated = "Squadd was updated on your server. Restart Squadd WebUI there, then try again."
         for state in [nil, "stale", "unverified", "unknown", "some_future_state"] {
             let error = APIError.http(statusCode: 409, body: staleRuntimeBody(updateState: state))
             XCTAssertEqual(error.localizedDescription, updated, "agent_update_state: \(String(describing: state))")
@@ -320,7 +320,7 @@ final class APIClientAuthAndErrorTests: APIClientTestCase {
         let updating = APIError.http(statusCode: 409, body: staleRuntimeBody(updateState: "active"))
         XCTAssertEqual(
             updating.localizedDescription,
-            "Hermes is still updating on your server. Wait for it to finish, restart Hermes WebUI, then try again."
+            "Squadd is still updating on your server. Wait for it to finish, restart Squadd WebUI, then try again."
         )
         // While the update runs the fix is to wait, so chat offers no prompt.
         XCTAssertEqual(updating.agentRuntimeStale, .updating)
@@ -329,7 +329,7 @@ final class APIClientAuthAndErrorTests: APIClientTestCase {
         let incomplete = APIError.http(statusCode: 409, body: staleRuntimeBody(updateState: "incomplete"))
         XCTAssertEqual(
             incomplete.localizedDescription,
-            "A Hermes update on your server didn't finish. Check it, restart Hermes WebUI, then try again."
+            "A Squadd update on your server didn't finish. Check it, restart Squadd WebUI, then try again."
         )
         XCTAssertEqual(incomplete.agentRuntimeStale, .incomplete)
     }

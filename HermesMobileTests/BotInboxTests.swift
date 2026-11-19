@@ -244,7 +244,7 @@ import SwiftUI
         await inbox.open()
 
         XCTAssertEqual(HermesProfileNameCache(defaults: defaults).names(for: server),
-                       [.init(profile: "default", title: "Hermes"), .init(profile: "triage", title: "Inbox Triage", model: "gpt-6")])
+                       [.init(profile: "default", title: "Squadd"), .init(profile: "triage", title: "Inbox Triage", model: "gpt-6")])
     }
 
     func testMissingMetadataReadsPlainAndPinWritesUnderRevisionZero() async throws {
@@ -293,7 +293,7 @@ import SwiftUI
         var expected = look; expected["hidden"] = .bool(true)
         XCTAssertEqual(configured?["ui_meta"], .object(["hermes-bots": .object(expected)]), "unrelated Desktop fields ride along untouched")
         XCTAssertEqual(configured?["ui_meta_expected_revisions"], .object(["hermes-bots": .number(4)]))
-        XCTAssertEqual(inbox.notice, "This bot changed in Hermes Desktop. The list was refreshed; try again.")
+        XCTAssertEqual(inbox.notice, "This bot changed in Squadd Desktop. The list was refreshed; try again.")
         XCTAssertEqual(inbox.profiles[0].name, "Renamed", "the conflict re-read the roster")
         XCTAssertFalse(inbox.profiles[0].hidden)
         XCTAssertEqual(inbox.profiles[0].lookRevision, 5)
@@ -380,7 +380,7 @@ import SwiftUI
         let encoded = String(decoding: try JSONEncoder().encode(try XCTUnwrap(configured?["ui_meta"])), as: UTF8.self)
         XCTAssertTrue(encoded.contains("\"sectionId\":null") && encoded.contains("\"sectionName\":null"), encoded)
         XCTAssertEqual(configured?["ui_meta_expected_revisions"], .object(["hermes-bots": .number(6)]))
-        XCTAssertEqual(inbox.notice, "This bot changed in Hermes Desktop. The list was refreshed; try again.")
+        XCTAssertEqual(inbox.notice, "This bot changed in Squadd Desktop. The list was refreshed; try again.")
         XCTAssertEqual(inbox.sections.map(\.name), ["Clients"], "a conflict leaves the bot filed")
         XCTAssertEqual(inbox.profiles[0].lookRevision, 7)
     }
@@ -831,7 +831,7 @@ import SwiftUI
         XCTAssertTrue(inbox.isLoadingRoster)
 
         await settle(inbox) { $0.routeAdvice != nil }
-        XCTAssertEqual(inbox.routeAdvice, "mac.example refused the connection. Check the port and that the Hermes dashboard is running.")
+        XCTAssertEqual(inbox.routeAdvice, "mac.example refused the connection. Check the port and that the Squadd dashboard is running.")
         XCTAssertNil(inbox.errorMessage, "the advice is not a refusal; nothing stops retrying")
         XCTAssertFalse(inbox.isLoadingRoster)
 
@@ -892,7 +892,7 @@ import SwiftUI
         await inbox.open()
         XCTAssertEqual(spare, 1, "the unchanged, rejected record is not sent again")
         XCTAssertEqual(inbox.link, .disconnected)
-        XCTAssertEqual(inbox.errorMessage, "Hermes didn't accept the username or password.")
+        XCTAssertEqual(inbox.errorMessage, "Squadd didn't accept the username or password.")
         XCTAssertTrue(inbox.needsSignIn)
 
         let old = try XCTUnwrap(store.load(server: server))
@@ -949,7 +949,7 @@ import SwiftUI
         await inbox.open()
         XCTAssertEqual(spare, 1, "the refused password is not sent again")
         XCTAssertEqual(inbox.link, .disconnected)
-        XCTAssertEqual(inbox.errorMessage, "Hermes didn't accept the username or password.")
+        XCTAssertEqual(inbox.errorMessage, "Squadd didn't accept the username or password.")
         XCTAssertTrue(inbox.needsSignIn)
     }
 

@@ -171,7 +171,7 @@ struct AddServerView: View {
         } else if form.showsHermesSignIn {
             // A product name and its release: nothing to translate.
             Label {
-                Text(verbatim: ["Hermes", form.hermesVersion].compactMap { $0 }.joined(separator: " "))
+                Text(verbatim: ["Squadd", form.hermesVersion].compactMap { $0 }.joined(separator: " "))
             } icon: {
                 Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
             }

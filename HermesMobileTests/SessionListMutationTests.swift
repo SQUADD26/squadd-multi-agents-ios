@@ -330,7 +330,7 @@ final class SessionListMutationTests: XCTestCase {
 
         XCTAssertTrue(viewModel.sessions.isEmpty)
         XCTAssertFalse(viewModel.isViewingCachedData)
-        XCTAssertEqual(viewModel.errorMessage, "The Hermes server hit an internal error. Check the server logs, then try again.")
+        XCTAssertEqual(viewModel.errorMessage, "The Squadd server hit an internal error. Check the server logs, then try again.")
         XCTAssertNotNil(viewModel.lastError)
     }
 

@@ -223,7 +223,7 @@ import XCTest
 
         XCTAssertEqual(list.sessions, [])
         XCTAssertFalse(list.isViewingCachedData)
-        XCTAssertEqual(list.errorMessage, "Hermes didn't accept the username or password.")
+        XCTAssertEqual(list.errorMessage, "Squadd didn't accept the username or password.")
     }
 
     /// The home's list, with no pick, shows the cached rows of the Profile it last read while it
@@ -528,7 +528,7 @@ import XCTest
 
         XCTAssertFalse(chat.model.isViewingCachedData)
         XCTAssertEqual(chat.model.messages, [])
-        XCTAssertEqual(chat.model.errorMessage, "Hermes didn't accept the username or password.")
+        XCTAssertEqual(chat.model.errorMessage, "Squadd didn't accept the username or password.")
     }
 
     /// A legacy compression chain's transcript is cached under the lineage root its list row

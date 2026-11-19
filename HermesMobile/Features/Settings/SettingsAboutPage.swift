@@ -69,44 +69,7 @@ struct SettingsAboutPage: View {
                 SettingsExternalLink(title: String(localized: "Support"), systemImage: "questionmark.circle", destination: AppConfig.supportURL)
             }
 
-            Section {
-                Group {
-                    SettingsExternalLink(
-                        title: String(localized: "Become a supporter"),
-                        systemImage: "heart",
-                        destination: AppConfig.membershipURL,
-                        accessibilityLabel: String(localized: "Become a supporter, opens in browser")
-                    )
-                    SettingsExternalLink(
-                        title: String(localized: "Buy Uzi a coffee"),
-                        systemImage: "cup.and.saucer",
-                        destination: AppConfig.tipURL,
-                        accessibilityLabel: String(localized: "Buy Uzi a coffee, opens in browser")
-                    )
-                }
-                .environment(\.openURL, OpenURLAction { url in
-                    SessionListCardState(card: .tip, defaults: .standard).recordLinkOpened()
-                    return .systemAction(url)
-                })
-
-                SettingsExternalLink(
-                    title: String(localized: "Rate Hermex"),
-                    systemImage: "star",
-                    destination: AppConfig.writeReviewURL,
-                    accessibilityLabel: String(localized: "Rate Hermex, opens the App Store")
-                )
-
-                SettingsExternalLink(
-                    title: String(localized: "Star on GitHub"),
-                    systemImage: "chevron.left.forwardslash.chevron.right",
-                    destination: AppConfig.repositoryURL,
-                    accessibilityLabel: String(localized: "Star on GitHub, opens GitHub")
-                )
-                .environment(\.openURL, OpenURLAction { url in
-                    SessionListCardState(card: .star, defaults: .standard).recordLinkOpened()
-                    return .systemAction(url)
-                })
-            }
+            // Hermex's tip jar, rating and GitHub star links point to the Hermex maintainer, not to Squadd.
 
             Section {
                 NavigationLink {

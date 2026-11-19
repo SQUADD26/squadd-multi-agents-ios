@@ -59,7 +59,7 @@ enum HermesThemeRequest {
         var applied: [String: BotJSON] = theme.map { ["mode": .string($0.rawValue)] } ?? [:]
         var pick: Change.Accent?
         if let accent {
-            if accent == "mono" { return refusal("Hermex has no mono accent.", available: accentIDs) }
+            if accent == "mono" { return refusal("Squadd Multi-Agents has no mono accent.", available: accentIDs) }
             if themeAccents.contains(accent) {
                 pick = .themeOwn
                 applied["accent"] = .null
@@ -74,7 +74,7 @@ enum HermesThemeRequest {
             }
         }
         if params["layout"] != .null {
-            return refusal("Hermex on iPhone has no layouts.", available: [])
+            return refusal("Squadd Multi-Agents on iPhone has no layouts.", available: [])
         }
         return Change(theme: theme, accent: pick, answer: json(["success": .bool(true), "applied": .object(applied)]))
     }
@@ -83,9 +83,9 @@ enum HermesThemeRequest {
     /// would read as the user dismissing the card.
     static func said(_ params: BotJSON) -> String {
         params["picker"].text == "accent"
-            ? "Hermex, the iPhone app, has no picker card. Ask the user in the chat which accent they want "
+            ? "Squadd Multi-Agents, the iPhone app, has no picker card. Ask the user in the chat which accent they want "
                 + "(green, cyan, violet, pink, red, orange or a hex colour), then call set_theme with it."
-            : "Hermex, the iPhone app, has no layouts to pick."
+            : "Squadd Multi-Agents, the iPhone app, has no layouts to pick."
     }
 
     private static func refusal(_ error: String, available: [String]) -> Change {

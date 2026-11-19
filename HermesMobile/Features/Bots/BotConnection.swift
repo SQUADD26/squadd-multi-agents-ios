@@ -237,7 +237,7 @@ struct BotProfile: Identifiable, Hashable {
         let look = row["ui_meta"]["hermes-bots"]
         title = Self.firstText(look["title"])
         displayName = Self.firstText(row["display_name"])
-        name = Self.firstText(look["title"], row["display_name"]) ?? (profile == "default" ? "Hermes" : profile)
+        name = Self.firstText(look["title"], row["display_name"]) ?? (profile == "default" ? "Squadd" : profile)
         description = Self.firstText(look["description"], row["description"])
         model = Self.firstText(row["model"])
         preview = row["canonical_session"]["preview"].text

@@ -460,7 +460,7 @@ final class ChatActiveRunStatusPolicyTests: XCTestCase {
         )
 
         XCTAssertEqual(presentation?.kind, .active)
-        XCTAssertEqual(presentation?.label(now: Date()), "Hermes is working")
+        XCTAssertEqual(presentation?.label(now: Date()), "Squadd is working")
     }
 
     func testStatusShowsStartingBeforeStreamIDExists() {
@@ -487,7 +487,7 @@ final class ChatActiveRunStatusPolicyTests: XCTestCase {
         )
 
         XCTAssertEqual(presentation?.kind, .reconnecting)
-        XCTAssertEqual(presentation?.accessibilityLabel(now: Date()), "Hermes is reconnecting the response stream")
+        XCTAssertEqual(presentation?.accessibilityLabel(now: Date()), "Squadd is reconnecting the response stream")
     }
 
     func testStatusPrioritizesCancellationOverOtherStates() {
@@ -525,10 +525,10 @@ final class ChatActiveRunStatusPolicyTests: XCTestCase {
             activeRunStartedAt: now.addingTimeInterval(-133)
         )
 
-        XCTAssertEqual(presentation?.label(now: now), "Hermes is working · 2m 13s")
+        XCTAssertEqual(presentation?.label(now: now), "Squadd is working · 2m 13s")
         XCTAssertEqual(
             presentation?.accessibilityLabel(now: now),
-            "Hermes has been working for 2 minutes, 13 seconds"
+            "Squadd has been working for 2 minutes, 13 seconds"
         )
     }
 

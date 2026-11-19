@@ -171,7 +171,7 @@ final class MoveToHermesModelTests: XCTestCase {
         guard case .finished = model.screen else { return XCTFail("Try Again runs the same pass, got \(model.screen)") }
     }
 
-    /// Without a saved Hermes sign-in, D asks. Its "Sign in to a Hermes host" is the normal
+    /// Without a saved Hermes sign-in, D asks. Its "Sign in to a Squadd host" is the normal
     /// sign-in (#1266), which adds the server without switching to it; the move then scans it
     /// with that server's own sign-in, adopts it at the commit, and only Done switches.
     func testWithoutASavedSignInTheHostIsChosen() async throws {

@@ -543,7 +543,7 @@ final class OnboardingViewModel {
         }
         let isOpen = signInMethod == .open
         let candidate = BotConnection(
-            id: UUID(), name: address.host ?? "Hermes", address: address,
+            id: UUID(), name: address.host ?? "Squadd", address: address,
             username: isOpen ? "" : username.trimmingCharacters(in: .whitespacesAndNewlines), password: isOpen ? "" : password,
             installID: reusedSignIn?.connection.installID, headers: headers.isEmpty ? nil : headers
         )

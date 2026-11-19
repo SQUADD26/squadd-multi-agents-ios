@@ -214,7 +214,7 @@ import Observation
                                          conversation: "root")
         let url = try XCTUnwrap(HermesDeepLink.botURL(for: destination))
         XCTAssertEqual(chat.spy.botStarts, [.init(key: "bot:\(Self.connection.id.uuidString):default", destinationURL: url,
-                                                  pushSessionID: "tip", title: "Hermes", turn: "1790000000.5",
+                                                  pushSessionID: "tip", title: "Squadd", turn: "1790000000.5",
                                                   startedAt: Date(timeIntervalSince1970: Self.startedAt))])
         XCTAssertEqual(chat.spy.starts, [], "never the hermes: session identity")
         XCTAssertEqual(chat.spy.events.last, .toolStarted(name: "terminal"))
@@ -277,7 +277,7 @@ import Observation
     /// keeps the turn's error, and at rest again once the socket drops. A session has no pill.
     func testABotChatsPillFaceFollowsTheTurn() async {
         let chat = await openChat(target: .canonicalChat(profile: "default"))
-        XCTAssertEqual(chat.turn.botProfile?.name, "Hermes", "the bare Profile row until a roster read answers")
+        XCTAssertEqual(chat.turn.botProfile?.name, "Squadd", "the bare Profile row until a roster read answers")
         XCTAssertEqual(chat.turn.titleFace, .resting)
 
         chat.receive(event(1, "message.start"))
@@ -307,9 +307,9 @@ import Observation
         let chat = await openChat(snapshot: resume(running: true), target: .canonicalChat(profile: "default"),
                                   roster: Self.roster(title: "Inbox Triage", expression: "sleepy"))
         await waitUntil("the roster") { !chat.turn.settings.bots.isEmpty }
-        XCTAssertEqual(chat.spy.botStarts.map(\.title), ["Hermes"], "started from the bare Profile row")
+        XCTAssertEqual(chat.spy.botStarts.map(\.title), ["Squadd"], "started from the bare Profile row")
         XCTAssertEqual(chat.spy.titles, ["Inbox Triage"])
-        XCTAssertEqual(chat.spy.avatars, [.init(title: "Hermes", expression: nil), .init(title: "Inbox Triage", expression: "sleepy")])
+        XCTAssertEqual(chat.spy.avatars, [.init(title: "Squadd", expression: nil), .init(title: "Inbox Triage", expression: "sleepy")])
         XCTAssertEqual(chat.turn.botTurn, .running)
 
         chat.spy.drivenSessionID = "bot:\(UUID().uuidString):helper"

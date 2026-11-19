@@ -28,7 +28,7 @@ struct SupportReport {
     /// English on purpose: it is read by support and by agents, not shown as UI copy.
     var text: String {
         var lines = [
-            "Hermex support details",
+            "Squadd Multi-Agents support details",
             "App version: \(appVersion ?? "unknown") (\(build ?? "unknown"))",
             "Channel: \(channel.rawValue)",
             "iOS: \(iOSVersion)",
@@ -37,7 +37,7 @@ struct SupportReport {
             "Server release: \(serverRelease ?? "unknown")",
         ]
         if serverKind == .hermes {
-            lines.append("Tested Hermes release: \(HermesCompatibility.testedVersion)")
+            lines.append("Tested server release: \(HermesCompatibility.testedVersion)")
         }
         if let lastAttempt {
             lines.append("Last connection attempt: \(lastAttempt.startedText)")
@@ -84,7 +84,7 @@ struct SupportReport {
 
     private var serverKindName: String? {
         switch serverKind {
-        case .hermes: "Hermes"
+        case .hermes: "Squadd"
         case .webui: "webui"
         case nil: nil
         }

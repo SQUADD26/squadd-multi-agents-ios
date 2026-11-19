@@ -700,7 +700,7 @@ extension BotsInboxView {
                 Button("Hide Instead") { Task { await inbox.setHidden(true, profile) } }
                 Button("Cancel", role: .cancel) {}
             } message: { profile in
-                Text("Deletes this bot’s Profile on \(inbox.connection?.name ?? "Hermes"): its instructions, settings, skills, saved keys and chat history. Drafts on this phone are removed too. This cannot be undone. Hiding keeps everything and only removes it from the list.")
+                Text("Deletes this bot’s Profile on \(inbox.connection?.name ?? "Squadd"): its instructions, settings, skills, saved keys and chat history. Drafts on this phone are removed too. This cannot be undone. Hiding keeps everything and only removes it from the list.")
             }
             .alert("Rename group", isPresented: Binding(
                 get: { renamingRoom != nil }, set: { if !$0 { renamingRoom = nil } }

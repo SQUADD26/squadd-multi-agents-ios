@@ -17,17 +17,8 @@ enum SessionListCard: CaseIterable {
     @MainActor
     static func current(completedResponses: Int, tipDismissedRelease: String?, starDismissedRelease: String?,
                         hasSharedImport: Bool) -> SessionListCard? {
-        let ratingPolicy = RatingPromptState.shared.policy
-        func isEligible(_ card: SessionListCard, dismissedRelease: String?) -> Bool {
-            let state = SessionListCardState(card: card, defaults: .standard)
-            return dismissedRelease != state.release && state.isEligible(
-                completedResponses: completedResponses, hasSharedImport: hasSharedImport, ratingPolicy: ratingPolicy
-            )
-        }
-        var eligible = Set<SessionListCard>()
-        if isEligible(.tip, dismissedRelease: tipDismissedRelease) { eligible.insert(.tip) }
-        if isEligible(.star, dismissedRelease: starDismissedRelease) { eligible.insert(.star) }
-        return choose(eligible: eligible, shownThisLaunch: RatingPromptState.shared.cardShownThisLaunch)
+        // No tip or star card: their links go to the Hermex maintainer, not to Squadd.
+        nil
     }
 
     /// `current` on the stored values, for a check outside a view's body, such as a rating

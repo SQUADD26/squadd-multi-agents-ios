@@ -2,13 +2,7 @@
   "fill-specializations" : [
     {
       "value" : {
-        "solid" : "srgb:0.96000,0.96000,0.96000,1.00000"
-      }
-    },
-    {
-      "appearance" : "dark",
-      "value" : {
-        "solid" : "srgb:0.06000,0.06000,0.07000,1.00000"
+        "solid" : "srgb:0.00000,0.00000,0.00000,1.00000"
       }
     }
   ],
@@ -16,8 +10,8 @@
     {
       "layers" : [
         {
-          "image-name" : "H.svg",
-          "name" : "H"
+          "image-name" : "Maus.svg",
+          "name" : "Maus"
         }
       ],
       "shadow" : {
