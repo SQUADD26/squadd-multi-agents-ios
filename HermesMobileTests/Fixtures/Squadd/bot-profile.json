@@ -1,0 +1,48 @@
+{
+  "bot": {
+    "id": "7b805411-2e1e-443a-9631-6071a5712ac4",
+    "threadId": "4993ca98-0cb2-4283-8c83-603a6bce53a2",
+    "name": "Ricerche",
+    "title": "Analista senior",
+    "description": "Cerca, legge e riassume",
+    "soul": "",
+    "soulHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "notifications": true,
+    "color": "cyan",
+    "mascotBody": "cursor",
+    "unread": false,
+    "modelSelection": {
+      "instanceId": "claude",
+      "model": "claude-opus-5-5"
+    },
+    "createdAt": 1795112028068,
+    "avatarUrl": "/api/attachments/d94dce92-eccb-46d2-bb22-fba4d89b2698.png",
+    "autoApprove": false,
+    "avatarCrop": "circle",
+    "profileEditedAt": {
+      "title": 1795112038442,
+      "description": 1795112038442
+    },
+    "approvalMode": "full",
+    "waitingForTeammates": false,
+    "mainThreadId": "4993ca98-0cb2-4283-8c83-603a6bce53a2",
+    "tasks": [
+      {
+        "threadId": "4993ca98-0cb2-4283-8c83-603a6bce53a2",
+        "title": "New thread",
+        "createdAt": 1795112028068,
+        "updatedAt": 1795112028072,
+        "unread": false,
+        "activity": "idle",
+        "busy": false,
+        "lastThreadOrderAt": 1795112028072,
+        "modelSelection": {
+          "instanceId": "claude",
+          "model": "claude-opus-5-5"
+        },
+        "followsBotModel": true,
+        "waitingForTeammates": false
+      }
+    ]
+  }
+}
