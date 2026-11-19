@@ -57,7 +57,7 @@ final class AppColorTests: XCTestCase {
         }
     }
 
-    /// Default must look exactly like the app before themes.
+    /// Default must look exactly like the app before themes, with Squadd's accent.
     func testDefaultResolvesToSystemColors() {
         let appearance = UITraitCollection { $0[AppAppearanceTrait.self] = .default }
         for style in [UIUserInterfaceStyle.light, .dark] {
@@ -68,7 +68,7 @@ final class AppColorTests: XCTestCase {
                 (.appText, .label),
                 (.appTextSecondary, .secondaryLabel),
                 (.appSeparator, .separator),
-                (.appAccent, .systemBlue)
+                (.appAccent, UIColor(rgb: 0x5E6AD2))
             ] {
                 XCTAssertEqual(token.resolvedColor(with: traits), system.resolvedColor(with: traits))
             }
