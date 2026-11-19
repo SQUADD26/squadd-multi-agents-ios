@@ -1,0 +1,28 @@
+{
+  "Simulator Target Bundle": "com.squaddcrm.multiagents",
+  "aps": {
+    "alert": {
+      "title": "Finch finished"
+    },
+    "sound": "default",
+    "thread-id": "6f85c7af-a71e-487f-8072-abd6b0765715",
+    "category": "OPENMAUS_UPDATE",
+    "interruption-level": "active"
+  },
+  "omb": {
+    "v": 1,
+    "kind": "done",
+    "botId": "c813261f-bd3e-4d86-909c-27416feff813",
+    "botName": "Finch",
+    "threadId": "6f85c7af-a71e-487f-8072-abd6b0765715",
+    "pairing": "1ce2484cd59f513fa4f7f0ba53a629cb"
+  },
+  "body": {
+    "v": 1,
+    "kind": "done",
+    "botId": "c813261f-bd3e-4d86-909c-27416feff813",
+    "botName": "Finch",
+    "threadId": "6f85c7af-a71e-487f-8072-abd6b0765715",
+    "pairing": "1ce2484cd59f513fa4f7f0ba53a629cb"
+  }
+}

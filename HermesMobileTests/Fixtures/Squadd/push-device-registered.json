@@ -1,0 +1,15 @@
+{
+  "push": "on",
+  "device": {
+    "platform": "apns",
+    "environment": "sandbox",
+    "pairing": "1ce2484cd59f513fa4f7f0ba53a629cb",
+    "kinds": [
+      "approval",
+      "question",
+      "sign-in",
+      "done"
+    ],
+    "updatedAt": 1795112338815
+  }
+}
