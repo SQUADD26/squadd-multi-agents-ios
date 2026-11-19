@@ -16,6 +16,14 @@ final class SquaddAgentEditorTests: XCTestCase {
         super.tearDown()
     }
 
+    func testAFreshManagerHasNoSquaddServer() {
+        let keychain = InMemoryKeychainStore()
+        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(),
+                                  serverRegistry: ServerRegistry.inMemory(keychain: keychain),
+                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
+        XCTAssertFalse(manager.hasSquaddServer)
+    }
+
     func testNewAgentOffersOnlyAvailableEnginesAndSendsOnlyWhatAPhoneMaySet() async throws {
         answer { request in
             request.url?.path == "/api/instances" ? (200, Self.fixture("instances.json")) : (201, Self.fixture("bot-create.json"))
