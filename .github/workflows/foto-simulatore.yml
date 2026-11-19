@@ -52,8 +52,12 @@ jobs:
           xcrun simctl install "${UDID}" "${app}"
           sleep 8
           xcrun simctl io "${UDID}" screenshot photos/1-home-screen.png
-          xcrun simctl launch "${UDID}" "${bundle_id}"
+          # Held before main, the app stays on its launch screen for the photo.
+          xcrun simctl launch --wait-for-debugger "${UDID}" "${bundle_id}"
+          sleep 4
           xcrun simctl io "${UDID}" screenshot photos/2-launch.png
+          xcrun simctl terminate "${UDID}" "${bundle_id}"
+          xcrun simctl launch "${UDID}" "${bundle_id}"
           sleep 8
           xcrun simctl io "${UDID}" screenshot photos/3-welcome.png
 
