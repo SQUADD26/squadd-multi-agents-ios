@@ -6,6 +6,9 @@ struct ContentView: View {
     @AppStorage(ResponseCompletionNotifications.isEnabledKey) private var isResponseCompletionNotificationsEnabled = false
     @State private var shares = SharedImportQueue()
     @State private var pendingLinks = PendingLinks()
+    /// A Squadd thread link held until its server's home is on screen and loaded.
+    @State private var pendingSquaddThread: SquaddThreadLink?
+    @State private var isSquaddLinkUnpaired = false
     @State private var didCheckInitialPendingShare = false
     @State private var intentRouter = AppIntentRouter.shared
     @AppStorage(BotModeGate.isEnabledKey) private var isBotModeEnabled = false
@@ -14,6 +17,11 @@ struct ContentView: View {
         content
             .moveToHermesNotices(authManager)
             .onOpenURL(perform: handleOpenURL)
+            .alert("Computer Not Paired", isPresented: $isSquaddLinkUnpaired) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Pair this iPhone with the computer that has this thread, then open the link again.")
+            }
             .task {
                 guard !didCheckInitialPendingShare else { return }
                 didCheckInitialPendingShare = true
@@ -129,9 +137,9 @@ struct ContentView: View {
                              didAbandonShare: { shares.abandon($0) }, shortcutReview: shortcutReview)
                 .id(server)
         case .loggedOut(let server):
-            SquaddRoute(authManager: authManager, server: server) { OnboardingView(authManager: authManager, savedServer: server) }
+            SquaddRoute(authManager: authManager, server: server, pendingThread: $pendingSquaddThread) { OnboardingView(authManager: authManager, savedServer: server) }
         case .loggedIn(let server):
-            SquaddRoute(authManager: authManager, server: server) { SessionListView(
+            SquaddRoute(authManager: authManager, server: server, pendingThread: $pendingSquaddThread) { SessionListView(
                 authManager: authManager,
                 server: server,
                 pendingSharedImport: Binding(get: { shares.offered(to: server) }, set: { shares.pending = $0 }),
@@ -159,6 +167,19 @@ struct ContentView: View {
         pendingLinks.hermesNewChat = nil
         pendingLinks.hermesUsage = nil
         pendingLinks.botWidget = nil
+        pendingSquaddThread = nil
+        // A Squadd thread link opens on the computer it names (or the active Squadd server),
+        // switching to it first; its home takes the link once the agents are loaded.
+        if let link = SquaddThreadLink(url: url) {
+            guard let account = link.account(in: authManager.servers, active: authManager.state.server),
+                  let server = URL(string: account.urlString) else {
+                isSquaddLinkUnpaired = true
+                return
+            }
+            pendingSquaddThread = link.pinned(to: server)
+            if authManager.state.server != server { switchServer(account) }
+            return
+        }
         if let destination = WebuiPushDestination(url: url) {
             switchServer(pendingLinks.open(destination, state: authManager.state, servers: authManager.servers))
             return
