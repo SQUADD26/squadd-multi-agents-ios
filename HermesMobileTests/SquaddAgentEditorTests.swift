@@ -149,6 +149,9 @@ private final class Recorder: @unchecked Sendable {
 final class SquaddAgentPhotoTests: XCTestCase {
     private let server = URL(string: "http://mac-studio.tailnet.test:8810")!
     private var window: UIWindow?
+    // Replies served so far, counted on the fixture's thread: a shot waits for the reply its screen shows.
+    nonisolated(unsafe) private static var botsServed = 0
+    nonisolated(unsafe) private static var avatarsServed = 0
 
     override func tearDown() {
         URLProtocol.unregisterClass(SquaddHTTPFixture.self)
@@ -163,7 +166,11 @@ final class SquaddAgentPhotoTests: XCTestCase {
         let dir = URL(fileURLWithPath: path!)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         var profileReply = (200, Self.fixture("bot-profile.json"))
+        (Self.botsServed, Self.avatarsServed) = (0, 0)
         SquaddHTTPFixture.handler = { request in
+            let path = request.url?.path ?? ""
+            if path == "/api/bots" { Self.botsServed += 1 }
+            if path.hasPrefix("/api/attachments/") { Self.avatarsServed += 1 }
             switch (request.httpMethod ?? "GET", request.url?.path ?? "") {
             case ("GET", "/api/bots"): return (200, Self.fixture("bots.json"))
             case ("GET", "/api/instances"): return (200, Self.fixture("instances.json"))
@@ -183,7 +190,9 @@ final class SquaddAgentPhotoTests: XCTestCase {
                                   serverRegistry: ServerRegistry.inMemory(keychain: keychain),
                                   hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
         try manager.addSquaddServer(address: server, token: "device-token")
-        try await shoot("0-home", SquaddRoute(authManager: manager, server: server) { EmptyView() }, dir: dir)
+        try await shoot("0-home", SquaddRoute(authManager: manager, server: server) { EmptyView() }, dir: dir) {
+            Self.botsServed > 0
+        }
 
         // a. A new agent: name, title, description and a model from the computer's engines.
         let new = SquaddAgentEditor(client: client)
@@ -203,7 +212,9 @@ final class SquaddAgentPhotoTests: XCTestCase {
         let drawn = try JSONDecoder().decode(SquaddBotEnvelope.self, from: Self.fixture("bot-avatar.json")).bot
         let edit = SquaddAgentEditor(client: client, bot: drawn)
         await edit.loadModels()
-        try await shoot("c-edit-agent", SquaddAgentEditorView(editor: edit), dir: dir)
+        try await shoot("c-edit-agent", SquaddAgentEditorView(editor: edit), dir: dir) {
+            Self.avatarsServed > 0
+        }
 
         // d. A name the computer refuses: the old name is back, with the computer's reason.
         profileReply = (400, Self.fixture("bot-profile-invalid.json"))
@@ -230,7 +241,7 @@ final class SquaddAgentPhotoTests: XCTestCase {
     }
 
     /// Hosts `view` in a window of the app's scene and writes `<name>.png` once it has drawn.
-    private func shoot<V: View>(_ name: String, _ view: V, dir: URL) async throws {
+    private func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: () -> Bool = { true }) async throws {
         let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
@@ -240,7 +251,7 @@ final class SquaddAgentPhotoTests: XCTestCase {
         window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
         window.makeKeyAndVisible()
         self.window = window
-        try steadyPhoto(of: window).write(to: dir.appendingPathComponent("\(name).png"))
+        try steadyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
     }
 
     private nonisolated static func fixture(_ name: String) -> Data {

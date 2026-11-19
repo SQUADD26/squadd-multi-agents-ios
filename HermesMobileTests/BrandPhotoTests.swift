@@ -40,10 +40,11 @@ final class BrandPhotoTests: XCTestCase {
     }
 }
 
-/// The window's PNG once its picture holds still: three equal frames 0.1 s apart, at most `limit`
-/// seconds (a never-ending animation gets its photo at the limit). For photos, never an assertion.
+/// The window's PNG once `ready` holds and the picture then stays still for three frames 0.1 s
+/// apart, at most `limit` seconds (a never-ending animation gets its photo at the limit). A loading
+/// screen can sit still too, so a screen that waits on a reply passes `ready`. Photos, never assertions.
 @MainActor
-func steadyPhoto(of window: UIWindow, limit: TimeInterval = 3) throws -> Data {
+func steadyPhoto(of window: UIWindow, until ready: () -> Bool = { true }, limit: TimeInterval = 3) throws -> Data {
     let renderer = UIGraphicsImageRenderer(bounds: window.bounds)
     let frame = { renderer.image { _ in window.drawHierarchy(in: window.bounds, afterScreenUpdates: true) } }
     let pixels = { (image: UIImage) in image.cgImage?.dataProvider?.data as Data? }
@@ -53,7 +54,7 @@ func steadyPhoto(of window: UIWindow, limit: TimeInterval = 3) throws -> Data {
         // test-wait: a photo, not a check; lets the next frame draw before comparing it with the last one
         RunLoop.main.run(until: Date().addingTimeInterval(0.1))
         let now = frame()
-        same = pixels(now) == pixels(last) ? same + 1 : 0
+        same = ready() && pixels(now) == pixels(last) ? same + 1 : 0
         last = now
     }
     return try XCTUnwrap(last.pngData())
