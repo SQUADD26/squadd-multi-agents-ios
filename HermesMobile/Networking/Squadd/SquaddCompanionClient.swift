@@ -100,7 +100,7 @@ struct SquaddCompanionClient {
     }
 
     /// `reportsRefusal` turns a refusal that names its reason into `.refused`; pairing keeps the bare status.
-    private static func send(_ request: URLRequest, session: URLSession, reportsRefusal: Bool = false) async throws -> Data {
+    static func send(_ request: URLRequest, session: URLSession, reportsRefusal: Bool = false) async throws -> Data {
         var request = request
         request.setValue(nil, forHTTPHeaderField: "Origin")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
