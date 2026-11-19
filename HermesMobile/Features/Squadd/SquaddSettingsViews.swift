@@ -151,7 +151,7 @@ struct SquaddKeysPage: View {
                         LabeledContent(key.name) {
                             Label(key.configured ? String(localized: "Set") : String(localized: "Not set"),
                                   systemImage: key.configured ? "checkmark.circle.fill" : "circle")
-                                .foregroundStyle(key.configured ? Color.green : Color.appSecondary)
+                                .foregroundStyle(key.configured ? Color.green : Color(.appTextSecondary))
                         }
                     }
                 } appFooter: {
