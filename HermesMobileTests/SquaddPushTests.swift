@@ -61,18 +61,18 @@ final class SquaddPushTests: XCTestCase {
     }
 
     func testTappedRecordedPushOpensItsThreadOnTheServerThatSentIt() throws {
-        defer { AppIntentRouter.shared.pendingDeepLink = nil }
+        let router = AppIntentRouter()
         let userInfo = try Self.recordedPush()
 
-        XCTAssertTrue(SquaddPush.openTapped(userInfo: userInfo, servers: [account(otherServer), account(server)]))
-        let link = try XCTUnwrap(AppIntentRouter.shared.pendingDeepLink.flatMap(SquaddThreadLink.init(url:)))
+        XCTAssertTrue(SquaddPush.openTapped(userInfo: userInfo, servers: [account(otherServer), account(server)], router: router))
+        let link = try XCTUnwrap(router.pendingDeepLink.flatMap(SquaddThreadLink.init(url:)))
         XCTAssertEqual(link.threadID, "6f85c7af-a71e-487f-8072-abd6b0765715")
         XCTAssertEqual(link.botID, "c813261f-bd3e-4d86-909c-27416feff813")
         XCTAssertEqual(link.server, server)
 
-        AppIntentRouter.shared.pendingDeepLink = nil
-        XCTAssertTrue(SquaddPush.openTapped(userInfo: userInfo, servers: [account(otherServer)]))
-        XCTAssertNil(AppIntentRouter.shared.pendingDeepLink, "a push from a computer this iPhone doesn't know opens nothing")
+        router.pendingDeepLink = nil
+        XCTAssertTrue(SquaddPush.openTapped(userInfo: userInfo, servers: [account(otherServer)], router: router))
+        XCTAssertNil(router.pendingDeepLink, "a push from a computer this iPhone doesn't know opens nothing")
     }
 
     /// The hermex-push relay accepts only Hermex's bundle IDs, so this build can never register there (ADR 0004).
@@ -167,7 +167,6 @@ final class SquaddPushPhotoTests: XCTestCase {
     override func tearDown() {
         URLProtocol.unregisterClass(SquaddHTTPFixture.self)
         SquaddHTTPFixture.handler = nil
-        AppIntentRouter.shared.pendingDeepLink = nil
         window?.isHidden = true
         super.tearDown()
     }
@@ -205,8 +204,12 @@ final class SquaddPushPhotoTests: XCTestCase {
         try await shoot("n1-notifications-push-on", dir: dir)
 
         // b. The recorded push tapped while the laptop is active: the app switches to the sender and marks the thread.
-        try host(ContentView(authManager: manager))
-        XCTAssertTrue(SquaddPush.openTapped(userInfo: try SquaddPushTests.recordedPush(), servers: manager.servers))
+        let router = AppIntentRouter()
+        try host(ContentView(authManager: manager, intentRouter: router))
+        XCTAssertTrue(SquaddPush.openTapped(userInfo: try SquaddPushTests.recordedPush(), servers: manager.servers,
+                                            router: router))
+        let queued = try XCTUnwrap(router.pendingDeepLink.flatMap(SquaddThreadLink.init(url:)))
+        XCTAssertEqual(queued.server, sender)
         try await shoot("n2-tap-opens-thread", dir: dir)
         XCTAssertEqual(manager.state, .loggedIn(server: sender))
     }
