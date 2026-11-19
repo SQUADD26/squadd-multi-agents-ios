@@ -28,7 +28,7 @@ final class SquaddAgentEditorTests: XCTestCase {
         XCTAssertEqual(editor.modelGroups.map(\.id), ["claude"])
         let opus = try XCTUnwrap(editor.modelGroups[0].allModels.first { $0.id == "claude-opus-5-5" })
         await editor.selectModel(opus)
-        editor.draft = .init(name: "Ricerca", title: "Analista", description: "Cerca e riassume")
+        editor.draft = .init(name: "Ricerca", title: "Analista", description: "Cerca e riassume", instructions: "Rispondi breve.")
         let saved = await editor.save()
 
         XCTAssertTrue(saved)
@@ -36,9 +36,11 @@ final class SquaddAgentEditorTests: XCTestCase {
         XCTAssertEqual(create.httpMethod, "POST")
         XCTAssertEqual(create.url?.path, "/api/bots")
         let body = try XCTUnwrap(JSONSerialization.jsonObject(with: recorder.lastBody) as? [String: Any])
-        XCTAssertEqual(Set(body.keys), ["name", "title", "description", "modelSelection"])
+        XCTAssertEqual(Set(body.keys), ["name", "title", "description", "settings", "modelSelection"])
+        XCTAssertEqual(body["settings"] as? [String: String], ["soul": "Rispondi breve."])
         XCTAssertEqual(body["modelSelection"] as? [String: String], ["instanceId": "claude", "model": "claude-opus-5-5"])
         XCTAssertEqual(editor.bot?.name, "Ricerca")
+        XCTAssertFalse(editor.isNew, "the new agent stays open for its avatar")
         XCTAssertEqual(changes, 1)
     }
 
@@ -158,6 +160,7 @@ final class SquaddAgentPhotoTests: XCTestCase {
             case ("GET", "/api/bots"): return (200, Self.fixture("bots.json"))
             case ("GET", "/api/instances"): return (200, Self.fixture("instances.json"))
             case ("GET", let path) where path.hasPrefix("/api/attachments/"): return (200, Self.fixture("avatar.png"))
+            case ("POST", "/api/bots"): return (201, Self.fixture("bot-create.json"))
             case ("PATCH", let path) where path.hasSuffix("/profile"): return profileReply
             case ("PATCH", let path) where path.hasSuffix("/model"): return (400, Self.fixture("bot-model-invalid.json"))
             default: return (404, Data())
@@ -177,9 +180,13 @@ final class SquaddAgentPhotoTests: XCTestCase {
         // a. A new agent: name, title, description and a model from the computer's engines.
         let new = SquaddAgentEditor(client: client)
         await new.loadModels()
-        new.draft = .init(name: "Ricerca", title: "Analista", description: "Cerca e riassume")
+        new.draft = .init(name: "Ricerca", title: "Analista", description: "Cerca e riassume", instructions: "Rispondi breve.")
         if let opus = new.modelGroups.first?.allModels.first(where: { $0.id == "claude-opus-5-5" }) { await new.selectModel(opus) }
         try await shoot("a-new-agent", SquaddAgentEditorView(editor: new), dir: dir)
+
+        // a2. Once made, the same sheet shows the agent with its avatar section.
+        await new.save()
+        try await shoot("a2-created", SquaddAgentEditorView(editor: new), dir: dir)
 
         // b. The model picker: only the engines the computer can run, no typed model.
         try await shoot("b-model-picker", picker(new), dir: dir)
