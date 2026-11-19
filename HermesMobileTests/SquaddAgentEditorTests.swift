@@ -171,7 +171,7 @@ final class SquaddAgentPhotoTests: XCTestCase {
             let path = request.url?.path ?? ""
             if path == "/api/bots" { Self.botsServed += 1 }
             if path.hasPrefix("/api/attachments/") { Self.avatarsServed += 1 }
-            switch (request.httpMethod ?? "GET", request.url?.path ?? "") {
+            switch (request.httpMethod ?? "GET", path) {
             case ("GET", "/api/bots"): return (200, Self.fixture("bots.json"))
             case ("GET", "/api/instances"): return (200, Self.fixture("instances.json"))
             case ("GET", let path) where path.hasPrefix("/api/attachments/"): return (200, Self.fixture("avatar.png"))
@@ -251,7 +251,7 @@ final class SquaddAgentPhotoTests: XCTestCase {
         window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
         window.makeKeyAndVisible()
         self.window = window
-        try steadyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
+        try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
     }
 
     private nonisolated static func fixture(_ name: String) -> Data {

@@ -124,7 +124,7 @@ final class SessionListCardTests: XCTestCase {
 /// evidence; skipped everywhere else. Add a `shoot` call per screen; `pr-ios.yml` runs it when the PR touches its screens.
 @MainActor
 final class ScreenPhotoTests: XCTestCase {
-    private func shoot<V: View>(_ name: String, _ view: V) throws {
+    private func shoot<V: View>(_ name: String, _ view: V) async throws {
         let dir = try XCTUnwrap(ProcessInfo.processInfo.environment["FOTO_DIR"], "FOTO_DIR not set")
         let controller = UIHostingController(rootView: view)
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.lazy.compactMap { $0 as? UIWindowScene }.first)
@@ -135,10 +135,10 @@ final class ScreenPhotoTests: XCTestCase {
         window.makeKeyAndVisible()
         defer { window.isHidden = true }
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-        try steadyPhoto(of: window).write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))
+        try await readyPhoto(of: window).write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))
     }
 
-    func testPhotoSettingsAboutAndSessionListCardSlot() throws {
+    func testPhotoSettingsAboutAndSessionListCardSlot() async throws {
         try XCTSkipIf(ProcessInfo.processInfo.environment["FOTO_DIR"] == nil, "Only for photo runs")
         let defaults = UserDefaults.standard
         // A device that said yes to usage reports in the old version, with enough replies for any card.
@@ -148,7 +148,7 @@ final class ScreenPhotoTests: XCTestCase {
             defaults.removeObject(forKey: "usageReports.acceptedVersion")
             defaults.removeObject(forKey: TipJar.completedResponseCountKey)
         }
-        try shoot("1-settings-about", NavigationStack { SettingsAboutPage(server: nil) })
-        try shoot("2-session-list-card-slot", List { SessionListCardSlot(hasSharedImport: false) })
+        try await shoot("1-settings-about", NavigationStack { SettingsAboutPage(server: nil) })
+        try await shoot("2-session-list-card-slot", List { SessionListCardSlot(hasSharedImport: false) })
     }
 }
