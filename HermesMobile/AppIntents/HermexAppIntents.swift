@@ -57,6 +57,10 @@ final class AppIntentRouter {
 /// (no server session is created until the first message). Available to the Action button,
 /// Shortcuts, Spotlight, and Siri via `HermexShortcuts`.
 struct NewChatIntent: AppIntent {
+    #if !HERMES_BACKENDS
+    /// A v1 Squadd build offers only Squadd's intents (ADR 0002).
+    static var isDiscoverable: Bool = false
+    #endif
     static var title: LocalizedStringResource = "New Chat"
     static var description = IntentDescription("Open Hermex on a new, empty chat.")
 
@@ -77,6 +81,10 @@ struct NewChatIntent: AppIntent {
 /// Mic/speech permission is handled by the existing dictation path: if access is undetermined
 /// the system prompt appears, and if it's denied the composer shows a clear error instead.
 struct NewChatVoiceIntent: AppIntent {
+    #if !HERMES_BACKENDS
+    /// A v1 Squadd build offers only Squadd's intents (ADR 0002).
+    static var isDiscoverable: Bool = false
+    #endif
     static var title: LocalizedStringResource = "New Chat with Voice"
     static var description = IntentDescription("Open Hermex on a new chat and start voice dictation.")
 
@@ -97,6 +105,10 @@ struct NewChatVoiceIntent: AppIntent {
 /// query item, so `PendingNewChatView` can create the session pinned to it. A Hermes server's
 /// Profile (#1180) adds its server, and opens a new Hermes session there.
 struct NewChatInProfileIntent: AppIntent {
+    #if !HERMES_BACKENDS
+    /// A v1 Squadd build offers only Squadd's intents (ADR 0002).
+    static var isDiscoverable: Bool = false
+    #endif
     static var title: LocalizedStringResource = "New Chat in Profile"
     static var description = IntentDescription("Open Hermex on a new chat pinned to a specific profile.")
 
@@ -124,6 +136,10 @@ struct NewChatInProfileIntent: AppIntent {
 /// never sent (#1402): on a Hermes server's Profile, or the active Hermes server's New Session
 /// Profile. A webui Profile can't take it.
 struct NewChatWithContentIntent: AppIntent {
+    #if !HERMES_BACKENDS
+    /// A v1 Squadd build offers only Squadd's intents (ADR 0002).
+    static var isDiscoverable: Bool = false
+    #endif
     static var title: LocalizedStringResource = "New Chat with Content"
     static var description = IntentDescription("Open Hermex on a new chat with this text in the composer. Nothing is sent until you send it.")
 
@@ -190,6 +206,17 @@ enum NewChatWithContentError: Error, Equatable, CustomLocalizedStringResourceCon
 struct HermexShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
+            intent: OpenSquaddAgentIntent(),
+            phrases: [
+                "Open \(\.$agent) in \(.applicationName)",
+                "Write to \(\.$agent) in \(.applicationName)",
+                "Message \(\.$agent) on \(.applicationName)"
+            ],
+            shortTitle: "Open Agent",
+            systemImageName: "person.crop.circle"
+        )
+        #if HERMES_BACKENDS
+        AppShortcut(
             intent: NewChatIntent(),
             phrases: [
                 "New chat in \(.applicationName)",
@@ -228,6 +255,7 @@ struct HermexShortcuts: AppShortcutsProvider {
             shortTitle: "New Chat with Content",
             systemImageName: "text.bubble"
         )
+        #endif
     }
 }
 
