@@ -74,7 +74,27 @@ jobs:
             CODE_SIGNING_ALLOWED=NO -quiet
           ls photos
 
-      - uses: actions/upload-artifact@v7
+      # The Squadd chat (#11): its tests against the recorded turn, then a conversation with the live
+      # companion the secrets name, photographed. Without the secrets the live part skips itself.
+      - name: Squadd chat tests and live photos
+        env:
+          TEST_RUNNER_BRAND_PHOTOS_DIR: ${{ github.workspace }}/photos
+          TEST_RUNNER_SQUADD_LIVE_URL: ${{ secrets.SQUADD_LIVE_URL }}
+          TEST_RUNNER_SQUADD_LIVE_TOKEN: ${{ secrets.SQUADD_LIVE_TOKEN }}
+        run: |
+          set -uo pipefail
+          mkdir -p photos
+          xcodebuild test -project HermesMobile.xcodeproj -scheme HermesMobile -configuration Debug \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -derivedDataPath DerivedData -only-testing:HermesMobileTests/SquaddChatTests \
+            -only-testing:HermesMobileTests/SquaddChatLivePhotoTests CODE_SIGNING_ALLOWED=NO > photos/squadd-tests.log 2>&1
+          status=$?
+          grep -E "Test Case|error:|XCTAssert|Executed" photos/squadd-tests.log || tail -50 photos/squadd-tests.log
+          ls photos
+          exit "${status}"
+
+      - if: always()
+        uses: actions/upload-artifact@v7
         with:
           name: simulator-photos
           path: photos
