@@ -12,8 +12,11 @@ struct SquaddAgentSection: Identifiable, Equatable {
     let threads: [SessionSummary]
     /// The threads the companion marks unread, by `SessionSummary.id` (the thread id).
     let unreadThreadIDs: Set<String>
+    /// The agent as the companion sent it, for its avatar and its editor.
+    let bot: SquaddBot
 
     init(bot: SquaddBot) {
+        self.bot = bot
         id = bot.id
         threadID = bot.threadId
         unreadThreadIDs = Set(bot.tasks.filter { $0.unread == true }.map(\.threadId))
