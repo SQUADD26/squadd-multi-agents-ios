@@ -243,7 +243,7 @@ struct HermesAttemptRecord: Equatable, Sendable {
             "Squadd Multi-Agents connection details",
             "App: \(app)",
             "iOS: \(system)",
-            "Server kind: \(self[.status] == .passed ? "Hermes" : "unknown")",
+            "Server kind: \(self[.status] == .passed ? "Squadd" : "unknown")",
             "Reported release: \(reportedRelease ?? "unknown")",
             "Tested release: \(HermesCompatibility.testedVersion)",
             "Attempt: \(startedText)"
