@@ -130,7 +130,7 @@ private struct SupportDetailsSheet: View {
                         .font(AppFont.footnote())
                         .foregroundStyle(.appSecondary)
                 }
-                .padding()
+                .padding(.all)
             }
             .themedPageBackground()
             .navigationTitle(String(localized: "Support Details"))
