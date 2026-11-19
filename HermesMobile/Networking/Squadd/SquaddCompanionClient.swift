@@ -36,7 +36,7 @@ struct SquaddCompanionClient {
         return try JSONDecoder().decode(SquaddPairResponse.self, from: await send(request, session: session))
     }
 
-    private static func send(_ request: URLRequest, session: URLSession) async throws -> Data {
+    static func send(_ request: URLRequest, session: URLSession) async throws -> Data {
         var request = request
         request.setValue(nil, forHTTPHeaderField: "Origin")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
