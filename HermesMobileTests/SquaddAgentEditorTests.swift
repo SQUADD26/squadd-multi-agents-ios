@@ -8,7 +8,7 @@ import XCTest
 @MainActor
 final class SquaddAgentEditorTests: XCTestCase {
     private let server = URL(string: "http://192.0.2.10:8810")!
-    private let recorder = Recorder()
+    private let recorder = AgentRecorder()
     private var requests: [URLRequest] { recorder.requests }
 
     override func tearDown() {
@@ -126,7 +126,7 @@ final class SquaddAgentEditorTests: XCTestCase {
 }
 
 /// What the fixture saw, written from URLProtocol's thread and read by the test.
-private final class Recorder: @unchecked Sendable {
+private final class AgentRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var seen: [(URLRequest, Data)] = []
 
