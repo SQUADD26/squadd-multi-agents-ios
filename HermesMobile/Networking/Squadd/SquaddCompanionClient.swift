@@ -8,6 +8,9 @@ enum SquaddError: Error, Equatable {
     /// Any other non-2xx status.
     case status(Int)
     case invalidResponse
+    /// `POST /api/pair` refused, with the phone protocol's `PairingErrorCode` (`pairing_code_wrong`,
+    /// `pairing_not_open`, `pairing_too_many`, `pairing_device_limit`, …).
+    case pairing(String)
 }
 
 /// The Squadd companion's HTTP contract (`openmausbot/companion/src/proxy.ts`). Every request
@@ -26,13 +29,17 @@ struct SquaddCompanionClient {
         return try JSONDecoder().decode(SquaddBotList.self, from: data).bots
     }
 
-    /// Redeems a six-digit pairing code (or the QR credential) shown on the computer for a
-    /// device token. The code is single-use and lasts two minutes.
-    static func pair(server: URL, code: String, deviceName: String, session: URLSession = .shared) async throws -> SquaddPairResponse {
+    /// Redeems the QR's one-time credential or the six-digit code shown on the computer for a device
+    /// token. Both last two minutes and work once. `replacesToken`, the token this iPhone already holds
+    /// for that computer, makes the computer replace this iPhone instead of adding a second one.
+    static func pair(server: URL, credential: String, deviceName: String, replacesToken: String? = nil,
+                     session: URLSession = .shared) async throws -> SquaddPairResponse {
         var request = URLRequest(url: server.appendingPathComponent("api/pair"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try JSONEncoder().encode(["code": code, "deviceName": deviceName])
+        var body = ["credential": credential, "deviceName": deviceName]
+        body["replacesToken"] = replacesToken
+        request.httpBody = try JSONEncoder().encode(body)
         return try JSONDecoder().decode(SquaddPairResponse.self, from: await send(request, session: session))
     }
 
@@ -42,10 +49,17 @@ struct SquaddCompanionClient {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         let (data, response) = try await session.data(for: request)
         guard let http = response as? HTTPURLResponse else { throw SquaddError.invalidResponse }
+        // Only a refused pairing carries a `pairing_` code; a revoked token's 401 has none.
+        let refusal = (try? JSONDecoder().decode(PairingRefusal.self, from: data))?.code
         switch http.statusCode {
         case 200..<300: return data
+        case _ where refusal?.hasPrefix("pairing_") == true: throw SquaddError.pairing(refusal!)
         case 401: throw SquaddError.unpaired
         default: throw SquaddError.status(http.statusCode)
         }
     }
+}
+
+private struct PairingRefusal: Decodable {
+    let code: String
 }
