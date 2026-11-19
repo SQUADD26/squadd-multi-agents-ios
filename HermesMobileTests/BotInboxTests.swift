@@ -244,7 +244,7 @@ import SwiftUI
         await inbox.open()
 
         XCTAssertEqual(HermesProfileNameCache(defaults: defaults).names(for: server),
-                       [.init(profile: "default", title: "Hermes"), .init(profile: "triage", title: "Inbox Triage", model: "gpt-6")])
+                       [.init(profile: "default", title: "Squadd"), .init(profile: "triage", title: "Inbox Triage", model: "gpt-6")])
     }
 
     func testMissingMetadataReadsPlainAndPinWritesUnderRevisionZero() async throws {

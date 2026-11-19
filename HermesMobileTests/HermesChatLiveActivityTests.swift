@@ -214,7 +214,7 @@ import Observation
                                          conversation: "root")
         let url = try XCTUnwrap(HermesDeepLink.botURL(for: destination))
         XCTAssertEqual(chat.spy.botStarts, [.init(key: "bot:\(Self.connection.id.uuidString):default", destinationURL: url,
-                                                  pushSessionID: "tip", title: "Hermes", turn: "1790000000.5",
+                                                  pushSessionID: "tip", title: "Squadd", turn: "1790000000.5",
                                                   startedAt: Date(timeIntervalSince1970: Self.startedAt))])
         XCTAssertEqual(chat.spy.starts, [], "never the hermes: session identity")
         XCTAssertEqual(chat.spy.events.last, .toolStarted(name: "terminal"))

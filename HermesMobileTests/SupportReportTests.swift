@@ -42,7 +42,7 @@ import XCTest
             "template": "bug_report.yml",
             "app-version": "2.0.1 (412 & co)",
             "ios-version": "iOS 27.0 on iPhone",
-            "server-version": "Hermes 0.21.4+canary.ü",
+            "server-version": "Squadd 0.21.4+canary.ü",
         ])
 
         var unversioned = report
