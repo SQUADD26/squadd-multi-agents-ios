@@ -7,7 +7,7 @@
 # It runs on every push to a branch of this repo, so a PR to dev shows the result of its head commit, often before
 # it is opened; a push event also starts ~5 s sooner than a pull_request one. The repo is public and the runner is
 # a real Mac: only people with write access push here, so fork PRs never reach it (they also need a maintainer's
-# approval in the repo settings). No secrets.
+# approval in the repo settings). Pushes to dev, main and master are left to the nightly run. No secrets.
 name: PR iOS
 
 on:
