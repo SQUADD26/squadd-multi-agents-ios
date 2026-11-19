@@ -6,7 +6,7 @@ import XCTest
 /// `SFSafariViewController`.
 final class InAppBrowserPolicyTests: XCTestCase {
     func testWebLinksOpenInApp() {
-        for link in ["http://example.com", "https://example.com/docs?page=2#setup", "HTTPS://Example.com"] {
+        for link in ["http://example.com", "https://example.com/docs?page=2#setup", "HTTPS://Example.com", "https://example.com:8443"] {
             XCTAssertTrue(InAppBrowserPolicy.opensInApp(URL(string: link)!), link)
         }
     }
