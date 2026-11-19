@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import HermesMobile
 
@@ -116,5 +117,39 @@ final class SessionListCardTests: XCTestCase {
     @MainActor
     private func eligible(_ state: SessionListCardState, rating: RatingPromptState) -> Bool {
         state.isEligible(completedResponses: rating.policy.completedResponses, hasSharedImport: false, ratingPolicy: rating.policy, now: now)
+    }
+}
+
+/// Photographs real SwiftUI screens into `FOTO_DIR` (passed as `TEST_RUNNER_FOTO_DIR`) for a PR's
+/// evidence; skipped everywhere else. Add a `shoot` call per screen; `foto-simulatore.yml` runs it.
+@MainActor
+final class ScreenPhotoTests: XCTestCase {
+    private func shoot<V: View>(_ name: String, _ view: V) throws {
+        let dir = try XCTUnwrap(ProcessInfo.processInfo.environment["FOTO_DIR"], "FOTO_DIR not set")
+        let controller = UIHostingController(rootView: view)
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 844))
+        window.rootViewController = controller
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        RunLoop.main.run(until: Date().addingTimeInterval(1))
+        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
+            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
+        }
+        try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        try XCTUnwrap(image.pngData()).write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))
+    }
+
+    func testPhotoSettingsAboutAndSessionListCardSlot() throws {
+        try XCTSkipIf(ProcessInfo.processInfo.environment["FOTO_DIR"] == nil, "Only for photo runs")
+        let defaults = UserDefaults.standard
+        // A device that said yes to usage reports in the old version, with enough replies for any card.
+        defaults.set(2, forKey: "usageReports.acceptedVersion")
+        defaults.set(30, forKey: TipJar.completedResponseCountKey)
+        addTeardownBlock {
+            defaults.removeObject(forKey: "usageReports.acceptedVersion")
+            defaults.removeObject(forKey: TipJar.completedResponseCountKey)
+        }
+        try shoot("1-settings-about", NavigationStack { SettingsAboutPage(server: nil) })
+        try shoot("2-session-list-card-slot", List { SessionListCardSlot(hasSharedImport: false) })
     }
 }
