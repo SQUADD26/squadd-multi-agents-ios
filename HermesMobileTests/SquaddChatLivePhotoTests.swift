@@ -25,7 +25,7 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         // A free tunnel's address changes every few minutes: read it again until the companion answers.
         var address: URL?
         var bots: [SquaddBot] = []
-        for attempt in 1...8 where address == nil {
+        for attempt in 1...16 where address == nil {
             guard let candidate = try await Self.liveAddress(environment) else { continue }
             do {
                 bots = try await SquaddCompanionClient(server: candidate, token: token).bots()
