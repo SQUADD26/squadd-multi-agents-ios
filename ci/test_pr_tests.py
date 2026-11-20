@@ -42,6 +42,15 @@ class SelectTests(unittest.TestCase):
         ]
         self.assertEqual(select(changed, self.tests, red=True), ["EditorTests"])
 
+    def test_check_and_photo_parts_split_the_selection(self):
+        changed = [
+            "HermesMobileTests/OtherTests.swift",
+            "HermesMobile/Features/Agents/AgentEditorView.swift",
+            "HermesMobile/Resources/Localizable.xcstrings",
+        ]
+        self.assertEqual(select(changed, self.tests, part="test"), ["LocalizationCatalogTests", "OtherTests"])
+        self.assertEqual(select(changed, self.tests, part="foto"), ["EditorPhotoTests"])
+
     def test_untested_change_selects_nothing(self):
         self.assertEqual(select(["docs/readme.md", "HermesMobile/Unrelated.swift"], self.tests), [])
 
