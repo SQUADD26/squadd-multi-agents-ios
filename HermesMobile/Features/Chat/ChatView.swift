@@ -2624,6 +2624,7 @@ struct ChatView: View {
             delegatedWork: delegatedWork,
             onOpenDelegatedWork: openDelegatedWork
         )
+        .environment(viewModel.squaddTurn)
         // Off the main body chain, which is at the type-checker's limit.
         .onChange(of: viewModel.latestRunOutcome) {
             handleLatestRunOutcomeChange(viewModel.latestRunOutcome)
@@ -4570,7 +4571,8 @@ struct ChatView: View {
         editDraft = context.copyText
         editContext = context
         let messagesAfter = transcriptMessagesAfter(context)
-        if messagesAfter > 0 {
+        // A Squadd edit discards nothing: the old version stays a version away (#19).
+        if messagesAfter > 0, !isSquaddThread {
             showEditDiscardConfirmation = true
         } else {
             showEditSheet = true
