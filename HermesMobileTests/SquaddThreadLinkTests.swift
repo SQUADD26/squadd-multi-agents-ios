@@ -135,16 +135,11 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         try XCTSkipIf(path == nil, "Only for photo runs")
         let dir = URL(fileURLWithPath: path!)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let t0 = ContinuousClock.now
-        var times: [String] = []
-        func mark(_ what: String) { times.append("\(what) \(ContinuousClock.now - t0)") }
-        defer { try? times.joined(separator: "\n").write(to: dir.appendingPathComponent("timing.txt"), atomically: true, encoding: .utf8) }
         // The photos are of where each step ends; without animations the screen gets there at once.
         UIView.setAnimationsEnabled(false)
         defer { UIView.setAnimationsEnabled(true) }
         let manager = try twoPairedComputers()
         let router = try host(manager)
-        mark("host")
 
         // a. A link to Pesto's "hi" thread on the Mac Studio, with the MacBook active: the app
         // switches computer, reads its agents and marks the thread.
@@ -156,21 +151,17 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
             manager.state == .loggedIn(server: self.studio) && Self.served.contains("Bearer token-studio")
         }
         XCTAssertEqual(manager.state, .loggedIn(server: studio))
-        mark("f1")
 
         // b. A thread deleted on the computer, in the same window: an alert says so.
         router.requestDeepLink(SquaddThreadLink(threadID: "deleted-thread", server: studio).url)
         let missing = try await presentedAlert()
         XCTAssertEqual(missing.title, String(localized: "Thread Not Found"))
-        mark("alert1")
 
         // c. A computer this iPhone never paired, once the alert above is gone.
         await missing.dismiss(animated: false)
-        mark("dismissed")
         router.requestDeepLink(SquaddThreadLink(threadID: "t", server: URL(string: "http://other.tailnet.test:8810")!).url)
         let unpaired = try await presentedAlert(after: missing)
         XCTAssertEqual(unpaired.title, String(localized: "Computer Not Paired"))
-        mark("alert2")
         XCTAssertEqual(manager.state, .loggedIn(server: studio), "a link to an unpaired computer switches nothing")
     }
 
