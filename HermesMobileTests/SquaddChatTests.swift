@@ -98,11 +98,11 @@ final class SquaddChatTests: XCTestCase {
                 return .reply(200, try! Self.fixture(turnEnded ? "resume-thread-after.json" : "resume-thread-before.json"))
             case "/api/events":
                 cursors.append(request.value(forHTTPHeaderField: "Last-Event-ID"))
-                opened.fulfill()
                 return .hold
             default: return .reply(404, Data())
             }
         }
+        SquaddChatFixture.didHold = { if $0.url?.path == "/api/events" { opened.fulfill() } }
         let (model, _) = makeChat(bot: resumeBot, thread: resumeThread)
         await model.loadMessages()
         await fulfillment(of: [opened], timeout: 5)
@@ -150,12 +150,10 @@ final class SquaddChatTests: XCTestCase {
             case "/api/threads/\(thread)/messages":
                 reloaded.fulfill()
                 return .reply(200, try! Self.fixture(turnEnded ? "resume-thread-after.json" : "resume-thread-before.json"))
-            case "/api/events":
-                opened.fulfill()
-                return .hold
-            default: return .reply(404, Data())
+            default: return .hold
             }
         }
+        SquaddChatFixture.didHold = { if $0.url?.path == "/api/events" { opened.fulfill() } }
         let (model, coordinator) = makeChat(bot: resumeBot, thread: resumeThread, reconnectDelay: { _ in })
         await model.loadMessages()
         await fulfillment(of: [opened, reloaded], timeout: 5)
@@ -346,9 +344,13 @@ final class SquaddChatFixture: URLProtocol {
     nonisolated(unsafe) private static var held: [SquaddChatFixture] = []
     private static let lock = NSLock()
 
+    /// Called once a held request can take `stream` or `answer`.
+    nonisolated(unsafe) static var didHold: ((URLRequest) -> Void)?
+
     static func reset() {
         lock.withLock { held = [] }
         handler = nil
+        didHold = nil
     }
 
     /// Answers the held request with `method`.
@@ -383,6 +385,7 @@ final class SquaddChatFixture: URLProtocol {
         case .hold:
             if request.url?.path == "/api/events" { respond(status: 200) }
             Self.lock.withLock { Self.held.append(self) }
+            Self.didHold?(request)
         }
     }
 

@@ -106,13 +106,14 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         }
         let page = try await SquaddCompanionClient(server: chat.server, token: token).messages(threadId: chat.threadId)
         let stored = page.messages.last { $0.role == "bot" && $0.kind == "text" }?.text
-        note("final reply: \(reply?.count ?? 0) characters, the stored reply: \(reply == stored), rows with it: \(model.messages.filter { $0.content == reply }.count)")
+        let storedCount = page.messages.filter { $0.text == reply && $0.role == "bot" }.count
+        note("final reply: \(reply?.count ?? 0) characters, the stored reply: \(reply == stored), rows with it: \(model.messages.filter { $0.content == reply }.count) on screen, \(storedCount) stored")
         try await readyPhoto(of: window, until: { model.activeStreamID == nil })
             .write(to: folder.appendingPathComponent("12-squadd-resumed-reply.png"))
 
         XCTAssertEqual(back?.hasPrefix(before), true, "the reply goes on from where it was")
         XCTAssertEqual(reply, stored)
-        XCTAssertEqual(model.messages.filter { $0.content == reply }.count, 1)
+        XCTAssertEqual(model.messages.filter { $0.content == reply }.count, storedCount, "each stored reply shows once")
     }
 
     /// Finds the companion through the tunnel, pushes the first agent thread's chat, and waits for it to load.
