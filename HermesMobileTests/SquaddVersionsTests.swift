@@ -116,13 +116,20 @@ final class SquaddVersionsTests: XCTestCase {
         unsafeBitCast(symbol, to: (@convention(c) (Bool) -> Void).self)(true)
     }
 
-    /// Every accessibility element under `root`, as VoiceOver walks them: containers opened, leaves kept.
+    /// Every accessibility element under `root`, as VoiceOver walks them: containers opened, leaves kept,
+    /// each node once (SwiftUI's nodes can point back up the tree).
     static func accessibilityElements(in root: NSObject) -> [NSObject] {
-        let children: [NSObject] = (root.accessibilityElements as? [NSObject])
-            ?? (0..<max(0, root.accessibilityElementCount())).compactMap { root.accessibilityElement(at: $0) as? NSObject }
-        let views = (root as? UIView)?.subviews ?? []
-        let leaf = root.isAccessibilityElement ? [root] : []
-        return leaf + (children + (children.isEmpty ? views : [])).flatMap(accessibilityElements(in:))
+        var seen = Set<ObjectIdentifier>()
+        var found: [NSObject] = []
+        var queue = [root]
+        while let node = queue.popLast(), seen.count < 5000 {
+            guard seen.insert(ObjectIdentifier(node)).inserted else { continue }
+            if node.isAccessibilityElement { found.append(node) }
+            let children = (node.accessibilityElements as? [NSObject])
+                ?? (0..<min(max(0, node.accessibilityElementCount()), 500)).compactMap { node.accessibilityElement(at: $0) as? NSObject }
+            queue += children + ((node as? UIView)?.subviews ?? [])
+        }
+        return found
     }
 
     /// The React submenu, as the message's long-press menu shows it.
