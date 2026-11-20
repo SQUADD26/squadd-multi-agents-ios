@@ -118,13 +118,13 @@ final class SquaddChatTurnCoordinator {
     static func failureMessage(_ error: Error) -> String {
         switch error {
         case SquaddError.unpaired:
-            String(localized: "This iPhone is no longer paired with the computer. Pair it again.")
+            String(localized: "This iPhone is no longer paired with the computer.")
         case SquaddError.status(let status) where status == 404:
             String(localized: "This conversation is no longer on the computer.")
         case SquaddError.status(let status) where status == 409:
-            String(localized: "The agent can't take this message right now. Try again.")
+            String(localized: "The computer is busy. Try again when the agents have finished.")
         default:
-            String(localized: "Can't reach the computer. Check that it is on and on the same network or tailnet.")
+            String(localized: "Can't reach the computer.")
         }
     }
 
