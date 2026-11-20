@@ -1444,6 +1444,8 @@ final class SquaddCardPhotoTests: XCTestCase {
             }
             XCTAssertNotNil(continuity.model?.squaddTurn?.pendingCard, name)
             continuity.model?.squaddTurn?.secretPairing = { pairing }
+            // The first chat opens with the composer focused; the photo is of the card, not the keyboard.
+            window.endEditing(true)
             try await readyPhoto(of: window).write(to: dir.appendingPathComponent(name))
             continuity.model?.squaddTurn?.stop()
             window.isHidden = true
