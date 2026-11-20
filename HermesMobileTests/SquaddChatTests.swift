@@ -138,7 +138,13 @@ final class SquaddChatTests: XCTestCase {
         let reply = try Self.storedReply()
         let thread = resumeThread
         var turnEnded = false
-        var opened = expectation(description: "the stream opens"), reloaded = expectation(description: "the thread loads")
+        // A row stored before the turn starts reloads the thread too, so a read may come more than once.
+        func reads(_ description: String) -> XCTestExpectation {
+            let read = expectation(description: description)
+            read.assertForOverFulfill = false
+            return read
+        }
+        var opened = expectation(description: "the stream opens"), reloaded = reads("the thread loads")
         SquaddChatFixture.handler = { request in
             switch request.url?.path {
             case "/api/threads/\(thread)/messages":
@@ -157,7 +163,7 @@ final class SquaddChatTests: XCTestCase {
         SquaddChatFixture.stream(Data(cut.utf8), finish: true)
         await fulfillment(of: [opened], timeout: 5)
 
-        reloaded = expectation(description: "the companion's lost frames reload the thread")
+        reloaded = reads("the companion's lost frames reload the thread")
         SquaddChatFixture.stream(Data(stale.utf8))
         await fulfillment(of: [reloaded], timeout: 5)
         // The live frames after the hello; those up to its cursor were already sent and are dropped.
@@ -169,7 +175,7 @@ final class SquaddChatTests: XCTestCase {
         XCTAssertEqual(Self.streamedText(model) ?? "", "", "no reply with its beginning missing")
 
         turnEnded = true
-        reloaded = expectation(description: "the turn's end reloads the thread")
+        reloaded = reads("the turn's end reloads the thread")
         SquaddChatFixture.stream(Data(frames[ending...].utf8))
         await fulfillment(of: [reloaded], timeout: 5)
         await waitUntil("the stored reply comes when the turn ends") { model.activeStreamID == nil && model.messages.last?.content == reply }
