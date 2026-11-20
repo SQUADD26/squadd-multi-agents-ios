@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// The bell's sheet: the computer's notifications, newest first. Tapping one that belongs to a
-/// conversation marks it read on the computer and opens it.
+/// The bell's sheet: the computer's notifications, newest first. Tapping one of an agent's
+/// conversations marks it read on the computer and opens it.
 struct SquaddNotificationsSheet: View {
     let model: SquaddNotificationsModel
     let open: (SquaddNotification) -> Void
@@ -11,7 +11,7 @@ struct SquaddNotificationsSheet: View {
         NavigationStack {
             List(model.items) { notification in
                 Button { open(notification) } label: { SquaddNotificationRow(notification: notification) }
-                    .disabled(notification.threadId == nil)
+                    .disabled(!notification.opensHere)
             }
             .listStyle(.plain)
             .overlay {

@@ -285,12 +285,9 @@ struct SquaddServerHome: View {
     /// A tapped notification: its conversation is marked read on the computer, as opening it on the
     /// desktop does, then it opens like a thread link.
     private func open(_ notification: SquaddNotification) {
-        guard let threadID = notification.threadId else { return }
-        // shortcut: a room's conversation is only marked read, the app has no rooms yet; open it once it does.
-        if notification.groupId == nil {
-            isShowingNotifications = false
-            pendingThread = SquaddThreadLink(threadID: threadID, botID: notification.botId, server: server)
-        }
+        guard notification.opensHere, let threadID = notification.threadId else { return }
+        isShowingNotifications = false
+        pendingThread = SquaddThreadLink(threadID: threadID, botID: notification.botId, server: server)
         Task {
             do { try await notifications?.markRead(notification) } catch {
                 toast.show(.failure(String(localized: "Couldn’t mark this read on the computer.")))

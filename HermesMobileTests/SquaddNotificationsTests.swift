@@ -52,6 +52,12 @@ final class SquaddNotificationsTests: XCTestCase {
         SquaddChatFixture.stream(Data(try frames(upTo: "\"kind\":\"notify\"").utf8))
         await waitUntil("the list is in") { model.items.count == 3 }
 
+        // A room's mention is shown but not read: the app can't open rooms yet.
+        let room = try JSONDecoder().decode(SquaddNotification.self, from: JSONEncoder().encode(
+            ["id": "room-mention", "kind": "mention", "botId": botId, "threadId": threadId, "groupId": "a-room"]))
+        try await model.markRead(room)
+        XCTAssertNil(marked, "nothing is marked read on the computer for a room")
+
         // Tapped here: the desktop's own read of the conversation.
         try await model.markRead(XCTUnwrap(model.items.last))
         XCTAssertEqual(marked?.url?.path, "/api/bots/\(botId)/read")
@@ -112,9 +118,6 @@ final class SquaddNotificationsTests: XCTestCase {
         await fulfillment(of: [opened], timeout: 5)
         SquaddChatFixture.stream(Data(try frames(upTo: "\"kind\":\"notify\"").utf8))
         await fulfillment(of: [listed], timeout: 5)
-        if let folder = ProcessInfo.processInfo.environment["FOTO_DIR"] {
-            try await readyPhoto(of: window).write(to: URL(fileURLWithPath: folder).appendingPathComponent("32-home-bell-unread.png"))
-        }
     }
 
     // MARK: - Helpers
