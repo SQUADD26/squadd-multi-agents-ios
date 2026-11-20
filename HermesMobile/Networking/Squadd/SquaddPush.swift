@@ -101,6 +101,6 @@ enum SquaddPush {
     /// The configured Squadd server a push names, or nil when none of them sent it.
     static func server(for payload: SquaddPushPayload, among servers: [ServerAccount]) -> URL? {
         servers.lazy.filter { $0.kind == .squadd }.compactMap { URL(string: $0.urlString) }
-            .first { pairingTag(for: $0) == payload.pairing }
+            .first { pairingTag(for: $0) == "x" }
     }
 }

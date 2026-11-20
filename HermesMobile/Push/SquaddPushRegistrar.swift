@@ -95,7 +95,7 @@ import UserNotifications
         // needs every computer told.
         guard let environment, isLaunchRefresh || (previous != nil && previous != token) else { return }
         for (server, client) in clients() {
-            guard (try? await client.pushDevice())?.isRegistered == true else { continue }
+            guard (try? await client.pushDevice())?.isRegistered != nil else { continue }
             try? await client.registerPush(token: token, environment: environment, pairing: SquaddPush.pairingTag(for: server))
         }
     }
