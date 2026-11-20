@@ -155,7 +155,7 @@ final class SquaddRoutePhotoTests: XCTestCase {
         note("route chosen: \(finder.route?.kind.rawValue ?? "none") in \(ContinuousClock.now - started); the LAN addresses don't answer from here")
         let bots = try await SquaddCompanionClient(server: front, token: try XCTUnwrap(manager.squaddToken(for: front))).bots()
         XCTAssertFalse(bots.isEmpty)
-        note("GET /api/bots over that route -> \(bots.count) agent(s): \(bots.map(\.name).joined(separator: ", "))")
+        note("GET /api/bots over that route -> \(bots.count) agent(s): \(bots.compactMap(\.name).joined(separator: ", "))")
 
         // The home walks the routes itself: the photo waits for its walk, then for the agents.
         SquaddRoutes.shared.set(nil, for: front)
