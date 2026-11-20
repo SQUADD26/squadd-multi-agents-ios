@@ -1014,3 +1014,44 @@ private struct ListenSessionSpy: ListenAudioSessionControlling {
     func activate() {}
     func deactivate() {}
 }
+
+/// The recorded shell approval above the composer (#14). Photos only, for photo runs (`FOTO_DIR`).
+@MainActor
+final class SquaddApprovalPhotoTests: XCTestCase {
+    override func tearDown() {
+        URLProtocol.unregisterClass(SquaddChatFixture.self)
+        SquaddChatFixture.reset()
+        super.tearDown()
+    }
+
+    func testPhotoApprovalCard() async throws {
+        let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
+        try XCTSkipIf(path == nil, "Only for photo runs")
+        let dir = URL(fileURLWithPath: path!)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let page = try Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/Squadd/thread-approval-open.json"))
+        SquaddChatFixture.handler = { request in
+            request.url?.path.hasSuffix("/messages") == true ? .reply(200, page) : .hold
+        }
+        URLProtocol.registerClass(SquaddChatFixture.self)
+        let chat = SquaddThreadChat(server: URL(string: "http://192.0.2.10:8810")!, token: "device-token",
+                                    botId: "65f42659-c570-4b77-abec-5f2e1d43e9f5",
+                                    threadId: "c68d3fac-e54a-4658-8a2a-26b15fbe47e5", title: "Approval fixture")
+        let continuity = ChatContinuity()
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = UIHostingController(rootView: NavigationStack {
+            ChatView(session: chat.session, server: chat.server, onAPIError: { _ in }, continuity: continuity, squaddThread: chat)
+        })
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline, continuity.model?.squaddTurn?.pendingApproval == nil {
+            // test-wait: a photo, not a check; `ChatContinuity` isn't observable.
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        XCTAssertNotNil(continuity.model?.squaddTurn?.pendingApproval)
+        try await readyPhoto(of: window).write(to: dir.appendingPathComponent("14-a-approval-card.png"))
+    }
+}
