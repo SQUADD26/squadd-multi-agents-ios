@@ -47,7 +47,7 @@ final class BrandPhotoTests: XCTestCase {
 /// which lets the screen's own async work run. Photos only, never an assertion.
 /// The frames it compares are drawn at 1x, about a sixth of the cost; the photo at the screen's scale.
 @MainActor
-func readyPhoto(of window: UIWindow, until ready: () -> Bool = { true }, limit: Duration = .seconds(3)) async throws -> Data {
+func readyPhoto(of window: UIWindow, until ready: () -> Bool = { true }, limit: Duration = .seconds(5)) async throws -> Data {
     let small = UIGraphicsImageRendererFormat.preferred()
     small.scale = 1
     let draw = { (renderer: UIGraphicsImageRenderer) in
@@ -57,6 +57,7 @@ func readyPhoto(of window: UIWindow, until ready: () -> Bool = { true }, limit: 
     let pixels = { (image: UIImage) in image.cgImage?.dataProvider?.data as Data? }
     var last = draw(preview), same = 0
     let end = ContinuousClock.now + limit
+    try await Task.sleep(for: .seconds(2)) // misura: lo stato finale vero
     while same < 3, ContinuousClock.now < end {
         // test-wait: a photo, not a check; two display frames for the next one to draw before comparing
         try await Task.sleep(for: .milliseconds(33))
