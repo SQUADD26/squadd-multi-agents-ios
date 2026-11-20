@@ -4,8 +4,8 @@ import XCTest
 
 /// The Squadd chat (#11) against a live companion, photographed: the thread as it opens, the
 /// reply halfway through its stream, and the finished reply, plus a log of what arrived when.
-/// Runs only from `.github/workflows/foto-simulatore.yml` when the repository's secrets name a
-/// disposable companion (`SQUADD_LIVE_LOOKUP`, `SQUADD_LIVE_TOKEN`); skipped everywhere else.
+/// Runs only where the environment names a disposable companion (`SQUADD_LIVE_URL`,
+/// `SQUADD_LIVE_TOKEN`) and a photo folder, such as a photo branch's workflow; skipped everywhere else.
 @MainActor
 final class SquaddChatLivePhotoTests: XCTestCase {
     func testPhotographALiveConversation() async throws {
