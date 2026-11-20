@@ -396,7 +396,9 @@ final class SquaddChatFixture: URLProtocol {
     }
 
     private func respond(status: Int) {
-        let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
+        // Without a Content-Type URLSession holds the first 512 bytes to sniff one, so a lone small frame never arrives.
+        let type = request.url?.path == "/api/events" ? "text/event-stream" : "application/json"
+        let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: ["Content-Type": type])!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
     }
 }
