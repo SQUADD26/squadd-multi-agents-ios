@@ -86,6 +86,7 @@ final class SquaddChatLivePhotoTests: XCTestCase {
             return last.content
         }
         note("final reply: \(reply?.count ?? 0) characters: \(reply?.prefix(80) ?? "none")")
+        note("fences in the reply: " + ["diff", "mermaid", "html", "swift"].filter { reply?.contains("```" + $0) == true }.joined(separator: ", "))
         note("rows: " + model.messages.map { "\($0.role ?? "?"):\($0.messageId ?? "?")" }.joined(separator: " "))
         try await readyPhoto(of: window, until: { model.activeStreamID == nil })
             .write(to: folder.appendingPathComponent("9-squadd-chat-reply.png"))
