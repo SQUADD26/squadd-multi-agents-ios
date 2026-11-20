@@ -68,7 +68,7 @@ final class SquaddChatTurnCoordinator {
     @ObservationIgnored private var cursor: String?
     @ObservationIgnored private var hasLoaded = false
     /// The server's offline cache (#34): every read of the newest page is kept there, and shown
-    /// when the first read fails. Set by the chat before `activate()`.
+    /// when the first read fails. Set by the chat's first call that carries it.
     @ObservationIgnored var cache: ModelContext?
     /// The transcript on screen is the cached copy: the next connection reads it again.
     @ObservationIgnored private var showsCache = false
@@ -336,9 +336,14 @@ extension SquaddChatTurnCoordinator: ChatTurnCoordinating {
     /// the reconnect resumes after the last frame seen.
     func suspendActiveStreamConnection() { stop() }
 
-    func reconnectIfNeeded(modelContext: ModelContext?) async { await activate() }
+    /// The chat reconnects as it appears, before its first load, so the cache is taken here too.
+    func reconnectIfNeeded(modelContext: ModelContext?) async {
+        if let modelContext { cache = modelContext }
+        await activate()
+    }
 
     func networkPathDidChange(modelContext: ModelContext?) async {
+        if let modelContext { cache = modelContext }
         guard isReconnecting else { return }
         stop()
         await activate()

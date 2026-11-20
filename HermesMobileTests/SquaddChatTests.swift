@@ -194,6 +194,8 @@ final class SquaddChatTests: XCTestCase {
         online = false
         let retrying = expectation(description: "the stream waits to reconnect")
         let (offline, _) = makeChat(retrying: retrying)
+        // The way `ChatView` opens a chat: it reconnects as it appears, then loads.
+        await offline.reconnectStreamIfNeeded(modelContext: cache)
         await offline.loadMessages(modelContext: cache)
         XCTAssertEqual(offline.messages.map(\.messageId), saved, "the last read shows without the computer")
         XCTAssertTrue(offline.showsOfflineCache, "marked offline")
