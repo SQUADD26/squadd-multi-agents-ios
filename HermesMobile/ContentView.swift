@@ -15,9 +15,14 @@ struct ContentView: View {
     /// An `openmausbot://pair` link the computer handed over (#8), paired in its own sheet.
     @State private var squaddInvite: SquaddPairingInvite?
 
-    init(authManager: AuthManager, intentRouter: AppIntentRouter = .shared) {
+    /// Where the share extension leaves shares: the app group, or a test's own folder.
+    private let shareInbox: URL?
+
+    init(authManager: AuthManager, intentRouter: AppIntentRouter = .shared,
+         shareInbox: URL? = HermesShareDraft.containerURL()) {
         _authManager = Bindable(authManager)
         _intentRouter = State(initialValue: intentRouter)
+        self.shareInbox = shareInbox
     }
 
     var body: some View {
@@ -149,7 +154,9 @@ struct ContentView: View {
         case .loggedOut(let server):
             SquaddRoute(authManager: authManager, server: server, pendingThread: $pendingSquaddThread) { OnboardingView(authManager: authManager, savedServer: server) }
         case .loggedIn(let server):
-            SquaddRoute(authManager: authManager, server: server, pendingThread: $pendingSquaddThread) { SessionListView(
+            SquaddRoute(authManager: authManager, server: server, pendingThread: $pendingSquaddThread,
+                        pendingShare: shares.offered(to: server), didRouteShare: consumePendingSharedImport,
+                        didDeclineShare: releasePendingSharedImport) { SessionListView(
                 authManager: authManager,
                 server: server,
                 pendingSharedImport: Binding(get: { shares.offered(to: server) }, set: { shares.pending = $0 }),
@@ -332,7 +339,7 @@ struct ContentView: View {
     /// left before the user discarded a share its draft couldn't take), to be offered again on
     /// the next launch or return to the app.
     private func releasePendingSharedImport(_ reservation: SharedImportReservation) {
-        shares.release(reservation, in: HermesShareDraft.containerURL())
+        shares.release(reservation, in: shareInbox)
     }
 
     /// Routes a deep link queued by an App Intent through the same `handleOpenURL` parser
@@ -344,17 +351,17 @@ struct ContentView: View {
     }
 
     private func importPendingSharedDraftIfAvailable() {
-        shares.reserveNext(in: HermesShareDraft.containerURL(), active: authManager.state.server, servers: authManager.servers)
+        shares.reserveNext(in: shareInbox, active: authManager.state.server, servers: authManager.servers)
     }
 
     private func consumePendingSharedImport(_ reservation: SharedImportReservation) {
         // A share from the share extension; a Shortcut's queued text has a destination instead.
-        shares.consume(reservation, in: HermesShareDraft.containerURL(), active: authManager.state.server,
+        shares.consume(reservation, in: shareInbox, active: authManager.state.server,
                        servers: authManager.servers)
     }
 
     private func openNextSharedImport() {
-        shares.openNext(in: HermesShareDraft.containerURL(), active: authManager.state.server, servers: authManager.servers)
+        shares.openNext(in: shareInbox, active: authManager.state.server, servers: authManager.servers)
     }
 
     /// The Shortcut texts behind the one a Hermes chat shows (#1402), for the Sessions list and that
@@ -364,9 +371,9 @@ struct ContentView: View {
             chat: shares.reviewing, hasWaiting: shares.hasWaitingShortcutText,
             begin: { shares.beginReview(in: $0) },
             replace: { shares.moveReview(from: $0, to: $1) },
-            end: { shares.endReview(in: $0, directory: HermesShareDraft.containerURL(), active: authManager.state.server,
+            end: { shares.endReview(in: $0, directory: shareInbox, active: authManager.state.server,
                                     servers: authManager.servers) },
-            discardNext: { shares.discardNextShortcutText(in: HermesShareDraft.containerURL()) }
+            discardNext: { shares.discardNextShortcutText(in: shareInbox) }
         )
     }
 
@@ -698,7 +705,8 @@ enum MovedWebuiRoute {
 /// replaced; a Hermes home has no banner and opens each as it arrives (#1181).
 enum SharedImportGate {
     static func opensNext(afterRouting hasRouted: Bool, active: URL?, servers: [ServerAccount]) -> Bool {
-        !hasRouted || servers.first(where: { $0.id == active?.absoluteString })?.kind == .hermes
+        // A Hermes or Squadd home has no Open Next banner: it takes the next share at once.
+        !hasRouted || [.hermes, .squadd].contains(servers.first(where: { $0.id == active?.absoluteString })?.kind)
     }
 }
 
