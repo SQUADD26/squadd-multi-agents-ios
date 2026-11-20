@@ -196,7 +196,8 @@ final class SquaddChatTests: XCTestCase {
                 let body = request.httpBody ?? request.httpBodyStream.map(Self.read)
                 sentText = (body.flatMap { try? JSONSerialization.jsonObject(with: $0) } as? [String: String])?["text"]
                 return .reply(202, try! Self.fixture("send-receipt.json"))
-            default: return .hold
+            case ("GET", "/api/events"): return .hold
+            default: return .reply(404, Data())
             }
         }
         let (model, _) = makeChat(copies: BotAttachmentCopies())
@@ -235,7 +236,8 @@ final class SquaddChatTests: XCTestCase {
                     : .reply(201, try! Self.fixture("file-upload.json"))
             case ("POST", let path) where path?.hasSuffix("/messages") == true:
                 sends += 1; return .reply(202, try! Self.fixture("send-receipt.json"))
-            default: return .hold
+            case ("GET", "/api/events"): return .hold
+            default: return .reply(404, Data())
             }
         }
         let (model, _) = makeChat(copies: BotAttachmentCopies())
