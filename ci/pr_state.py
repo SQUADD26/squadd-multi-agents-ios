@@ -93,6 +93,8 @@ def main(branch, head):
         # base keeps the clone, paying that once if its branch runs again.
         for part, dest in (("src", workspace), ("dd", derived)):
             spare = states / base / f"{part}-clone"
+            if spare.exists():  # left by a run cancelled mid-clone
+                discard(work, spare, f"{base}-{part}-clone")
             clone(states / base / part, spare)
             (states / base / part).rename(dest)
             spare.rename(states / base / part)
