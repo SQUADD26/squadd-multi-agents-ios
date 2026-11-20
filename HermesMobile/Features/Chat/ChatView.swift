@@ -595,8 +595,13 @@ struct ChatView: View {
 
     /// A Squadd agent's thread (#11): the transcript, sends and the streamed reply go through the
     /// companion; the rest of the screen is the same chat.
-    init(squaddThread: SquaddThreadChat) {
-        self.init(session: squaddThread.session, server: squaddThread.server, onAPIError: { _ in }, squaddThread: squaddThread)
+    /// A share from another app (#24) opens in the composer of the new thread made for it.
+    init(squaddThread: SquaddThreadChat, share: SharedImport? = nil, shareNotice: SharedSkipsNotice? = nil) {
+        self.init(session: squaddThread.session, server: squaddThread.server, onAPIError: { _ in },
+                  initialDraft: share.map { HermesShareDraft.composerDraft(from: $0.draft) } ?? "",
+                  initialAttachments: share?.attachments ?? [],
+                  shareNotice: shareNotice,
+                  squaddThread: squaddThread)
     }
 
     /// A Hermes session on its Profile (#1010). It has no webui session, so nothing here
