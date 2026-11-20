@@ -102,20 +102,50 @@ final class SquaddChatTurnCoordinator {
         await reload()
     }
 
-    /// Sends a typed message, `/goal rest` as a goal the desktop's way. Throws when the companion
-    /// didn't take it, so the chat puts it back.
-    func send(_ text: String, sendId: String, localRowID: String) async throws {
-        let outgoing = SquaddSlashCommands.outgoing(text)
+    /// A staged file a send uploads ahead of its words (#23). `id` makes a retried upload land once.
+    struct OutgoingFile {
+        let id: UUID
+        let name: String
+        let mime: String
+        let data: () async throws -> Data
+    }
+
+    /// A send's file the companion didn't take: the send stopped before its words went.
+    struct UploadFailed: Error {
+        let name: String
+        let underlying: Error
+    }
+
+    /// Uploads `files`, then sends `text` with a tag for each, `/goal rest` as a goal the desktop's
+    /// way. Throws when the companion didn't take a file (`UploadFailed`) or the message, so the
+    /// chat puts it back.
+    func send(_ text: String, files: [OutgoingFile] = [], sendId: String, localRowID: String) async throws {
+        var tags: [SquaddAttachmentTags.File] = []
+        for file in files {
+            do {
+                let stored = try await client.upload(try await file.data(), name: file.name, mime: file.mime, uploadId: file.id)
+                tags.append(.init(path: stored.path, name: stored.name ?? file.name,
+                                  isImage: SquaddCompanionClient.attachmentImageTypes.contains(file.mime)))
+            } catch {
+                throw UploadFailed(name: file.name, underlying: error)
+            }
+        }
         ownSendIDs.insert(sendId)
         do {
-            let receipt = try await client.send(outgoing.text, botId: chat.botId, threadId: chat.threadId,
-                                                sendId: sendId, mode: outgoing.mode)
+            let outgoing = SquaddSlashCommands.outgoing(text)
+            let receipt = try await client.send(SquaddAttachmentTags.compose(outgoing.text, files: tags), botId: chat.botId,
+                                                threadId: chat.threadId, sendId: sendId, mode: outgoing.mode)
             if let stored = receipt.message?.id { rowIDs[stored] = localRowID; shownIDs.insert(stored) }
         } catch {
             ownSendIDs.remove(sendId)
             throw error
         }
         if stream == nil { await activate() }
+    }
+
+    /// A stored file's bytes, for its thumbnail, its preview and the voice note player.
+    func attachmentData(path: String) async throws -> Data {
+        try await client.attachmentData(path: path)
     }
 
     /// What this thread's `/` panel offers: the built-ins the agent's engine and the computer allow,
@@ -148,7 +178,8 @@ final class SquaddChatTurnCoordinator {
             let rows = page.messages.compactMap { message -> ChatMessage? in
                 guard let row = message.chatMessage else { return nil }
                 guard let shown = rowIDs[message.id] else { return row }
-                return ChatMessage(role: row.role, content: row.content, timestamp: row.timestamp, messageId: shown)
+                return ChatMessage(role: row.role, content: row.content, timestamp: row.timestamp, messageId: shown,
+                                   attachments: row.attachments)
             }
             // Older pages stay while the new page still reaches back to where the last one began;
             // past a gap they'd sit out of order, so paging starts again from this page.
