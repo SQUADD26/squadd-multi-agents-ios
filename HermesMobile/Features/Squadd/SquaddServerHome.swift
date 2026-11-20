@@ -26,7 +26,7 @@ struct SquaddRoute<Webui: View>: View {
 /// header with the server's avatar, switcher and search, then each agent's threads in session rows,
 /// in the desktop sidebar's order, read from the companion's `GET /api/bots`. A thread's menu and
 /// swipes pin, rename, export, archive and delete it; archived threads wait under their agent.
-/// Threads don't open yet: chat is its own ticket, so a thread link scrolls to the thread's row and marks it.
+/// A thread opens in the chat (#11); a thread link marks its row and opens it.
 struct SquaddServerHome: View {
     @Bindable var authManager: AuthManager
     let server: URL
@@ -60,9 +60,12 @@ struct SquaddServerHome: View {
     @State private var newFolderName = ""
     @State private var deletingFolder: SquaddFolderRef?
     @State private var hasStarted = false
+    @State private var token = ""
+    /// The open thread, so the keyboard's chat shortcuts know where they stand.
+    @State private var path: [SquaddThreadChat] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollViewReader { proxy in
                 AppList(rows: .plain) {
                     SessionsHeader(logoColor: HeaderLogoColor.color(for: identity.headerLogoColorHex), avatar: avatar,
@@ -82,7 +85,9 @@ struct SquaddServerHome: View {
                 .onChange(of: model?.phase) { openPendingThread(proxy) }
                 .onChange(of: pendingThread) { openPendingThread(proxy) }
             }
+            .navigationDestination(for: SquaddThreadChat.self) { ChatView(squaddThread: $0).id($0.id) }
         }
+        .focusedSceneValue(\.hermexSceneActions, sceneActions)
         .alert("Thread Not Found", isPresented: $isLinkedThreadMissing) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -96,7 +101,9 @@ struct SquaddServerHome: View {
         }
         .task {
             if model == nil {
-                let client = SquaddCompanionClient(server: server, token: authManager.squaddToken(for: server) ?? "")
+                let token = authManager.squaddToken(for: server) ?? ""
+                self.token = token
+                let client = SquaddCompanionClient(server: server, token: token)
                 self.client = client
                 model = SquaddAgentListModel(
                     client: client,
@@ -317,8 +324,11 @@ struct SquaddServerHome: View {
 
     private func threadRow(_ thread: SessionSummary, in section: SquaddAgentSection) -> some View {
         let ref = SquaddThreadRef(botId: section.id, session: thread)
-        return SessionRowView(session: thread, showsMessageCount: false, showsWorkspace: false,
-                              isUnread: section.unreadThreadIDs.contains(thread.id), labelsArchived: true)
+        return NavigationLink(value: SquaddThreadChat(in: section, thread: thread, server: server, token: token)) {
+            SessionRowView(session: thread, showsMessageCount: false, showsWorkspace: false,
+                           isUnread: section.unreadThreadIDs.contains(thread.id), labelsArchived: true)
+        }
+            .buttonStyle(.plain)
             .background(linkedMark(thread.id))
             .accessibilityAddTraits(linkedRow == thread.id ? .isSelected : [])
             .id(thread.id)
@@ -492,8 +502,8 @@ struct SquaddServerHome: View {
         withAnimation(SessionListMotion.searchChromeAnimation(reduceMotion: reduceMotion)) { isSearchExpanded = false }
     }
 
-    /// Opens a held thread link once this server's agents are loaded: scrolls to the thread's row
-    /// and marks it, or says the thread is gone. A link pinned to another server waits for its home.
+    /// Opens a held thread link once this server's agents are loaded: marks the thread's row and
+    /// opens its chat, or says the thread is gone. A link pinned to another server waits for its home.
     private func openPendingThread(_ proxy: ScrollViewProxy) {
         guard let link = pendingThread, link.server.map({ SquaddThreadLink.sameServer($0.absoluteString, server.absoluteString) }) ?? true,
               case .loaded(let sections) = model?.phase else { return }
@@ -506,6 +516,36 @@ struct SquaddServerHome: View {
         linkedRow = row
         if let section = sections.first(where: { $0.archived.contains { $0.id == row } }) { expandedArchives.insert(section.id) }
         withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(row, anchor: .center) }
+        if let section = sections.first(where: { section in
+            section.threadID == link.threadID || (section.threads + section.archived).contains { $0.id == link.threadID }
+        }) {
+            let title = (section.threads + section.archived).first { $0.id == link.threadID }?.title ?? section.name
+            path = [SquaddThreadChat(server: server, token: token, botId: section.id, threadId: link.threadID, title: title)]
+        }
+    }
+
+    /// The hardware-keyboard commands (`HermexCommands`): ⌘1–⌘9 and Next and Previous Chat open
+    /// the home's threads; there is no New Chat here yet.
+    private var sceneActions: HermexSceneActions {
+        HermexSceneActions(
+            canCreateNewChat: false,
+            createNewChat: {},
+            searchSessions: { if model != nil { openSearch() } },
+            openChat: { position in
+                if let chat = ChatShortcutNavigation.chat(atPosition: position, in: keyboardShortcutChats) { path = [chat] }
+            },
+            openAdjacentChat: { offset in
+                if let chat = ChatShortcutNavigation.adjacentChat(offset: offset, from: path.last?.id, in: keyboardShortcutChats) {
+                    path = [chat]
+                }
+            }
+        )
+    }
+
+    /// Read only on a key press, never in `body`.
+    private var keyboardShortcutChats: [SquaddThreadChat] {
+        guard case .loaded(let sections) = model?.phase else { return [] }
+        return SquaddThreadChat.all(in: sections, server: server, token: token)
     }
 
     private func linkedMark(_ row: String) -> some View {

@@ -1,0 +1,144 @@
+data: {"kind":"hello","cursor":"abd562ac:64","resumed":false}
+
+id: abd562ac:65
+data: {"kind":"message","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","message":{"id":"97ff5187-cfff-482d-a381-4446f8681501","at":1795112321548,"parentId":"849cdde8-f1e9-4a51-9408-279d1b100a32","role":"user","kind":"text","text":"Rispondimi parola per parola","sendId":"ios-prova-0000000000000002"},"seq":65}
+
+id: abd562ac:67
+data: {"kind":"bot","bot":{"id":"96712972-b729-4d9c-86dd-39faf2b2c94d","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":true,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795112003130,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"idle","busy":false,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","avatarUrl":null,"tasks":[{"threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","title":"Mostrami un esempio di markdown","createdAt":1795112003130,"updatedAt":1795112321548,"unread":true,"activity":"idle","busy":false,"titleFromFirstMessage":true,"lastThreadOrderAt":1795112321548,"cwd":"/tmp/openmausbot-verify-data-IF9BHn/task-workspaces/96712972-b729-4d9c-86dd-39faf2b2c94d/c5a9dd65-b836-482b-9e9b-752a656897a8","usage":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01,"turns":1,"lastTurn":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01},"context":{"tokens":12,"window":1000000}},"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":67}
+
+id: abd562ac:68
+data: {"kind":"message.patch","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","message":{"id":"97ff5187-cfff-482d-a381-4446f8681501","at":1795112321548,"parentId":"849cdde8-f1e9-4a51-9408-279d1b100a32","role":"user","kind":"text","text":"Rispondimi parola per parola","sendId":"ios-prova-0000000000000002","requestPending":true},"seq":68}
+
+id: abd562ac:70
+data: {"kind":"bot","bot":{"id":"96712972-b729-4d9c-86dd-39faf2b2c94d","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":true,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795112003130,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"idle","busy":false,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","avatarUrl":null,"tasks":[{"threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","title":"Mostrami un esempio di markdown","createdAt":1795112003130,"updatedAt":1795112321548,"unread":true,"activity":"idle","busy":false,"titleFromFirstMessage":true,"lastThreadOrderAt":1795112321548,"cwd":"/tmp/openmausbot-verify-data-IF9BHn/task-workspaces/96712972-b729-4d9c-86dd-39faf2b2c94d/c5a9dd65-b836-482b-9e9b-752a656897a8","usage":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01,"turns":1,"lastTurn":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01},"context":{"tokens":12,"window":1000000}},"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":70}
+
+id: abd562ac:72
+data: {"kind":"bot","bot":{"id":"96712972-b729-4d9c-86dd-39faf2b2c94d","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":true,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795112003130,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"working","busy":true,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","avatarUrl":null,"tasks":[{"threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","title":"Mostrami un esempio di markdown","createdAt":1795112003130,"updatedAt":1795112321548,"unread":true,"activity":"working","busy":true,"titleFromFirstMessage":true,"lastThreadOrderAt":1795112321548,"cwd":"/tmp/openmausbot-verify-data-IF9BHn/task-workspaces/96712972-b729-4d9c-86dd-39faf2b2c94d/c5a9dd65-b836-482b-9e9b-752a656897a8","usage":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01,"turns":1,"lastTurn":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01},"context":{"tokens":12,"window":1000000}},"turnStartedAt":1795112321550,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":72}
+
+id: abd562ac:74
+data: {"kind":"bot","bot":{"id":"96712972-b729-4d9c-86dd-39faf2b2c94d","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":false,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795112003130,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"working","busy":true,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","avatarUrl":null,"tasks":[{"threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","title":"Mostrami un esempio di markdown","createdAt":1795112003130,"updatedAt":1795112321548,"unread":false,"activity":"working","busy":true,"titleFromFirstMessage":true,"lastThreadOrderAt":1795112321548,"cwd":"/tmp/openmausbot-verify-data-IF9BHn/task-workspaces/96712972-b729-4d9c-86dd-39faf2b2c94d/c5a9dd65-b836-482b-9e9b-752a656897a8","usage":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01,"turns":1,"lastTurn":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01},"context":{"tokens":12,"window":1000000}},"turnStartedAt":1795112321550,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":74}
+
+id: abd562ac:75
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj0ki-u","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:42.210Z","type":"turn.started","providerInstanceId":"claude"},"seq":75}
+
+id: abd562ac:76
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj0lv-v","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:42.259Z","type":"session.started","sessionId":"ad1441cb-8fba-4b64-bbde-613eeec9ed13","model":"claude-sonnet-5-5","providerInstanceId":"claude"},"seq":76}
+
+id: abd562ac:77
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj0lw-w","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:42.260Z","type":"content.delta","streamKind":"assistant_text","delta":"Ciao! ","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":77}
+
+id: abd562ac:78
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj0nk-x","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:42.320Z","type":"content.delta","streamKind":"assistant_text","delta":"Ecco u","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":78}
+
+id: abd562ac:79
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj0p8-y","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:42.380Z","type":"content.delta","streamKind":"assistant_text","delta":"n **es","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":79}
+
+id: abd562ac:80
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj0qx-z","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:42.441Z","type":"content.delta","streamKind":"assistant_text","delta":"empio*","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":80}
+
+id: abd562ac:81
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj0sl-10","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:42.501Z","type":"content.delta","streamKind":"assistant_text","delta":"* in m","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":81}
+
+id: abd562ac:82
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj0u9-11","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:42.561Z","type":"content.delta","streamKind":"assistant_text","delta":"arkdow","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":82}
+
+id: abd562ac:83
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj0vx-12","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:42.621Z","type":"content.delta","streamKind":"assistant_text","delta":"n:\n\n- ","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":83}
+
+id: abd562ac:84
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj0xl-13","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:42.681Z","type":"content.delta","streamKind":"assistant_text","delta":"primo ","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":84}
+
+id: abd562ac:85
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj0z9-14","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:42.741Z","type":"content.delta","streamKind":"assistant_text","delta":"punto\n","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":85}
+
+id: abd562ac:86
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj10x-15","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:42.801Z","type":"content.delta","streamKind":"assistant_text","delta":"- seco","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":86}
+
+id: abd562ac:87
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj12l-16","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:42.861Z","type":"content.delta","streamKind":"assistant_text","delta":"ndo pu","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":87}
+
+id: abd562ac:88
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj149-17","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:42.921Z","type":"content.delta","streamKind":"assistant_text","delta":"nto\n\n`","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":88}
+
+id: abd562ac:89
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj15x-18","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:42.981Z","type":"content.delta","streamKind":"assistant_text","delta":"``swif","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":89}
+
+id: abd562ac:90
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj17l-19","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:43.041Z","type":"content.delta","streamKind":"assistant_text","delta":"t\nlet ","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":90}
+
+id: abd562ac:91
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj199-1a","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:43.101Z","type":"content.delta","streamKind":"assistant_text","delta":"saluto","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":91}
+
+id: abd562ac:92
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj1ax-1b","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:43.161Z","type":"content.delta","streamKind":"assistant_text","delta":" = \"ci","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":92}
+
+id: abd562ac:93
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj1cl-1c","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:43.221Z","type":"content.delta","streamKind":"assistant_text","delta":"ao\"\npr","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":93}
+
+id: abd562ac:94
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj1ea-1d","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:43.282Z","type":"content.delta","streamKind":"assistant_text","delta":"int(sa","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":94}
+
+id: abd562ac:95
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj1fy-1e","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:43.342Z","type":"content.delta","streamKind":"assistant_text","delta":"luto)\n","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":95}
+
+id: abd562ac:96
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj1hm-1f","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:43.402Z","type":"content.delta","streamKind":"assistant_text","delta":"```\n\nE","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":96}
+
+id: abd562ac:97
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj1ja-1g","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:43.462Z","type":"content.delta","streamKind":"assistant_text","delta":" una f","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":97}
+
+id: abd562ac:98
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj1ky-1h","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:43.522Z","type":"content.delta","streamKind":"assistant_text","delta":"ormula","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":98}
+
+id: abd562ac:99
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj1mm-1i","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:43.582Z","type":"content.delta","streamKind":"assistant_text","delta":": $E =","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":99}
+
+id: abd562ac:100
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj1oa-1j","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:43.642Z","type":"content.delta","streamKind":"assistant_text","delta":" mc^2$","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":100}
+
+id: abd562ac:101
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj1py-1k","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:43.702Z","type":"content.delta","streamKind":"assistant_text","delta":".","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":101}
+
+id: abd562ac:102
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj1pz-1l","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:43.703Z","type":"item.completed","itemType":"assistant_text","text":"Ciao! Ecco un **esempio** in markdown:\n\n- primo punto\n- secondo punto\n\n```swift\nlet saluto = \"ciao\"\nprint(saluto)\n```\n\nE una formula: $E = mc^2$.","providerInstanceId":"claude","itemId":"text-37447638-da34-4aad-9059-2a17675e422c"},"seq":102}
+
+id: abd562ac:103
+data: {"kind":"message","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","message":{"id":"4b209648-2c11-4238-bab3-c554f9b6919e","at":1795112323703,"parentId":"97ff5187-cfff-482d-a381-4446f8681501","role":"bot","kind":"text","text":"Ciao! Ecco un **esempio** in markdown:\n\n- primo punto\n- secondo punto\n\n```swift\nlet saluto = \"ciao\"\nprint(saluto)\n```\n\nE una formula: $E = mc^2$.","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","itemId":"text-37447638-da34-4aad-9059-2a17675e422c","requestMessageId":"97ff5187-cfff-482d-a381-4446f8681501"},"seq":103}
+
+id: abd562ac:104
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj1q0-1m","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:43.704Z","type":"thread.token-usage.updated","input":12,"output":5,"cachedInput":2,"contextTokens":12,"providerInstanceId":"claude"},"seq":104}
+
+id: abd562ac:106
+data: {"kind":"bot","bot":{"id":"96712972-b729-4d9c-86dd-39faf2b2c94d","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":false,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795112003130,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"working","busy":true,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","avatarUrl":null,"tasks":[{"threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","title":"Mostrami un esempio di markdown","createdAt":1795112003130,"updatedAt":1795112323703,"unread":false,"activity":"working","busy":true,"titleFromFirstMessage":true,"lastThreadOrderAt":1795112321548,"cwd":"/tmp/openmausbot-verify-data-IF9BHn/task-workspaces/96712972-b729-4d9c-86dd-39faf2b2c94d/c5a9dd65-b836-482b-9e9b-752a656897a8","usage":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01,"turns":1,"lastTurn":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01},"context":{"tokens":12,"window":1000000}},"turnStartedAt":1795112321550,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":106}
+
+id: abd562ac:107
+data: {"kind":"runtime","event":{"eventId":"ev-mwnvj1q1-1n","provider":"claudeAgent","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","createdAt":"2026-11-19T18:18:43.705Z","type":"turn.completed","ok":true,"stopReason":"end_turn","cost":0.01,"usage":{"input":12,"output":5,"cachedInput":2},"providerInstanceId":"claude"},"seq":107}
+
+id: abd562ac:108
+data: {"kind":"message.patch","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","message":{"id":"4b209648-2c11-4238-bab3-c554f9b6919e","at":1795112323703,"parentId":"97ff5187-cfff-482d-a381-4446f8681501","role":"bot","kind":"text","text":"Ciao! Ecco un **esempio** in markdown:\n\n- primo punto\n- secondo punto\n\n```swift\nlet saluto = \"ciao\"\nprint(saluto)\n```\n\nE una formula: $E = mc^2$.","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","itemId":"text-37447638-da34-4aad-9059-2a17675e422c","requestMessageId":"97ff5187-cfff-482d-a381-4446f8681501","turnTerminal":true,"turnCompletedAt":1795112323707},"seq":108}
+
+id: abd562ac:109
+data: {"kind":"message.patch","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","message":{"id":"4b209648-2c11-4238-bab3-c554f9b6919e","at":1795112323703,"parentId":"97ff5187-cfff-482d-a381-4446f8681501","role":"bot","kind":"text","text":"Ciao! Ecco un **esempio** in markdown:\n\n- primo punto\n- secondo punto\n\n```swift\nlet saluto = \"ciao\"\nprint(saluto)\n```\n\nE una formula: $E = mc^2$.","turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","itemId":"text-37447638-da34-4aad-9059-2a17675e422c","requestMessageId":"97ff5187-cfff-482d-a381-4446f8681501","turnTerminal":true,"turnCompletedAt":1795112323707,"turnSucceeded":true},"seq":109}
+
+id: abd562ac:111
+data: {"kind":"bot","bot":{"id":"96712972-b729-4d9c-86dd-39faf2b2c94d","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":false,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795112003130,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"working","busy":true,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","avatarUrl":null,"tasks":[{"threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","title":"Mostrami un esempio di markdown","createdAt":1795112003130,"updatedAt":1795112323703,"unread":false,"activity":"working","busy":true,"titleFromFirstMessage":true,"lastThreadOrderAt":1795112323707,"cwd":"/tmp/openmausbot-verify-data-IF9BHn/task-workspaces/96712972-b729-4d9c-86dd-39faf2b2c94d/c5a9dd65-b836-482b-9e9b-752a656897a8","usage":{"input":24,"output":10,"cachedInput":4,"costUsd":0.02,"turns":2,"lastTurn":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01},"context":{"tokens":12,"window":1000000}},"turnStartedAt":1795112321550,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":111}
+
+id: abd562ac:113
+data: {"kind":"bot","bot":{"id":"96712972-b729-4d9c-86dd-39faf2b2c94d","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":false,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795112003130,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"working","busy":true,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","avatarUrl":null,"tasks":[{"threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","title":"Mostrami un esempio di markdown","createdAt":1795112003130,"updatedAt":1795112323703,"unread":false,"activity":"working","busy":true,"titleFromFirstMessage":true,"lastThreadOrderAt":1795112323707,"cwd":"/tmp/openmausbot-verify-data-IF9BHn/task-workspaces/96712972-b729-4d9c-86dd-39faf2b2c94d/c5a9dd65-b836-482b-9e9b-752a656897a8","usage":{"input":24,"output":10,"cachedInput":4,"costUsd":0.02,"turns":2,"lastTurn":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01},"context":{"tokens":12,"window":1000000}},"turnStartedAt":1795112321550,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":113}
+
+id: abd562ac:114
+data: {"kind":"message","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","message":{"id":"cf03f26c-99b6-4426-ac97-cca6c3980dfd","at":1795112323709,"parentId":"4b209648-2c11-4238-bab3-c554f9b6919e","role":"bot","kind":"digest","text":"[digest] · no tool activity observed in this turn · reply: Ciao!","digest":{"turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","botId":"96712972-b729-4d9c-86dd-39faf2b2c94d","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","at":1795112323709,"durationMs":1499,"tools":[],"toolCalls":0,"memory":[],"reply":"Ciao!","usage":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01},"hookCoverage":"none"},"turnId":"0b204168-4f4a-44d7-bd87-c3622b88f388","requestMessageId":"97ff5187-cfff-482d-a381-4446f8681501","turnSucceeded":true},"seq":114}
+
+id: abd562ac:116
+data: {"kind":"bot","bot":{"id":"96712972-b729-4d9c-86dd-39faf2b2c94d","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":true,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795112003130,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"working","busy":true,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","avatarUrl":null,"tasks":[{"threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","title":"Mostrami un esempio di markdown","createdAt":1795112003130,"updatedAt":1795112323709,"unread":true,"activity":"working","busy":true,"titleFromFirstMessage":true,"lastThreadOrderAt":1795112323707,"cwd":"/tmp/openmausbot-verify-data-IF9BHn/task-workspaces/96712972-b729-4d9c-86dd-39faf2b2c94d/c5a9dd65-b836-482b-9e9b-752a656897a8","usage":{"input":24,"output":10,"cachedInput":4,"costUsd":0.02,"turns":2,"lastTurn":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01},"context":{"tokens":12,"window":1000000}},"turnStartedAt":1795112321550,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":116}
+
+id: abd562ac:117
+data: {"kind":"notify","notification":{"kind":"done","botId":"96712972-b729-4d9c-86dd-39faf2b2c94d","botName":"Fixture Starter","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","title":"Fixture Starter finished","body":"Ciao! Ecco un esempio in markdown: primo punto secondo punto E una formula: $E = mc^2$.","id":"51b5990a-1ad2-4b47-b050-c05ccf0af381","at":1795112323710,"read":false},"seq":117}
+
+id: abd562ac:119
+data: {"kind":"bot","bot":{"id":"96712972-b729-4d9c-86dd-39faf2b2c94d","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":true,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795112003130,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"idle","busy":false,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","avatarUrl":null,"tasks":[{"threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","title":"Mostrami un esempio di markdown","createdAt":1795112003130,"updatedAt":1795112323709,"unread":true,"activity":"idle","busy":false,"titleFromFirstMessage":true,"lastThreadOrderAt":1795112323707,"cwd":"/tmp/openmausbot-verify-data-IF9BHn/task-workspaces/96712972-b729-4d9c-86dd-39faf2b2c94d/c5a9dd65-b836-482b-9e9b-752a656897a8","usage":{"input":24,"output":10,"cachedInput":4,"costUsd":0.02,"turns":2,"lastTurn":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01},"context":{"tokens":12,"window":1000000}},"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":119}
+
+id: abd562ac:120
+data: {"kind":"message.patch","threadId":"c5a9dd65-b836-482b-9e9b-752a656897a8","message":{"id":"97ff5187-cfff-482d-a381-4446f8681501","at":1795112321548,"parentId":"849cdde8-f1e9-4a51-9408-279d1b100a32","role":"user","kind":"text","text":"Rispondimi parola per parola","sendId":"ios-prova-0000000000000002","requestPending":false},"seq":120}
+
+: keepalive

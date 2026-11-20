@@ -256,11 +256,12 @@ enum ChatSendOutcome: Equatable {
     case started, kept, waiting
 }
 
-/// Which server runs a chat's turns: a webui session's SSE streams, or a Hermes session on
-/// the gateway socket (#1010).
+/// Which server runs a chat's turns: a webui session's SSE streams, a Hermes session on
+/// the gateway socket (#1010), or a Squadd agent's thread on its companion (#11).
 enum ChatBackend {
     case webui
     case hermes(HermesChatTurnCoordinator)
+    case squadd(SquaddChatTurnCoordinator)
 }
 
 enum ActiveStreamRecoveryState: Equatable {
@@ -755,6 +756,8 @@ final class ChatViewModel {
     private let turn: any ChatTurnCoordinating
     /// Set on a Hermes session: its turns run here, and webui-only paths stay off.
     private let hermesTurn: HermesChatTurnCoordinator?
+    /// A Squadd thread's turns (#11). Nothing in such a chat reaches the webui API.
+    private let squaddTurn: SquaddChatTurnCoordinator?
     private let drafts: ChatDraftStore
     private let pendingActionCoordinator: ChatPendingActionCoordinator
     private let attachmentCoordinator: ChatAttachmentCoordinator
@@ -908,9 +911,17 @@ final class ChatViewModel {
         switch backend {
         case .webui:
             hermesTurn = nil
+            squaddTurn = nil
             turn = streamCoordinator
             backendSpeech = { try await resolvedClient.listenSpeech(for: $0) }
+        case .squadd(let coordinator):
+            hermesTurn = nil
+            squaddTurn = coordinator
+            turn = coordinator
+            // Listen speaks on the device: the companion has no webui speech route.
+            backendSpeech = { _ in nil }
         case .hermes(let coordinator):
+            squaddTurn = nil
             hermesTurn = coordinator
             turn = coordinator
             backendSpeech = { try await coordinator.speech(for: $0) }
@@ -1221,7 +1232,7 @@ final class ChatViewModel {
 
     func loadComposerConfiguration() async {
         // A Hermes session's chips read its gateway (`HermesChatSettings`), never webui's routes.
-        guard hermesTurn == nil else { return }
+        guard hermesTurn == nil, squaddTurn == nil else { return }
         if isLoadingComposerConfiguration {
             needsComposerConfigurationReload = true
             return
@@ -1311,6 +1322,7 @@ final class ChatViewModel {
     }
 
     func refreshApprovalBypassState() async {
+        guard squaddTurn == nil else { return }
         await pendingActionCoordinator.refreshApprovalBypassState()
     }
 
@@ -1425,6 +1437,7 @@ final class ChatViewModel {
     }
 
     func loadWorkspaceSuggestions(prefix: String) async {
+        guard squaddTurn == nil else { return }
         if let hermesTurn, !isViewingCachedData {
             await loadHermesFolderSuggestions(prefix: prefix, on: hermesTurn)
             return
@@ -1457,7 +1470,7 @@ final class ChatViewModel {
     /// next caller retries. Held while the chat shows its offline cache; the
     /// composer asks again on reconnect.
     func loadPersonalitySuggestions() async {
-        guard !hasLoadedPersonalitySuggestions, !showsOfflineCache else { return }
+        guard squaddTurn == nil, !hasLoadedPersonalitySuggestions, !showsOfflineCache else { return }
         // A Hermes host lists its own (#1016), here for the `/personality ` panel (#1036).
         if let hermesSettings {
             guard let personalities = try? await hermesSettings.personalities() else { return }
@@ -1502,7 +1515,7 @@ final class ChatViewModel {
     /// chat shows its offline cache; the composer and transcript ask again on
     /// reconnect.
     func loadSkillSlashSuggestions() async {
-        guard hermesTurn == nil, !hasLoadedSkillSlashSuggestions, !showsOfflineCache else { return }
+        guard hermesTurn == nil, squaddTurn == nil, !hasLoadedSkillSlashSuggestions, !showsOfflineCache else { return }
 
         let load: Task<Void, Never>
         if let existing = skillSlashSuggestionsLoad {
@@ -2066,6 +2079,12 @@ final class ChatViewModel {
     /// is for the chat's first load only: it takes over the request
     /// `prepareInitialMessageLoad` already sent instead of sending another.
     func loadMessages(modelContext: ModelContext? = nil, usesInitialPrefetch: Bool = false) async {
+        if let squaddTurn {
+            isLoading = messages.isEmpty
+            defer { isLoading = false }
+            await squaddTurn.activate()
+            return
+        }
         if let hermesTurn {
             if let modelContext { hermesCache = modelContext }
             // For an open that skipped `prepareInitialMessageLoad`.
@@ -2290,6 +2309,7 @@ final class ChatViewModel {
     /// while the round trip overlaps it. A Hermes chat shows its cached transcript here instead,
     /// and attaches from `loadMessages`.
     func prepareInitialMessageLoad(modelContext: ModelContext) {
+        guard squaddTurn == nil else { return }
         if let hermesTurn {
             hermesCache = modelContext
             return showCachedHermesTranscriptBeforeAttach(hermesTurn)
@@ -2417,6 +2437,12 @@ final class ChatViewModel {
 
     @discardableResult
     func loadOlderMessages(modelContext: ModelContext? = nil) async -> Bool {
+        if let squaddTurn {
+            guard !isLoadingOlderMessages, hasOlderMessages else { return false }
+            isLoadingOlderMessages = true
+            defer { isLoadingOlderMessages = false }
+            return await squaddTurn.loadOlder()
+        }
         if let hermesTurn {
             guard !isLoadingOlderMessages, hasOlderMessages else { return false }
             isLoadingOlderMessages = true
@@ -3119,6 +3145,9 @@ final class ChatViewModel {
 
         if let hermesTurn {
             return await submitHermesPrompt(draft, mode: .send, to: hermesTurn, waitingOwner: waitingOwner)
+        }
+        if let squaddTurn {
+            return await submitSquaddPrompt(draft, to: squaddTurn)
         }
 
         guard !isCompressionRotated else {
@@ -5360,6 +5389,7 @@ final class ChatViewModel {
     /// Held while the chat shows its offline cache: a draft typed then asks the host
     /// nothing, and the chat asks for a fresh pass once it reconnects.
     func loadFileChipReferences(draft: String) async {
+        guard squaddTurn == nil else { return }
         while let existing = fileChipReferenceLoad {
             await existing.value
         }
@@ -6243,6 +6273,7 @@ final class ChatViewModel {
     /// 409 `session_profile_mismatch`) reports that through the message-action
     /// error; any other failure reports its own message.
     func loadForkParent(id parentSessionID: String) async -> SessionSummary? {
+        guard squaddTurn == nil else { return nil }
         messageActionErrorMessage = nil
         lastError = nil
         let missingMessage = String(localized: "The original chat is no longer on this server.")
@@ -6770,7 +6801,8 @@ final class ChatViewModel {
 
     @discardableResult
     func cancelActiveStream() async -> Bool {
-        guard activeStreamID != nil else { return false }
+        // Stop on Squadd (`POST /api/bots/:id/interrupt`) is its own ticket.
+        guard activeStreamID != nil, squaddTurn == nil else { return false }
 
         isCancellingStream = true
         sendErrorMessage = nil
@@ -9883,5 +9915,54 @@ final class ListenAudioSessionController: ListenAudioSessionControlling {
             false,
             options: ListenAudioSessionConfiguration.deactivationOptions
         )
+    }
+}
+
+// MARK: - Squadd (#11)
+
+extension ChatViewModel: SquaddChatTurnDelegate {
+    func squaddReplaceTranscript(_ messages: [ChatMessage], hasOlder: Bool) {
+        resetPendingStreamingContentBuffers()
+        messagesOffset = 0
+        self.messages = messages
+        transcriptRevision &+= 1
+        hasOlderMessages = hasOlder
+        streamingAssistantMessageID = nil
+    }
+
+    func squaddPrependOlder(_ messages: [ChatMessage], hasOlder: Bool) {
+        let shown = Set(self.messages.compactMap(\.messageId))
+        self.messages = messages.filter { $0.messageId.map(shown.contains) != true } + self.messages
+        transcriptRevision &+= 1
+        hasOlderMessages = hasOlder
+    }
+
+    func squaddConnectionDidChange(failure: String?) {
+        guard errorMessage != failure else { return }
+        errorMessage = failure
+    }
+
+    /// Shows the prompt at once and sends it. A prompt the companion didn't take leaves the
+    /// transcript and goes back to the composer (`.kept`) with the reason.
+    fileprivate func submitSquaddPrompt(_ draft: String, to squadd: SquaddChatTurnCoordinator) async -> ChatSendOutcome {
+        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty else { return .kept }
+        // Files to a Squadd agent are their own ticket: refuse rather than drop them.
+        guard pendingAttachments.isEmpty else {
+            sendErrorMessage = String(localized: "Agents on the computer can't receive files yet. Remove them to send.")
+            return .kept
+        }
+        let sendId = squadd.makeSendID()
+        let rowID = "local-\(sendId)"
+        sendErrorMessage = nil
+        messages.append(ChatMessage(role: "user", content: text, timestamp: Date().timeIntervalSince1970, messageId: rowID))
+        do {
+            try await squadd.send(text, sendId: sendId, localRowID: rowID)
+            return .started
+        } catch {
+            messages.removeAll { $0.messageId == rowID }
+            sendErrorMessage = SquaddChatTurnCoordinator.failureMessage(error)
+            return .kept
+        }
     }
 }
