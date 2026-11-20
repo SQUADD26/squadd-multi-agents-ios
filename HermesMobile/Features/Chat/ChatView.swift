@@ -1108,6 +1108,11 @@ struct ChatView: View {
         .transition(ChatMotion.bottomOverlayTransition(reduceMotion: reduceMotion))
     }
 
+    /// The Squadd approval the request slot shows: the thread's oldest waiting one (#14).
+    static func squaddApproval(in viewModel: ChatViewModel) -> SquaddPendingApproval? {
+        viewModel.squaddTurn?.pendingApproval
+    }
+
     /// A Squadd agent's approval (#14): the card's own choices, no Skip all.
     private func squaddApprovalInset(
         _ approval: SquaddPendingApproval,
@@ -2091,7 +2096,7 @@ struct ChatView: View {
                 .transition(ChatMotion.bottomOverlayTransition(reduceMotion: reduceMotion))
             } else if let approvalPrompt = viewModel.approvalPrompt {
                 webuiApprovalInset(approvalPrompt, maximumExpandedHeight: maximumExpandedHeight)
-            } else if let squadd = viewModel.squaddTurn, let approval = squadd.pendingApproval {
+            } else if let squadd = viewModel.squaddTurn, let approval = Self.squaddApproval(in: viewModel) {
                 squaddApprovalInset(approval, turn: squadd, maximumExpandedHeight: maximumExpandedHeight)
             }
         }
@@ -2223,7 +2228,7 @@ struct ChatView: View {
     /// inset request.
     private var requestInsetID: String? {
         hermesInsetRequest?.requestID ?? viewModel.clarificationPrompt?.id ?? viewModel.approvalPrompt?.id
-            ?? viewModel.squaddTurn?.pendingApproval?.messageId
+            ?? Self.squaddApproval(in: viewModel)?.messageId
     }
 
     @ViewBuilder

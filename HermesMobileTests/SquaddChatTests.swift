@@ -591,7 +591,7 @@ final class SquaddChatTests: XCTestCase {
             }
             let (model, coordinator) = makeChat(bot: bot, thread: thread)
             await model.loadMessages()
-            let approval = try XCTUnwrap(coordinator.pendingApproval, "the recorded card waits")
+            let approval = try XCTUnwrap(ChatView.squaddApproval(in: model), "the recorded card waits in the chat's request slot")
             XCTAssertEqual(approval.content.choices, [.once, .session, .always, .deny])
             XCTAssertEqual(approval.content.command, "echo hi")
 
