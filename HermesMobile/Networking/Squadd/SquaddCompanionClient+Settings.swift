@@ -8,6 +8,12 @@ extension SquaddCompanionClient {
         try SquaddKeyStatus.statuses(fromConfig: await call("GET", "api/config"))
     }
 
+    /// Whether the computer lets agents draft skills (`features.skillAuthoring`, on unless turned off).
+    func authorsSkills() async throws -> Bool {
+        struct Config: Decodable { struct Features: Decodable { let skillAuthoring: Bool? }; let features: Features? }
+        return try JSONDecoder().decode(Config.self, from: await call("GET", "api/config")).features?.skillAuthoring != false
+    }
+
     func engines() async throws -> [SquaddEngine] {
         try JSONDecoder().decode(SquaddEngineList.self, from: await call("GET", "api/instances?fresh=1")).instances
     }
@@ -24,8 +30,10 @@ extension SquaddCompanionClient {
         try JSONDecoder().decode(SquaddMCPServerList.self, from: await call("GET", "api/bots/\(Self.segment(botId))/mcp-servers")).servers
     }
 
-    func skills(botId: String) async throws -> [SquaddSkill] {
-        try JSONDecoder().decode(SquaddSkillList.self, from: await call("GET", "api/bots/\(Self.segment(botId))/skills")).skills
+    /// The agent's skills; with `threadId`, as that thread's turn sees them.
+    func skills(botId: String, threadId: String? = nil) async throws -> [SquaddSkill] {
+        let query = threadId.map { "?threadId=\(Self.segment($0))" } ?? ""
+        return try JSONDecoder().decode(SquaddSkillList.self, from: await call("GET", "api/bots/\(Self.segment(botId))/skills\(query)")).skills
     }
 
     /// The whole team's memory (the empty section; departments have their own).

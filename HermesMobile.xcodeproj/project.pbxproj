@@ -139,6 +139,7 @@
 		5D2200000000000000000103 /* SquaddAgentEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D2200000000000000000003 /* SquaddAgentEditorTests.swift */; };
 		5D0B11000000000000000102 /* SquaddChatTurnCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B11000000000000000002 /* SquaddChatTurnCoordinator.swift */; };
 		5D0B21000000000000000102 /* SquaddRoomViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B21000000000000000002 /* SquaddRoomViews.swift */; };
+		26A1E0000000000000000101 /* SquaddSlashCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A1E0000000000000000001 /* SquaddSlashCommands.swift */; };
 		5D0B11000000000000000103 /* SquaddChatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B11000000000000000003 /* SquaddChatTests.swift */; };
 		5D0B21000000000000000103 /* SquaddRoomTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B21000000000000000003 /* SquaddRoomTests.swift */; };
 		5D0B11000000000000000104 /* SquaddChatLivePhotoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B11000000000000000004 /* SquaddChatLivePhotoTests.swift */; };
@@ -943,6 +944,7 @@
 		5D2200000000000000000003 /* SquaddAgentEditorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddAgentEditorTests.swift; sourceTree = "<group>"; };
 		5D0B11000000000000000002 /* SquaddChatTurnCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddChatTurnCoordinator.swift"; sourceTree = "<group>"; };
 		5D0B21000000000000000002 /* SquaddRoomViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddRoomViews.swift"; sourceTree = "<group>"; };
+		26A1E0000000000000000001 /* SquaddSlashCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddSlashCommands.swift"; sourceTree = "<group>"; };
 		5D0B11000000000000000003 /* SquaddChatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddChatTests.swift; sourceTree = "<group>"; };
 		5D0B21000000000000000003 /* SquaddRoomTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddRoomTests.swift; sourceTree = "<group>"; };
 		5D0B11000000000000000004 /* SquaddChatLivePhotoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddChatLivePhotoTests.swift; sourceTree = "<group>"; };
@@ -2191,6 +2193,7 @@
 				5D2200000000000000000001 /* SquaddAgentEditor.swift */,
 				5D0B11000000000000000002 /* SquaddChatTurnCoordinator.swift */,
 				5D0B21000000000000000002 /* SquaddRoomViews.swift */,
+				26A1E0000000000000000001 /* SquaddSlashCommands.swift */,
 				5D0ADD000000000000000005 /* SquaddServerHome.swift */,
 				5D0A09000000000000000002 /* SquaddRouteFinder.swift */,
 				5D0ADE280000000000001400 /* SquaddConnectorsView.swift */,
@@ -3030,6 +3033,7 @@
 				5D2200000000000000000101 /* SquaddAgentEditor.swift in Sources */,
 				5D0B11000000000000000102 /* SquaddChatTurnCoordinator.swift in Sources */,
 				5D0B21000000000000000102 /* SquaddRoomViews.swift in Sources */,
+				26A1E0000000000000000101 /* SquaddSlashCommands.swift in Sources */,
 				5D0ADD000000000000000105 /* SquaddServerHome.swift in Sources */,
 				5D0A09000000000000000102 /* SquaddRouteFinder.swift in Sources */,
 				5D0ADE280000000000001401 /* SquaddConnectorsView.swift in Sources */,

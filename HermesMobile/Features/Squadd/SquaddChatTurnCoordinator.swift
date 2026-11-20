@@ -140,9 +140,9 @@ final class SquaddChatTurnCoordinator {
         await reload()
     }
 
-    /// Sends a typed message. Throws when the companion didn't take it, so the chat puts it back.
-    /// Returns true when the agents were busy and the companion queued it: it is in
-    /// `queuedPrompts`, not yet in the transcript.
+    /// Sends a typed message, in an agent's thread `/goal rest` as a goal the desktop's way. Throws
+    /// when the companion didn't take it, so the chat puts it back. Returns true when the agents were
+    /// busy and the companion queued it: it is in `queuedPrompts`, not yet in the transcript.
     func send(_ text: String, sendId: String, localRowID: String) async throws -> Bool {
         ownSendIDs.insert(sendId)
         let receipt: SquaddSendReceipt
@@ -151,7 +151,9 @@ final class SquaddChatTurnCoordinator {
                 receipt = try await client.send(text, roomId: room.id, threadId: chat.threadId, sendId: sendId,
                                                 mentions: room.mentionedIDs(in: text))
             } else {
-                receipt = try await client.send(text, botId: chat.botId, threadId: chat.threadId, sendId: sendId)
+                let outgoing = SquaddSlashCommands.outgoing(text)
+                receipt = try await client.send(outgoing.text, botId: chat.botId, threadId: chat.threadId,
+                                                sendId: sendId, mode: outgoing.mode)
             }
         } catch {
             ownSendIDs.remove(sendId)
@@ -169,6 +171,21 @@ final class SquaddChatTurnCoordinator {
     func interrupt() async throws {
         guard let room = chat.room else { return }
         try await client.interrupt(roomId: room.id, threadId: chat.threadId, stopId: makeSendID())
+    }
+
+    /// What this thread's `/` panel offers: the built-ins the agent's engine and the computer allow,
+    /// and the agent's skills as this thread sees them.
+    func slashCatalog() async throws -> (scope: SlashCommandScope, skills: [SkillSlashSuggestion]) {
+        // A room's messages go out as typed: no agent's commands or skills to offer.
+        guard chat.room == nil else { return (SlashCommandScope(builtins: []), []) }
+        async let skills = client.skills(botId: chat.botId, threadId: chat.threadId)
+        async let bots = client.bots()
+        async let instances = client.instances()
+        async let authorsSkills = client.authorsSkills()
+        let engine = try await bots.first { $0.id == chat.botId }?.modelSelection?.instanceId
+        let runsAgents = try await instances.contains { $0.instanceId == engine && $0.runsAgents }
+        return (SquaddSlashCommands.scope(runsAgents: runsAgents, authorsSkills: try await authorsSkills),
+                SquaddSlashCommands.skills(try await skills))
     }
 
     func stop() {

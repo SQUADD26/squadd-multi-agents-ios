@@ -165,16 +165,21 @@ struct SquaddInstance: Decodable, Equatable {
     let displayName: String?
     let isAvailable: Bool
     let models: [Model]
+    /// The engine can run the computer's agent tools (`capabilities.agentsMcp`): the desktop
+    /// offers `/setup`, `/burst` and `/learn` only to an agent on such an engine.
+    let runsAgents: Bool
 
-    private enum CodingKeys: String, CodingKey { case instanceId, displayName, snapshot, models }
+    private enum CodingKeys: String, CodingKey { case instanceId, displayName, snapshot, models, capabilities }
     private enum SnapshotKeys: String, CodingKey { case state }
+    private enum CapabilityKeys: String, CodingKey { case agentsMcp }
     private enum ModelsKeys: String, CodingKey { case options }
 
-    init(instanceId: String, displayName: String?, isAvailable: Bool, models: [Model]) {
+    init(instanceId: String, displayName: String?, isAvailable: Bool, models: [Model], runsAgents: Bool = false) {
         self.instanceId = instanceId
         self.displayName = displayName
         self.isAvailable = isAvailable
         self.models = models
+        self.runsAgents = runsAgents
     }
 
     init(from decoder: Decoder) throws {
@@ -185,6 +190,8 @@ struct SquaddInstance: Decodable, Equatable {
         isAvailable = (try? snapshot?.decodeIfPresent(String.self, forKey: .state)) == "available"
         let models = try? container.nestedContainer(keyedBy: ModelsKeys.self, forKey: .models)
         self.models = (try? models?.decodeIfPresent([Lossy<Model>].self, forKey: .options))?.compactMap(\.value) ?? []
+        let capabilities = try? container.nestedContainer(keyedBy: CapabilityKeys.self, forKey: .capabilities)
+        runsAgents = (try? capabilities?.decodeIfPresent(Bool.self, forKey: .agentsMcp)) == true
     }
 }
 
