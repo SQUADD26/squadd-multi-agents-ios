@@ -21,15 +21,40 @@ struct ChatMessageActionItem: Identifiable {
         case edit
         case fork
         case copy
+        /// A Squadd thread's reactions (#19): a submenu of `reaction` items.
+        case react
+        case reaction(String)
     }
 
     let kind: Kind
     let title: String
     let systemImage: String
     let isEnabled: Bool
+    /// Shown checked: a reaction this person already put on, which choosing again takes off.
+    var isOn = false
     let perform: () -> Void
+    /// A submenu's entries; `perform` is unused when there are any.
+    var children: [ChatMessageActionItem] = []
 
     var id: Kind { kind }
+}
+
+extension ChatMessageActionItem {
+    /// A Squadd thread's React submenu for row `rowID` (#19): each reaction the computer accepts, checked
+    /// when this person put it on, so choosing it again takes it off. Nil for a row not stored yet.
+    @MainActor
+    static func squaddReactions(ofRow rowID: String, in squadd: SquaddChatTurnCoordinator, isEnabled: Bool) -> ChatMessageActionItem? {
+        guard squadd.storedID(ofRow: rowID) != nil else { return nil }
+        let mine = squadd.marks[rowID]?.mine ?? []
+        return ChatMessageActionItem(
+            kind: .react, title: String(localized: "React"), systemImage: "face.smiling", isEnabled: isEnabled, perform: {},
+            children: SquaddReaction.all.map { emoji in
+                ChatMessageActionItem(kind: .reaction(emoji), title: emoji, systemImage: "", isEnabled: true,
+                                      isOn: mine.contains(emoji),
+                                      perform: { Task { await squadd.toggleReaction(emoji, onRow: rowID) } })
+            }
+        )
+    }
 }
 
 /// The long-press menu is built from the item list alone, so any transcript
@@ -38,13 +63,17 @@ struct ChatMessageActionItem: Identifiable {
 extension Array where Element == ChatMessageActionItem {
     @MainActor
     func uiMenu() -> UIMenu {
-        UIMenu(children: map { item in
+        UIMenu(children: map { item -> UIMenuElement in
+            if !item.children.isEmpty {
+                return UIMenu(title: item.title, image: UIImage(systemName: item.systemImage), children: item.children.uiMenu().children)
+            }
             let action = UIAction(title: item.title, image: UIImage(systemName: item.systemImage)) { _ in
                 item.perform()
             }
             if !item.isEnabled {
                 action.attributes = .disabled
             }
+            if item.isOn { action.state = .on }
             return action
         })
     }
@@ -63,15 +92,32 @@ struct ChatMessageActionMenu: View {
     let onEdit: (MessageActionContext) -> Void
     let onFork: (MessageActionContext) -> Void
     let onCopy: (MessageActionContext) -> Void
+    /// Entries the chat's backend adds after the shared ones, such as a Squadd thread's reactions.
+    var extraItems: [ChatMessageActionItem] = []
 
     var body: some View {
         ForEach(items) { item in
-            Button {
-                item.perform()
-            } label: {
-                Label(item.title, systemImage: item.systemImage)
+            if item.children.isEmpty {
+                Button {
+                    item.perform()
+                } label: {
+                    Label(item.title, systemImage: item.systemImage)
+                }
+                .disabled(!item.isEnabled)
+            } else {
+                Menu {
+                    ForEach(item.children) { child in
+                        Button {
+                            child.perform()
+                        } label: {
+                            if child.isOn { Label(child.title, systemImage: "checkmark") } else { Text(child.title) }
+                        }
+                    }
+                } label: {
+                    Label(item.title, systemImage: item.systemImage)
+                }
+                .disabled(!item.isEnabled)
             }
-            .disabled(!item.isEnabled)
         }
     }
 
@@ -131,7 +177,7 @@ struct ChatMessageActionMenu: View {
             ))
         }
 
-        return items
+        return items + extraItems
     }
 
     /// The same actions as a UIKit menu, for `ChatMessageContextMenuView`.
