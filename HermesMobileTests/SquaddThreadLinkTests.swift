@@ -202,7 +202,8 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
 
     /// Shows a fresh `ContentView` and returns the router it drains: the test host app's own
     /// ContentView drains `AppIntentRouter.shared`, so each window gets its own.
-    private func host(_ manager: AuthManager, router: AppIntentRouter = AppIntentRouter()) throws -> AppIntentRouter {
+    private func host(_ manager: AuthManager, router: AppIntentRouter? = nil) throws -> AppIntentRouter {
+        let router = router ?? AppIntentRouter()
         let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
