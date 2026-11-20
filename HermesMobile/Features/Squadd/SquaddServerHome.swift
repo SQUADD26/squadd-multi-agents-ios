@@ -39,6 +39,7 @@ struct SquaddServerHome: View {
     @State private var linkedRow: String?
     @State private var isLinkedThreadMissing = false
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.modelContext) private var modelContext
     /// Made once in `.task`, not in `init`, so a pass of the parent reads no Keychain.
     @State private var model: SquaddAgentListModel?
     @State private var notifications: SquaddNotificationsModel?
@@ -79,6 +80,11 @@ struct SquaddServerHome: View {
                         SquaddSearchResults(hits: hits, query: searchText)
                     } else {
                         routeRow
+                        if model?.isShowingCache == true {
+                            OfflineCacheBanner()
+                                .padding(.top, 8)
+                                .sessionsScreenListRow()
+                        }
                         rows
                     }
                 }
@@ -86,6 +92,10 @@ struct SquaddServerHome: View {
                 .toolbar(.hidden, for: .navigationBar)
                 .onChange(of: model?.phase) { openPendingThread(proxy) }
                 .onChange(of: pendingThread) { openPendingThread(proxy) }
+                // The computer answered again after an offline copy: the route row looks again too.
+                .onChange(of: model?.isShowingCache) { was, now in
+                    if was == true, now == false, finder?.route == nil { Task { await finder?.find() } }
+                }
             }
             .navigationDestination(for: SquaddThreadChat.self) { ChatView(squaddThread: $0).id($0.id) }
         }
@@ -109,7 +119,7 @@ struct SquaddServerHome: View {
                 self.client = client
                 notifications = SquaddNotificationsModel(client: client)
                 model = SquaddAgentListModel(
-                    client: client,
+                    client: client, cache: modelContext,
                     onUnpaired: { [weak authManager, server] in authManager?.squaddUnpaired(server: server) }
                 )
             }

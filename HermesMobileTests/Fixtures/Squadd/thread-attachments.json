@@ -1,0 +1,109 @@
+{
+    "messages": [
+        {
+            "id": "f00ab1f7-28a3-4efe-94a1-9197f27c9fee",
+            "at": 1795146107908,
+            "parentId": null,
+            "role": "bot",
+            "kind": "options",
+            "text": "Hey! I'm Squadd. I'm new here. I'm here to be your Chief of Staff. I can manage your other bots. Task me with anything. I'll make sure it gets to the right bot. I'm taking a look around to see if there's anything I can pick up for you. I'll follow up in a moment.",
+            "helperIntro": true,
+            "card": {
+                "title": "Hey! I'm Squadd. I'm new here.",
+                "subtitle": "I'm here to be your Chief of Staff. I can manage your other bots. Task me with anything. I'll make sure it gets to the right bot. I'm taking a look around to see if there's anything I can pick up for you. I'll follow up in a moment.",
+                "options": [
+                    "What are my bots up to?",
+                    "Set up a bot for my inbox",
+                    "Make me a morning routine",
+                    "How do I connect my email?"
+                ],
+                "fixedOptions": true,
+                "dismissed": true
+            }
+        },
+        {
+            "id": "68d738f3-28c6-48cb-8906-3e9712a886d5",
+            "at": 1795146167329,
+            "parentId": "f00ab1f7-28a3-4efe-94a1-9197f27c9fee",
+            "role": "user",
+            "kind": "text",
+            "text": "Ecco la foto e la nota vocale\n\n<attached-image path=\"/tmp/openmausbot-verify-data-BYYG9b/attachments/71769d02-b39e-4df1-86f5-04d6a8ee9148.png\" name=\"foto.png\" />\n\n<attached-file path=\"/tmp/openmausbot-verify-data-BYYG9b/attachments/7ea1d668-e4e9-4782-8c51-4c5a91bcd6b0.wav\" name=\"voice-note-live.wav\" />",
+            "sendId": "ios-live-23-3C211461-990A-4C1A-9DF7-307DE8671E33",
+            "requestPending": false
+        },
+        {
+            "id": "6515015c-9b4a-42ca-abda-496c1e803abd",
+            "at": 1795146168066,
+            "parentId": "68d738f3-28c6-48cb-8906-3e9712a886d5",
+            "role": "bot",
+            "kind": "text",
+            "text": "hello from fake claude",
+            "turnId": "77f82053-a30b-4bb8-9272-c5e5ed87cc70",
+            "itemId": "text-89ea3e9e-ce47-4d15-ac33-e32eb77470e0",
+            "requestMessageId": "68d738f3-28c6-48cb-8906-3e9712a886d5",
+            "turnTerminal": true,
+            "turnCompletedAt": 1795146168077,
+            "turnSucceeded": true
+        },
+        {
+            "id": "1bcf8d1e-ea06-4961-9e72-5b1f9df73521",
+            "at": 1795146168068,
+            "parentId": "6515015c-9b4a-42ca-abda-496c1e803abd",
+            "role": "bot",
+            "kind": "activity",
+            "tool": {
+                "name": "Bash",
+                "spoken": "running a command",
+                "step": {
+                    "activity": "command",
+                    "target": "echo hi"
+                },
+                "summary": "echo hi",
+                "input": "{\n  \"command\": \"echo hi\"\n}",
+                "itemId": "tu-317693-1",
+                "ok": true,
+                "output": "[\n  {\n    \"type\": \"text\",\n    \"text\": \"hi\"\n  }\n]"
+            },
+            "turnId": "77f82053-a30b-4bb8-9272-c5e5ed87cc70",
+            "requestMessageId": "68d738f3-28c6-48cb-8906-3e9712a886d5"
+        },
+        {
+            "id": "c3475145-1a07-421b-bbe5-9d5f04ac1598",
+            "at": 1795146168080,
+            "parentId": "1bcf8d1e-ea06-4961-9e72-5b1f9df73521",
+            "role": "bot",
+            "kind": "digest",
+            "text": "[digest] \u00b7 tools: Bash \u00d71 (from tool previews) \u00b7 reply: hello from fake claude",
+            "digest": {
+                "turnId": "77f82053-a30b-4bb8-9272-c5e5ed87cc70",
+                "botId": "ba4a2ec4-9ce6-4ee9-8552-deaa622521c9",
+                "threadId": "2d4440da-3f73-47e4-a20d-10fec3fa2cb0",
+                "at": 1795146168079,
+                "durationMs": 63,
+                "tools": [
+                    {
+                        "name": "Bash",
+                        "count": 1,
+                        "failed": 0,
+                        "sample": "echo hi"
+                    }
+                ],
+                "toolCalls": 1,
+                "memory": [],
+                "reply": "hello from fake claude",
+                "usage": {
+                    "input": 12,
+                    "output": 5,
+                    "cachedInput": 2,
+                    "costUsd": 0.01
+                },
+                "hookCoverage": "preview"
+            },
+            "turnId": "77f82053-a30b-4bb8-9272-c5e5ed87cc70",
+            "requestMessageId": "68d738f3-28c6-48cb-8906-3e9712a886d5",
+            "turnSucceeded": true
+        }
+    ],
+    "hasMore": false,
+    "activeLeafId": "c3475145-1a07-421b-bbe5-9d5f04ac1598"
+}

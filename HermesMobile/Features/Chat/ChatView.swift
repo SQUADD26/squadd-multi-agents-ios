@@ -817,7 +817,7 @@ struct ChatView: View {
                 persistDraftEdit(text)
             },
             recallLastSentText: { viewModel.lastSentText },
-            onPasteLargeText: isHermesSession ? { text in
+            onPasteLargeText: isHermesSession || isSquaddThread ? { text in
                 viewModel.stagePastedText(text)
             } : nil,
             onOpenFileReference: { path in
@@ -833,6 +833,7 @@ struct ChatView: View {
                 Task { await gitAvailabilityViewModel.loadBranches() }
             },
             showsSessionControls: !isHermesSession && !isSquaddThread,
+            allowsVoiceNotes: isSquaddThread,
             // A Squadd thread offers `/goal` alone until its catalog says what the agent can run.
             slashScope: isSquaddThread
                 ? viewModel.squaddSlashScope ?? SquaddSlashCommands.scope(runsAgents: false, authorsSkills: false)
@@ -908,8 +909,10 @@ struct ChatView: View {
         among siblings: [MessageAttachmentPreview]
     ) {
         let attachment = tapped.attachment
-        guard isHermesSession, let path = attachment.path, !path.isEmpty else {
-            let pageable = siblings.filter { !isHermesSession || $0.attachment.path?.isEmpty != false }
+        // A Squadd thread's sent files live on its computer, as a Hermes chat's on its host (#23).
+        let opensFromServer = isHermesSession || isSquaddThread
+        guard opensFromServer, let path = attachment.path, !path.isEmpty else {
+            let pageable = siblings.filter { !opensFromServer || $0.attachment.path?.isEmpty != false }
             guard let index = pageable.firstIndex(where: { $0.attachment == attachment }) else {
                 let item = ChatAttachmentPreviewItem(message: attachment, localData: tapped.localData)
                 return presentAttachmentPreview([item], at: 0)
@@ -2533,7 +2536,7 @@ struct ChatView: View {
             },
             attachmentAudio: AttachmentAudioSource(
                 load: { path in await viewModel.attachmentRawData(path: path) },
-                isHost: isHermesSession,
+                isHost: isHermesSession || isSquaddThread,
                 loadKey: viewModel.attachmentLoadKey
             ),
             loadTranscriptMediaImage: { reference in
@@ -2614,6 +2617,7 @@ struct ChatView: View {
             delegatedWork: delegatedWork,
             onOpenDelegatedWork: openDelegatedWork
         )
+        .environment(viewModel.squaddTurn)
         // Off the main body chain, which is at the type-checker's limit.
         .onChange(of: viewModel.latestRunOutcome) {
             handleLatestRunOutcomeChange(viewModel.latestRunOutcome)
@@ -4559,7 +4563,8 @@ struct ChatView: View {
         editDraft = context.copyText
         editContext = context
         let messagesAfter = transcriptMessagesAfter(context)
-        if messagesAfter > 0 {
+        // A Squadd edit discards nothing: the old version stays a version away (#19).
+        if messagesAfter > 0, !isSquaddThread {
             showEditDiscardConfirmation = true
         } else {
             showEditSheet = true

@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OSLog
 import SwiftData
 
 /// What a `SquaddChatTurnCoordinator` asks of the chat beyond the shared stream delegate.
@@ -7,12 +8,43 @@ import SwiftData
 @MainActor protocol SquaddChatTurnDelegate: ChatStreamCoordinatorDelegate {
     /// Replaces the transcript with the thread's stored rows.
     func squaddReplaceTranscript(_ messages: [ChatMessage], hasOlder: Bool)
+    /// Shows the thread's cached rows, read-only and marked offline, until the next replace (#34).
+    func squaddShowCached(_ messages: [ChatMessage])
     /// Puts an older page's rows in front of the transcript.
     func squaddPrependOlder(_ messages: [ChatMessage], hasOlder: Bool)
     /// The thread couldn't be read, or the companion can't be reached; nil once it is again.
     func squaddConnectionDidChange(failure: String?)
     /// A turn began: the next reply opens a new assistant row (as a Hermes turn does).
     func hermesTurnDidStart(prompt: HermesQueuedPrompt?)
+    /// A version pick or a reaction the computer didn't take, in words for the person.
+    func squaddActionDidFail(_ message: String)
+}
+
+/// What a transcript row of a Squadd thread carries beyond its text (#19): the versions an edit
+/// made of a typed message, and the reactions on it.
+struct SquaddRowMarks: Equatable {
+    struct Versions: Equatable {
+        /// Every version's stored id, oldest first.
+        let ids: [String]
+        /// The one the thread shows, from 0.
+        let index: Int
+
+        /// The version `step` away (-1 the one before, 1 the one after), if there is one.
+        func id(_ step: Int) -> String? { ids.indices.contains(index + step) ? ids[index + step] : nil }
+    }
+
+    struct Reaction: Equatable {
+        let emoji: String
+        let count: Int
+    }
+
+    var versions: Versions?
+    /// In the order the computer offers them.
+    var reactions: [Reaction] = []
+    /// The reactions this person put on, which the menu takes off again.
+    var mine: Set<String> = []
+
+    var isEmpty: Bool { versions == nil && reactions.isEmpty }
 }
 
 /// A Squadd agent thread the main chat opens: the companion, the device token, the agent and
@@ -56,6 +88,8 @@ final class SquaddChatTurnCoordinator {
     private(set) var latestRunEnding: ChatRunEnding?
     private(set) var successfulResponseCompletion: ChatStreamCoordinator.SuccessfulResponseCompletion?
     private(set) var isReconnecting = false
+    /// Versions and reactions by on-screen row id; rows with neither are absent.
+    private(set) var marks: [String: SquaddRowMarks] = [:]
 
     @ObservationIgnored private weak var delegate: (any SquaddChatTurnDelegate)?
     @ObservationIgnored private let client: SquaddCompanionClient
@@ -64,8 +98,21 @@ final class SquaddChatTurnCoordinator {
     /// The last frame id seen: a reconnect resumes after it.
     @ObservationIgnored private var cursor: String?
     @ObservationIgnored private var hasLoaded = false
-    /// Rows of the older pages read so far, oldest first, kept across reloads of the newest page.
-    @ObservationIgnored private var olderRows: [ChatMessage] = []
+    /// The stored rows of the older pages read so far, oldest first, kept across reloads of the newest page.
+    @ObservationIgnored private var olderMessages: [SquaddMessage] = []
+    /// The newest page's stored rows, every version included.
+    @ObservationIgnored private var pageMessages: [SquaddMessage] = []
+    /// The newest row of the version the thread shows; nil from a companion that doesn't say.
+    @ObservationIgnored private var activeLeafID: String?
+    /// The rows last handed to the transcript.
+    @ObservationIgnored private var shownRows: [ChatMessage] = []
+    /// On-screen row id → its stored message id, for the actions a row offers.
+    @ObservationIgnored private var storedIDs: [String: String] = [:]
+    /// The server's offline cache (#34): every read of the newest page is kept there, and shown
+    /// when the first read fails. Set by the chat's first call that carries it.
+    @ObservationIgnored var cache: ModelContext?
+    /// The transcript on screen is the cached copy: the next connection reads it again.
+    @ObservationIgnored private var showsCache = false
     /// The oldest stored message read (its id is the next `before`), and whether more remain.
     @ObservationIgnored private var oldestID: String?
     @ObservationIgnored private var hasOlder = false
@@ -102,20 +149,50 @@ final class SquaddChatTurnCoordinator {
         await reload()
     }
 
-    /// Sends a typed message, `/goal rest` as a goal the desktop's way. Throws when the companion
-    /// didn't take it, so the chat puts it back.
-    func send(_ text: String, sendId: String, localRowID: String) async throws {
-        let outgoing = SquaddSlashCommands.outgoing(text)
+    /// A staged file a send uploads ahead of its words (#23). `id` makes a retried upload land once.
+    struct OutgoingFile {
+        let id: UUID
+        let name: String
+        let mime: String
+        let data: () async throws -> Data
+    }
+
+    /// A send's file the companion didn't take: the send stopped before its words went.
+    struct UploadFailed: Error {
+        let name: String
+        let underlying: Error
+    }
+
+    /// Uploads `files`, then sends `text` with a tag for each, `/goal rest` as a goal the desktop's
+    /// way. Throws when the companion didn't take a file (`UploadFailed`) or the message, so the
+    /// chat puts it back.
+    func send(_ text: String, files: [OutgoingFile] = [], sendId: String, localRowID: String) async throws {
+        var tags: [SquaddAttachmentTags.File] = []
+        for file in files {
+            do {
+                let stored = try await client.upload(try await file.data(), name: file.name, mime: file.mime, uploadId: file.id)
+                tags.append(.init(path: stored.path, name: stored.name ?? file.name,
+                                  isImage: SquaddCompanionClient.attachmentImageTypes.contains(file.mime)))
+            } catch {
+                throw UploadFailed(name: file.name, underlying: error)
+            }
+        }
         ownSendIDs.insert(sendId)
         do {
-            let receipt = try await client.send(outgoing.text, botId: chat.botId, threadId: chat.threadId,
-                                                sendId: sendId, mode: outgoing.mode)
+            let outgoing = SquaddSlashCommands.outgoing(text)
+            let receipt = try await client.send(SquaddAttachmentTags.compose(outgoing.text, files: tags), botId: chat.botId,
+                                                threadId: chat.threadId, sendId: sendId, mode: outgoing.mode)
             if let stored = receipt.message?.id { rowIDs[stored] = localRowID; shownIDs.insert(stored) }
         } catch {
             ownSendIDs.remove(sendId)
             throw error
         }
         if stream == nil { await activate() }
+    }
+
+    /// A stored file's bytes, for its thumbnail, its preview and the voice note player.
+    func attachmentData(path: String) async throws -> Data {
+        try await client.attachmentData(path: path)
     }
 
     /// What this thread's `/` panel offers: the built-ins the agent's engine and the computer allow,
@@ -144,27 +221,170 @@ final class SquaddChatTurnCoordinator {
             // A turn that began meanwhile keeps its streaming row; its end reloads again.
             guard activeStreamID == nil else { return }
             hasLoaded = true
+            showsCache = false
             shownIDs = Set(page.messages.map(\.id))
-            let rows = page.messages.compactMap { message -> ChatMessage? in
-                guard let row = message.chatMessage else { return nil }
-                guard let shown = rowIDs[message.id] else { return row }
-                return ChatMessage(role: row.role, content: row.content, timestamp: row.timestamp, messageId: shown)
-            }
             // Older pages stay while the new page still reaches back to where the last one began;
             // past a gap they'd sit out of order, so paging starts again from this page.
-            if olderRows.isEmpty || !page.messages.contains(where: { $0.id == newestPageStart }) {
-                olderRows = []
+            if olderMessages.isEmpty || !page.messages.contains(where: { $0.id == newestPageStart }) {
+                olderMessages = []
                 oldestID = page.messages.first?.id
                 hasOlder = page.hasMore
             }
             newestPageStart = page.messages.first?.id
+            pageMessages = page.messages
+            activeLeafID = page.activeLeafId
             delegate?.squaddConnectionDidChange(failure: nil)
-            delegate?.squaddReplaceTranscript(olderRows + rows, hasOlder: hasOlder)
+            let rows = transcriptRows(of: olderMessages + pageMessages)
+            shownRows = rows
+            delegate?.squaddReplaceTranscript(rows, hasOlder: hasOlder)
+            writeCache(rows)
         } catch is CancellationError {
         } catch {
-            delegate?.squaddConnectionDidChange(failure: Self.failureMessage(error))
+            if !hasLoaded, let cached = readCache(), !cached.isEmpty {
+                showsCache = true
+                delegate?.squaddShowCached(cached)
+            } else {
+                delegate?.squaddConnectionDidChange(failure: Self.failureMessage(error))
+            }
         }
     }
+
+    /// The rows the transcript shows of `messages`: the version the thread is on, without the rows
+    /// the v1 chat doesn't draw. Also sets each row's marks.
+    private func transcriptRows(of messages: [SquaddMessage]) -> [ChatMessage] {
+        let all = olderMessages + pageMessages
+        let path = Self.activePath(all, leaf: activeLeafID)
+        updateMarks(all, path: path)
+        return messages.compactMap { message -> ChatMessage? in
+            guard path?.contains(message.id) ?? true, let row = message.chatMessage else { return nil }
+            guard let shown = rowIDs[message.id] else { return row }
+            return ChatMessage(role: row.role, content: row.content, timestamp: row.timestamp, messageId: shown,
+                               attachments: row.attachments)
+        }
+    }
+
+    /// The ids from `leaf` up through its parents: the version the thread shows. Nil shows every row,
+    /// for a companion that names no leaf.
+    // shortcut: a leaf outside the rows read so far (a long thread switched to an old version) also
+    // shows every row read; page back to the leaf if threads that long switch versions.
+    nonisolated static func activePath(_ messages: [SquaddMessage], leaf: String?) -> Set<String>? {
+        let byID = Dictionary(messages.map { ($0.id, $0) }, uniquingKeysWith: { $1 })
+        guard let leaf, var current = byID[leaf] else { return nil }
+        var path: Set<String> = [current.id]
+        while let parent = current.parentId, let next = byID[parent], path.insert(parent).inserted {
+            current = next
+        }
+        return path
+    }
+
+    private func updateMarks(_ all: [SquaddMessage], path: Set<String>?) {
+        // The versions of a typed message are the typed rows under its parent (`transcript-derivations.ts`).
+        let versions = Dictionary(grouping: all.filter(\.isTypedUserText), by: { $0.parentId ?? "" })
+            .mapValues { $0.sorted { ($0.at ?? 0) < ($1.at ?? 0) }.map(\.id) }
+        var marks: [String: SquaddRowMarks] = [:]
+        storedIDs = [:]
+        for message in all where path?.contains(message.id) ?? true {
+            let rowID = rowIDs[message.id] ?? message.id
+            storedIDs[rowID] = message.id
+            var mark = SquaddRowMarks()
+            if message.isTypedUserText, let ids = versions[message.parentId ?? ""], ids.count > 1,
+               let index = ids.firstIndex(of: message.id) {
+                mark.versions = .init(ids: ids, index: index)
+            }
+            mark.reactions = SquaddReaction.all.compactMap { emoji -> SquaddRowMarks.Reaction? in
+                let count = message.reactions.filter { $0.emoji == emoji }.count
+                return count > 0 ? .init(emoji: emoji, count: count) : nil
+            }
+            mark.mine = Set(message.reactions.filter { $0.by == "user" }.map(\.emoji))
+            if !mark.isEmpty { marks[rowID] = mark }
+        }
+        if marks != self.marks { self.marks = marks }
+    }
+
+    /// The stored message behind an on-screen row, for the actions it offers.
+    func storedID(ofRow rowID: String) -> String? { storedIDs[rowID] }
+
+    // MARK: Versions and reactions (#19)
+
+    /// Sends `text` as a new version of the typed message on row `rowID`. Like a send, the new version
+    /// shows at once in place of the old one and what followed it; the old one stays a version away.
+    /// Throws when the computer didn't take it, after putting the transcript back.
+    func edit(rowID: String, to text: String) async throws {
+        guard let messageID = storedIDs[rowID] else { throw SquaddError.status(404) }
+        let sendId = makeSendID()
+        let localRowID = "local-\(sendId)"
+        ownSendIDs.insert(sendId)
+        let kept = Array(shownRows.prefix { $0.id != rowID })
+        let prompt = ChatMessage(role: "user", content: text, timestamp: Date().timeIntervalSince1970, messageId: localRowID)
+        delegate?.squaddReplaceTranscript(kept + [prompt], hasOlder: hasOlder)
+        do {
+            let receipt = try await client.edit(messageId: messageID, to: text, botId: chat.botId,
+                                                threadId: chat.threadId, sendId: sendId)
+            if let stored = receipt.message?.id { rowIDs[stored] = localRowID; shownIDs.insert(stored) }
+        } catch {
+            ownSendIDs.remove(sendId)
+            delegate?.squaddReplaceTranscript(shownRows, hasOlder: hasOlder)
+            throw error
+        }
+        if stream == nil { await activate() }
+    }
+
+    /// Shows the version `step` away from the one on row `rowID` (-1 before, 1 after).
+    func showVersion(_ step: Int, ofRow rowID: String) async {
+        guard activeStreamID == nil, let target = marks[rowID]?.versions?.id(step) else { return }
+        do {
+            try await client.showBranch(through: target, botId: chat.botId, threadId: chat.threadId)
+            await reload()
+        } catch {
+            delegate?.squaddActionDidFail(Self.failureMessage(error))
+        }
+    }
+
+    /// Puts `emoji` on the message on row `rowID`, or takes it off when this person already put it on.
+    func toggleReaction(_ emoji: String, onRow rowID: String) async {
+        guard let messageID = storedIDs[rowID] else { return }
+        let on = marks[rowID]?.mine.contains(emoji) != true
+        do {
+            store(try await client.react(emoji, on: on, messageId: messageID, threadId: chat.threadId))
+        } catch {
+            delegate?.squaddActionDidFail(Self.failureMessage(error))
+        }
+    }
+
+    /// Takes a changed copy of a row already read; only its marks can differ on screen.
+    private func store(_ message: SquaddMessage) {
+        if let index = pageMessages.firstIndex(where: { $0.id == message.id }) {
+            pageMessages[index] = message
+        } else if let index = olderMessages.firstIndex(where: { $0.id == message.id }) {
+            olderMessages[index] = message
+        } else {
+            return
+        }
+        let all = olderMessages + pageMessages
+        updateMarks(all, path: Self.activePath(all, leaf: activeLeafID))
+    }
+    private var cacheScope: String { CacheStore.squaddThreadScope(threadId: chat.threadId) }
+
+    private func readCache() -> [ChatMessage]? {
+        guard let cache else { return nil }
+        do {
+            return try CacheStore.cachedMessages(serverURL: chat.server, sessionID: cacheScope, in: cache)
+        } catch {
+            Self.logger.error("Squadd thread cache read failed: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
+    private func writeCache(_ rows: [ChatMessage]) {
+        guard let cache else { return }
+        do {
+            try CacheStore.cacheMessages(rows, serverURL: chat.server, sessionID: cacheScope, in: cache)
+        } catch {
+            Self.logger.error("Squadd thread cache write failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private static let logger = Logger(subsystem: "com.squaddcrm.multiagents", category: "cache")
 
     /// Reads the page before the oldest row shown and puts it in front. Returns whether rows came.
     func loadOlder() async -> Bool {
@@ -173,8 +393,9 @@ final class SquaddChatTurnCoordinator {
             while hasOlder, let before = oldestID {
                 let page = try await client.messages(threadId: chat.threadId, before: before)
                 guard oldestID == before else { return false }
-                let rows = page.messages.compactMap(\.chatMessage)
-                olderRows = rows + olderRows
+                olderMessages = page.messages + olderMessages
+                let rows = transcriptRows(of: page.messages)
+                shownRows = rows + shownRows
                 oldestID = page.messages.first?.id ?? before
                 hasOlder = page.hasMore && !page.messages.isEmpty
                 delegate?.squaddPrependOlder(rows, hasOlder: hasOlder)
@@ -246,8 +467,10 @@ final class SquaddChatTurnCoordinator {
         case .hello(let cursor, let resumed):
             // Resumed, the replay after our cursor follows (and is at most the hello's cursor).
             if !resumed { self.cursor = cursor }
+            // The computer answers again while the cached copy shows: read the real transcript.
+            if showsCache { await reload() }
             // A reconnect whose frames were lost: what they carried is in the stored transcript.
-            if !resumed, isResuming, hasLoaded {
+            else if !resumed, isResuming, hasLoaded {
                 // The turn may still run or may have ended unseen: close it quietly, and a reply
                 // that goes on rejoins as working.
                 finish(nil)
@@ -261,6 +484,7 @@ final class SquaddChatTurnCoordinator {
             streamingItemID = itemId ?? streamingItemID
             delegate?.streamCoordinatorAppendToken(text)
         case .message(let threadId, let message) where threadId == chat.threadId:
+            store(message)
             if message.role == "bot", message.itemId != nil, message.itemId == streamingItemID,
                let row = delegate?.streamCoordinatorStreamingAssistantMessageID {
                 rowIDs[message.id] = row
@@ -270,6 +494,8 @@ final class SquaddChatTurnCoordinator {
                 // A row written elsewhere, such as on the desktop, while no turn runs here.
                 await reload()
             }
+        case .activeBranch(let threadId) where threadId == chat.threadId:
+            if activeStreamID == nil { await reload() }
         case .turnCompleted(let threadId, let ok) where threadId == chat.threadId:
             finish(ok ? .completed : .failed)
             await reload()
@@ -334,11 +560,16 @@ extension SquaddChatTurnCoordinator: ChatTurnCoordinating {
     /// the reconnect resumes after the last frame seen.
     func suspendActiveStreamConnection() { stop() }
 
-    func reconnectIfNeeded(modelContext: ModelContext?) async { await activate() }
+    /// The chat reconnects as it appears, before its first load, so the cache is taken here too.
+    func reconnectIfNeeded(modelContext: ModelContext?) async {
+        if let modelContext { cache = modelContext }
+        await activate()
+    }
 
     /// A connection on the interface that went away can hang without an error, so an open
     /// stream reopens at once and resumes after the last frame seen.
     func networkPathDidChange(modelContext: ModelContext?) async {
+        if let modelContext { cache = modelContext }
         guard stream != nil else { return }
         stop()
         await activate()
