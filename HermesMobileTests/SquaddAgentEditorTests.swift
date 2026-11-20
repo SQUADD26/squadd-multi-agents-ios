@@ -156,6 +156,7 @@ final class SquaddAgentPhotoTests: XCTestCase {
         let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
         try XCTSkipIf(path == nil, "Only for photo runs")
         let dir = URL(fileURLWithPath: path!)
+        Self.start = ContinuousClock.now
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         var profileReply = (200, Self.fixture("bot-profile.json"))
         (Self.botsServed, Self.avatarsServed) = (0, 0)
@@ -230,8 +231,16 @@ final class SquaddAgentPhotoTests: XCTestCase {
 
     /// Writes `<name>.png` of what the window shows once it has drawn.
     private func shoot(_ name: String, dir: URL, until ready: () -> Bool = { true }) async throws {
-        try await readyPhoto(of: XCTUnwrap(window), until: ready).write(to: dir.appendingPathComponent("\(name).png"))
+        let t0 = ContinuousClock.now
+        var firstReady: Duration?
+        let d = try await readyPhoto(of: XCTUnwrap(window), until: { let r = ready(); if r, firstReady == nil { firstReady = ContinuousClock.now - t0 }; return r })
+        let t1 = ContinuousClock.now - t0
+        try d.write(to: dir.appendingPathComponent("\(name).png"))
+        Self.times += "\(name) ready \(firstReady.map { "\($0)" } ?? "-") photo \(t1) written \(ContinuousClock.now - t0) since start \(ContinuousClock.now - Self.start)\n"
+        try Self.times.write(to: dir.appendingPathComponent("tempi.txt"), atomically: true, encoding: .utf8)
     }
+    static var times = ""
+    static var start = ContinuousClock.now
 
     private nonisolated static func fixture(_ name: String) -> Data {
         try! Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
