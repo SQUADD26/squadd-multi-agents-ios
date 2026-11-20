@@ -59,7 +59,7 @@ struct SquaddCardInset: View {
                 detail(block.explanation)
                 button("Not now", symbol: "xmark", emphasis: .secondary) { await turn.dismissCard() }
             } else {
-                SecureField(request.placeholder ?? request.label, text: $secret)
+                SecureField(request.placeholder.flatMap { $0.isEmpty ? nil : $0 } ?? request.label, text: $secret)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .privacySensitive()

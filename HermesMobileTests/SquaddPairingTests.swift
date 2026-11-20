@@ -52,6 +52,29 @@ final class SquaddPairingTests: XCTestCase {
         XCTAssertEqual(manager.activeServer?.displayName, "Mac di prova")
     }
 
+    /// The desktop's QR carries its key for secrets (`secretKey`, built here by `phonePairingLink` at origin/dev
+    /// 961cb8133); the pairing keeps it with the device id the companion gave, and a later typed-code pairing keeps
+    /// the key while taking its new device id (#16).
+    func testQRPairingKeepsTheComputersSecretKeyAndThisDevicesId() async throws {
+        var reply = try Self.fixture("pair-qr.json")
+        SquaddHTTPFixture.handler = { _ in (201, reply) }
+        let link = try XCTUnwrap(URL(string: try String(decoding: Self.fixture("qr-link-secret.txt"), as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines)))
+        let keychain = InMemoryKeychainStore()
+        let manager = makeManager(keychain: keychain)
+        try await manager.pairSquadd(try XCTUnwrap(SquaddPairingInvite(url: link)), deviceName: "iPhone", session: session)
+
+        let key = try XCTUnwrap(Data(base64URL: "BM0QEVKFG1Dp5TP1M-tCdVCuPXhn2oeC7O-vtX2Q41BM5UY2xml1DPseNax7YgYZQdjajZ44d_VPYdo2hGVKO-A"))
+        XCTAssertEqual(SquaddSecretPairing.saved(for: computer, keychain: keychain),
+                       SquaddSecretPairing(deviceId: "88ff1d3a-615e-4edb-9c48-74e6693bf7d8", secretKey: key))
+
+        reply = Data(String(decoding: reply, as: UTF8.self)
+            .replacingOccurrences(of: "88ff1d3a-615e-4edb-9c48-74e6693bf7d8", with: "0c0e7d0e-2b5c-4a35-9a43-3b3ab3a5c111").utf8)
+        try await manager.pairSquadd(SquaddPairingInvite(server: computer, credential: "409706"), deviceName: "iPhone", session: session)
+        XCTAssertEqual(SquaddSecretPairing.saved(for: computer, keychain: keychain),
+                       SquaddSecretPairing(deviceId: "0c0e7d0e-2b5c-4a35-9a43-3b3ab3a5c111", secretKey: key))
+    }
+
     func testTypedCodeIsTheCompanionsSixDigitsAndReachesTheSameServer() throws {
         let typed = try XCTUnwrap(SquaddPairingInvite(typedAddress: " 127.0.0.1:18810 ", code: "409 706"))
         XCTAssertEqual(typed.server, computer, "typed and scanned reach one server in the list")
