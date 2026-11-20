@@ -139,9 +139,14 @@ struct SquaddCard: Decodable, Equatable {
     let dismissed: Bool?
     let expired: Bool?
     let stopped: Bool?
+    /// A question's structured set, as the engine asked it (`QuestionRequestCardData`).
+    let questionRequest: SquaddQuestionRequest?
+    /// Only the card's own options answer it: no typed reply.
+    let fixedOptions: Bool?
 
     private enum CodingKeys: String, CodingKey {
-        case title, subtitle, options, requestId, requestType, tool, allowKey, allowSession, answered, dismissed, expired, stopped
+        case title, subtitle, options, requestId, requestType, tool, allowKey, allowSession, answered, dismissed, expired, stopped,
+             questionRequest, fixedOptions
     }
 
     init(title: String? = nil, subtitle: String? = nil, options: [String] = [], requestId: String?, requestType: String?,
@@ -158,6 +163,8 @@ struct SquaddCard: Decodable, Equatable {
         dismissed = nil
         expired = nil
         stopped = nil
+        questionRequest = nil
+        fixedOptions = nil
     }
 
     init(from decoder: Decoder) throws {
@@ -174,11 +181,44 @@ struct SquaddCard: Decodable, Equatable {
         dismissed = try? container.decodeIfPresent(Bool.self, forKey: .dismissed)
         expired = try? container.decodeIfPresent(Bool.self, forKey: .expired)
         stopped = try? container.decodeIfPresent(Bool.self, forKey: .stopped)
+        questionRequest = try? container.decodeIfPresent(SquaddQuestionRequest.self, forKey: .questionRequest)
+        fixedOptions = try? container.decodeIfPresent(Bool.self, forKey: .fixedOptions)
     }
 
     /// Still waiting for an answer: a live ask nobody answered, dismissed, let expire or stopped.
     var isOpen: Bool {
         requestId != nil && answered == nil && dismissed != true && expired != true && stopped != true
+    }
+}
+
+/// The questions an agent asks in one card (`phone-protocol/src/ask-question.ts`).
+struct SquaddQuestionRequest: Decodable, Equatable {
+    let questions: [SquaddQuestion]
+}
+
+struct SquaddQuestion: Decodable, Equatable {
+    let question: String
+    let options: [Option]
+    /// `false`: only an option answers it.
+    let custom: Bool?
+
+    struct Option: Decodable, Equatable {
+        let label: String
+    }
+
+    init(question: String, options: [String], custom: Bool? = nil) {
+        self.question = question
+        self.options = options.map(Option.init)
+        self.custom = custom
+    }
+
+    private enum CodingKeys: String, CodingKey { case question, options, custom }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        question = try container.decode(String.self, forKey: .question)
+        options = (try? container.decodeIfPresent([Option].self, forKey: .options)) ?? []
+        custom = try? container.decodeIfPresent(Bool.self, forKey: .custom)
     }
 }
 

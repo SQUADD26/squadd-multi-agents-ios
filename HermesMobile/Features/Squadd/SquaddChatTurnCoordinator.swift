@@ -141,6 +141,11 @@ final class SquaddChatTurnCoordinator {
     /// Every approval still waiting here, by stored message id: answered here, on the desktop or
     /// on another phone, its card's patch takes it out.
     @ObservationIgnored private var openApprovals: [String: SquaddMessage] = [:]
+    /// The oldest question the agent waits on (#15), one of its questions at a time.
+    private(set) var pendingQuestion: SquaddPendingQuestion?
+    private(set) var isAnsweringQuestion = false
+    private(set) var questionError: String?
+    @ObservationIgnored private var openQuestions: [String: SquaddMessage] = [:]
     /// The rows of the last exchange on screen, from this person's last typed message on, which offer
     /// Undo; and whether it can go: not when that message is the thread's first (#20).
     private(set) var lastExchangeRowIDs: Set<String> = []
@@ -354,6 +359,7 @@ final class SquaddChatTurnCoordinator {
             pageMessages = page.messages
             activeLeafID = page.activeLeafId
             openApprovals = [:]
+            openQuestions = [:]
             (olderMessages + pageMessages).forEach(trackApproval)
             delegate?.squaddConnectionDidChange(failure: nil)
             let rows = transcriptRows(of: olderMessages + pageMessages)
@@ -541,7 +547,45 @@ final class SquaddChatTurnCoordinator {
         }
     }
 
+    // MARK: Questions (#15)
+
+    /// Answers the question on screen. With more questions in the card it moves to the next one; the last answer
+    /// sends them all as the desktop does, and the card leaves only once the computer took it.
+    func answerQuestion(_ answer: String) async -> Bool {
+        guard var question = pendingQuestion, !isAnsweringQuestion else { return false }
+        questionError = nil
+        question.answers.append(answer)
+        guard question.answers.count == question.questions.count else {
+            pendingQuestion = question
+            return true
+        }
+        isAnsweringQuestion = true
+        defer { isAnsweringQuestion = false }
+        do {
+            try await client.respond(threadId: chat.threadId, requestId: question.requestId, behavior: "answer",
+                                     message: question.message)
+            openQuestions[question.messageId] = nil
+            refreshPendingQuestion()
+            return true
+        } catch {
+            questionError = Self.failureMessage(error)
+            return false
+        }
+    }
+
+    private func refreshPendingQuestion() {
+        let oldest = openQuestions.values.min { ($0.at ?? 0, $0.id) < ($1.at ?? 0, $1.id) }
+        guard oldest?.id != pendingQuestion?.messageId else { return }
+        questionError = nil
+        pendingQuestion = oldest.flatMap(SquaddPendingQuestion.init)
+    }
+
     private func trackApproval(_ message: SquaddMessage) {
+        if let card = message.card, card.requestId != nil, card.requestType == "question" || card.questionRequest != nil {
+            openQuestions[message.id] = card.isOpen ? message : nil
+            refreshPendingQuestion()
+            return
+        }
         guard let card = message.card, card.requestType == "permission", card.requestId != nil else { return }
         openApprovals[message.id] = card.isOpen ? message : nil
         refreshPendingApproval()
@@ -835,5 +879,55 @@ struct SquaddPendingApproval: Equatable {
     var content: ApprovalRequestContent {
         ApprovalRequestContent(description: card.title, command: card.subtitle, scopeLine: nil, pendingCount: 1,
                                choices: choices)
+    }
+}
+
+/// A question a Squadd agent waits on, with the answers given so far to its earlier questions.
+struct SquaddPendingQuestion: Equatable {
+    let messageId: String
+    let requestId: String
+    /// The card's structured set, or its one question with the card's own options.
+    let questions: [SquaddQuestion]
+    let isStructured: Bool
+    var answers: [String] = []
+
+    init?(_ message: SquaddMessage) {
+        guard let card = message.card, let requestId = card.requestId else { return nil }
+        messageId = message.id
+        self.requestId = requestId
+        if let asked = card.questionRequest?.questions, !asked.isEmpty {
+            questions = asked
+            isStructured = true
+        } else {
+            guard let text = card.subtitle ?? card.title else { return nil }
+            questions = [SquaddQuestion(question: text, options: card.options,
+                                        custom: card.fixedOptions == true && !card.options.isEmpty ? false : nil)]
+            isStructured = false
+        }
+    }
+
+    /// The question on screen and where it stands, in the clarification card's shape.
+    var prompt: ClarificationPromptState {
+        let step = questions[answers.count]
+        return ClarificationPromptState(
+            sessionID: messageId,
+            pending: PendingClarification(clarifyId: "\(requestId)-\(answers.count)", question: step.question,
+                                          choicesOffered: step.options.map(\.label)),
+            pendingCount: questions.count - answers.count,
+            allowsTypedResponse: step.custom != false || step.options.isEmpty)
+    }
+
+    /// What `respond` sends: the desktop's `formatQuestionAnswers` for a structured set, the bare answer otherwise.
+    var message: String {
+        guard isStructured else { return answers.first ?? "" }
+        let preamble = "The user answered your questions."
+        let pairs = zip(questions, answers).map { [$0.question, $1] }
+        if pairs.joined().contains(where: { $0.contains(where: \.isNewline) }) {
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = .withoutEscapingSlashes
+            let json = (try? encoder.encode(pairs)).map { String(decoding: $0, as: UTF8.self) } ?? "[]"
+            return "\(preamble)\n\nAnswers (JSON):\n\(json)"
+        }
+        return preamble + pairs.map { "\n\nQ: \($0[0])\nA: \($0[1])" }.joined()
     }
 }

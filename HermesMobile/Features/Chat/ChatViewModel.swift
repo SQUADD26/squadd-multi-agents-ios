@@ -171,6 +171,8 @@ struct ClarificationPromptState: Equatable, Identifiable {
     let sessionID: String
     let pending: PendingClarification
     let pendingCount: Int
+    /// False where only the offered choices answer (a Squadd question with fixed options).
+    var allowsTypedResponse = true
 
     var question: String {
         pending.displayQuestion
