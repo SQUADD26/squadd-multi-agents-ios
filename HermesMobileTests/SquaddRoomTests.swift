@@ -94,6 +94,34 @@ final class SquaddRoomTests: XCTestCase {
         XCTAssertEqual(model.messages.last?.role, "user")
     }
 
+    func testAQueuedMessageCanBeRemovedBeforeItRuns() async throws {
+        let room = try roomSection()
+        let receipt = try JSONSerialization.jsonObject(with: Self.fixture("room-send-queued.json")) as? [String: Any]
+        let threadId = try XCTUnwrap(receipt?["threadId"] as? String)
+        let queueId = try XCTUnwrap(receipt?["queueId"] as? String)
+        var removed: String?
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(threadId)/messages"): return .reply(200, try! Self.fixture("room-messages.json"))
+            case ("POST", "/api/groups/\(room.id)/messages"): return .reply(202, try! Self.fixture("room-send-queued.json"))
+            // `server/routes/channels.ts`: DELETE /api/groups/:id/queue/:queueId answers {ok:true}.
+            case ("DELETE", let path?) where path.hasPrefix("/api/groups/\(room.id)/queue/"):
+                removed = request.url?.lastPathComponent
+                return .reply(200, Data(#"{"ok":true}"#.utf8))
+            default: return .hold
+            }
+        }
+        let (model, _) = makeChat(room, threadId: threadId)
+        await model.loadMessages()
+        _ = await model.send("@Ricerche e poi i prezzi")
+        let queued = try XCTUnwrap(model.queuedPromptMessages.first)
+
+        await model.cancelSquaddQueuedPrompt(queued)
+
+        XCTAssertEqual(removed, queueId, "the companion's line loses this send")
+        XCTAssertTrue(model.queuedPromptMessages.isEmpty)
+    }
+
     func testStopInterruptsTheRoomsTurn() async throws {
         let room = try roomSection()
         let receipt = try JSONSerialization.jsonObject(with: Self.fixture("room-send-queued.json")) as? [String: Any]

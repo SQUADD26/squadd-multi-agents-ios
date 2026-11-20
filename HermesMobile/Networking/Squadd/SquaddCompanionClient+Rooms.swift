@@ -20,6 +20,12 @@ extension SquaddCompanionClient {
                            body: ["threadId": threadId, "stopId": stopId])
     }
 
+    /// Takes a queued message (`queueId` from its send receipt) out of the room's line before it
+    /// runs. 404 once it has gone in.
+    func cancelQueued(roomId: String, queueId: String) async throws {
+        _ = try await call("DELETE", "api/groups/\(Self.segment(roomId))/queue/\(Self.segment(queueId))")
+    }
+
     /// Renames the room; the computer refuses a name over 100 characters.
     func renameRoom(_ roomId: String, to name: String) async throws -> SquaddRoom {
         let data = try await call("PATCH", "api/groups/\(Self.segment(roomId))", body: ["name": name])

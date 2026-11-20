@@ -148,6 +148,8 @@ struct ChatTranscriptView: View {
     /// A Hermes scheduled task's run (#1413), whose prompt rows show as `CronRunPromptCard`s.
     var isCronRun = false
     var onCopyQueuedPrompt: (String) -> Void = { _ in }
+    /// A Squadd room's queued prompts can be removed before they run (#21); nil where the host owns the queue.
+    var onRemoveQueuedPrompt: ((ChatMessage) -> Void)? = nil
     /// A Hermes chat's Send waiting for the reconnect (`ChatViewModel.waitingSendMessage`, #1407),
     /// drawn last as a pending bubble whose only action is `onCancelWaitingSend`.
     var waitingSend: ChatMessage? = nil
@@ -536,7 +538,8 @@ struct ChatTranscriptView: View {
                     .id(ChatLostTurn.rowID)
             }
             ForEach(queuedPrompts) { queuedPrompt in
-                ChatQueuedPromptRow(message: queuedPrompt, onCopy: onCopyQueuedPrompt)
+                ChatQueuedPromptRow(message: queuedPrompt, onCopy: onCopyQueuedPrompt,
+                                    onRemove: onRemoveQueuedPrompt.map { remove in { remove(queuedPrompt) } })
                     .reportsReflowFrame(queuedPrompt.id, to: scrollPositionController, layout: layout, isFollowing: isFollowing)
                     .id(queuedPrompt.id)
             }
@@ -1033,6 +1036,7 @@ struct ChatTranscriptMessageBlock: View, Equatable {
 private struct ChatQueuedPromptRow: View {
     let message: ChatMessage
     let onCopy: (String) -> Void
+    var onRemove: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 4) {
@@ -1040,8 +1044,15 @@ private struct ChatQueuedPromptRow: View {
             MessageBubbleView(message: message, transcriptMediaCacheNamespace: "", isQueued: true)
                 .accessibilityElement(children: .combine)
                 .accessibilityValue(Text("Queued"))
-            ChatMessageMetaRow(isUserMessage: true, timeText: String(localized: "Queued"),
-                               onCopy: { onCopy(message.content ?? "") })
+            HStack(spacing: 10) {
+                if let onRemove {
+                    Button("Remove", action: onRemove)
+                        .font(AppFont.caption(weight: .semibold))
+                        .chatMinimumHitTarget(horizontalPadding: 12, verticalPadding: 14, in: Rectangle())
+                }
+                ChatMessageMetaRow(isUserMessage: true, timeText: String(localized: "Queued"),
+                                   onCopy: { onCopy(message.content ?? "") })
+            }
         }
     }
 }

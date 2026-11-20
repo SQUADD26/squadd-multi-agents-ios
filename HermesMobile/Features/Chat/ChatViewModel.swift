@@ -645,6 +645,17 @@ final class ChatViewModel {
         return (hermesTurn?.queuedPrompts ?? []).map { Self.hermesPromptRow($0, id: "hermes-queued-prompt-\($0.id)", timestamp: nil) }
     }
 
+    /// Takes a busy Squadd room's queued message (a `queuedPromptMessages` row) out of the line,
+    /// as the desktop's composer does; a refusal, such as one that already went in, says why.
+    func cancelSquaddQueuedPrompt(_ row: ChatMessage) async {
+        guard let squaddTurn, let sendId = row.messageId?.replacingOccurrences(of: "squadd-queued-", with: "") else { return }
+        do {
+            try await squaddTurn.cancelQueued(sendId: sendId)
+        } catch {
+            sendErrorMessage = SquaddChatTurnCoordinator.failureMessage(error)
+        }
+    }
+
     /// A Squadd room's members for the composer's `@` panel; nil elsewhere.
     var squaddRoomMentions: BotMentions? { squaddTurn?.mentions }
 

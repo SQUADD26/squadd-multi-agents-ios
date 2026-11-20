@@ -2610,6 +2610,7 @@ struct ChatView: View {
                 UIPasteboard.general.string = text
                 ChatHaptics.copied(isEnabled: isHapticsEnabled)
             },
+            onRemoveQueuedPrompt: viewModel.isSquaddRoom ? { row in Task { await viewModel.cancelSquaddQueuedPrompt(row) } } : nil,
             waitingSend: viewModel.waitingSendMessage,
             onCancelWaitingSend: viewModel.cancelWaitingSend,
             continuity: continuity,

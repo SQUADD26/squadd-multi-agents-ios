@@ -92,6 +92,7 @@ final class SquaddChatTurnCoordinator {
     struct QueuedSend: Equatable {
         let sendId: String
         let text: String
+        let queueId: String?
     }
 
     @ObservationIgnored private weak var delegate: (any SquaddChatTurnDelegate)?
@@ -161,7 +162,7 @@ final class SquaddChatTurnCoordinator {
         }
         if let stored = receipt.message?.id { rowIDs[stored] = localRowID; shownIDs.insert(stored) }
         let queued = receipt.queued == true && receipt.message == nil
-        if queued { queuedPrompts.append(QueuedSend(sendId: sendId, text: text)) }
+        if queued { queuedPrompts.append(QueuedSend(sendId: sendId, text: text, queueId: receipt.queueId)) }
         if stream == nil { await activate() }
         return queued
     }
@@ -186,6 +187,14 @@ final class SquaddChatTurnCoordinator {
         let runsAgents = try await instances.contains { $0.instanceId == engine && $0.runsAgents }
         return (SquaddSlashCommands.scope(runsAgents: runsAgents, authorsSkills: try await authorsSkills),
                 SquaddSlashCommands.skills(try await skills))
+    }
+
+    /// Takes the queued send out of the room's line; it leaves `queuedPrompts` once the companion
+    /// confirms. Throws when it has already gone in or the companion refused.
+    func cancelQueued(sendId: String) async throws {
+        guard let room = chat.room, let queueId = queuedPrompts.first(where: { $0.sendId == sendId })?.queueId else { return }
+        try await client.cancelQueued(roomId: room.id, queueId: queueId)
+        queuedPrompts.removeAll { $0.sendId == sendId }
     }
 
     func stop() {
