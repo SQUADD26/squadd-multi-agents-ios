@@ -477,6 +477,11 @@ final class SquaddChatTests: XCTestCase {
         XCTAssertEqual(compacted, .notDelivered, "the draft stays in the composer")
         XCTAssertEqual(model.messages.map(\.messageId), shown)
         XCTAssertEqual(model.sendErrorMessage, "the bot is busy")
+        model.sendErrorMessage = nil
+        let typed = await model.send("/compact")
+        XCTAssertEqual(typed, .kept, "typed outside a running turn too, the draft stays")
+        XCTAssertEqual(model.messages.map(\.messageId), shown)
+        XCTAssertEqual(model.sendErrorMessage, "the bot is busy")
     }
 
     func testOfflineThreadShowsItsServersCachedTranscriptAndRefreshesWhenTheNetworkReturns() async throws {
