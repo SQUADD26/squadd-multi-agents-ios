@@ -139,15 +139,16 @@ final class SquaddAgentListModel {
         }
     }
 
-    /// A new, untitled thread at the top of `botId`'s list.
-    func createThread(botId: String) async -> Bool {
+    /// A new, untitled thread at the top of `botId`'s list; nil when the computer refused it.
+    @discardableResult
+    func createThread(botId: String) async -> SquaddTask? {
         do {
             let task = try await client.createTask(botId: botId)
             edit(botId) { $0.insert(task, at: 0) }
-            return true
+            return task
         } catch {
             _ = handled(error)
-            return false
+            return nil
         }
     }
 

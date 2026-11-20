@@ -125,7 +125,7 @@ final class SquaddCompanionTests: XCTestCase {
         await model.load()
         let tasks = "/api/bots/\(starter)/tasks"
 
-        let created = await model.createThread(botId: starter)
+        let created = await model.createThread(botId: starter) != nil
         let renamed = await model.rename(threadId: sugarThread, botId: starter, to: "Zucchero")
         let unpinned = await model.setPinned(false, threadId: pinnedThread, botId: starter)
         let archived = await model.setArchived(true, threadId: sugarThread, botId: starter, now: Date(timeIntervalSince1970: 2))
@@ -623,4 +623,74 @@ final class SquaddScreenPhotoTests: XCTestCase {
 @MainActor private final class StillLocked: AppLockAuthenticator {
     func capability() -> AppLockCapability { AppLockCapability(method: .faceID, hasPasscode: true) }
     func authenticate(reason: String) async -> Bool { false }
+}
+
+/// #24: a share from another app reaching a Squadd server's home.
+@MainActor
+final class SquaddShareTests: XCTestCase {
+    private let studio = URL(string: "http://share-studio.tailnet.test:8810")!
+    private let pesto = "b70a0bbd-64c1-491b-ad34-f441d52fe9f0"
+    private let created = "ad0bec87-7c36-40ca-a3ce-b5a991c6e22f"
+
+    /// The user picks Pesto for a shared note and file: a new thread of Pesto opens, its composer
+    /// holds the words and the file (staged, so they leave with Send through #23's uploads), and
+    /// the share leaves the queue once.
+    func testAShareOpensANewThreadOfTheChosenAgentWithItsWordsAndFileInTheComposer() async throws {
+        let bots = try Self.fixture("bots.json")
+        let task = try Self.fixture("task-create.json")
+        var served: [String] = []
+        SquaddHTTPFixture.handler = { [pesto] request in
+            let line = "\(request.httpMethod ?? "") \(request.url?.path ?? "")"
+            served.append(line)
+            switch line {
+            case "GET /api/bots": return (200, bots)
+            case "POST /api/bots/\(pesto)/tasks": return (201, task)
+            default: return (404, Data())
+            }
+        }
+        URLProtocol.registerClass(SquaddHTTPFixture.self)
+        defer { URLProtocol.unregisterClass(SquaddHTTPFixture.self) }
+        let keychain = InMemoryKeychainStore()
+        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(),
+                                  serverRegistry: ServerRegistry.inMemory(keychain: keychain),
+                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
+        try manager.addSquaddServer(address: studio, token: "token-share")
+        let key = ChatView.draftKey(for: SessionSummary(sessionId: created, title: "Prova A"), server: studio)
+        addTeardownBlock { @MainActor in ChatDraftStore.shared.clearDraft(for: key) }
+        let share = SharedImportReservation(
+            itemID: "share-1", reservationID: "reservation-1", createdAt: .now,
+            sharedImport: SharedImport(draft: "Leggi questo appunto", attachments: [
+                SharedAttachmentImport(filename: "appunto.txt", typeIdentifier: "public.plain-text", data: Data("ciao".utf8)),
+            ]))
+        var routed: [String] = []
+        let home = SquaddServerHome(authManager: manager, server: studio, pendingThread: .constant(nil), pendingShare: share,
+                                    didRouteShare: { routed.append($0.reservationID) }, start: .share(agentName: "Pesto"))
+        let window = UIWindow(windowScene: try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first))
+        window.rootViewController = UIHostingController(rootView: home.modelContainer(
+            try ModelContainer(for: CachedSession.self, CachedMessage.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))))
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+
+        var draft: ChatDraft?
+        let end = ContinuousClock.now + .seconds(5)
+        while ContinuousClock.now < end {
+            draft = await ChatDraftStore.shared.draft(for: key)
+            if draft?.text.isEmpty == false, draft?.attachments.isEmpty == false { break }
+            // test-wait: the chat opens, takes the share and saves its draft on its own run loop turns.
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        if let directory = ProcessInfo.processInfo.environment["FOTO_DIR"] {
+            try await readyPhoto(of: window).write(to: URL(fileURLWithPath: directory).appendingPathComponent("24-share-in-composer.png"))
+        }
+
+        XCTAssertEqual(served.filter { $0.hasPrefix("POST") }, ["POST /api/bots/\(pesto)/tasks"], "one new thread, of the agent picked")
+        XCTAssertEqual(routed, ["reservation-1"])
+        XCTAssertEqual(draft?.text, "Leggi questo appunto")
+        XCTAssertEqual(draft?.attachments.map(\.name), ["appunto.txt"])
+    }
+
+    private nonisolated static func fixture(_ name: String) throws -> Data {
+        try Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/Squadd/\(name)"))
+    }
 }

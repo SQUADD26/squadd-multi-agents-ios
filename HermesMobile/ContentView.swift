@@ -149,7 +149,9 @@ struct ContentView: View {
         case .loggedOut(let server):
             SquaddRoute(authManager: authManager, server: server, pendingThread: $pendingSquaddThread) { OnboardingView(authManager: authManager, savedServer: server) }
         case .loggedIn(let server):
-            SquaddRoute(authManager: authManager, server: server, pendingThread: $pendingSquaddThread) { SessionListView(
+            SquaddRoute(authManager: authManager, server: server, pendingThread: $pendingSquaddThread,
+                        pendingShare: shares.offered(to: server), didRouteShare: consumePendingSharedImport,
+                        didDeclineShare: releasePendingSharedImport) { SessionListView(
                 authManager: authManager,
                 server: server,
                 pendingSharedImport: Binding(get: { shares.offered(to: server) }, set: { shares.pending = $0 }),
@@ -698,7 +700,8 @@ enum MovedWebuiRoute {
 /// replaced; a Hermes home has no banner and opens each as it arrives (#1181).
 enum SharedImportGate {
     static func opensNext(afterRouting hasRouted: Bool, active: URL?, servers: [ServerAccount]) -> Bool {
-        !hasRouted || servers.first(where: { $0.id == active?.absoluteString })?.kind == .hermes
+        // A Hermes or Squadd home has no Open Next banner: it takes the next share at once.
+        !hasRouted || [.hermes, .squadd].contains(servers.first(where: { $0.id == active?.absoluteString })?.kind)
     }
 }
 
