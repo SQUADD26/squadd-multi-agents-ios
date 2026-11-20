@@ -370,7 +370,6 @@ final class SquaddScreenPhotoTests: XCTestCase {
             ("f4-archived-open", .showArchived, "GET /api/bots"),
             ("f5-delete-confirm", .act(.delete, threadTitle: "ciao zucchero"), "GET /api/bots"),
             ("f6-rename", .act(.rename, threadTitle: "ciao zucchero"), "GET /api/bots"),
-            ("f7-export-share", .act(.export, threadTitle: "ciao zucchero"), "GET /api/threads/efb8fa96-47ef-4968-bb13-ce9aacada117/export"),
         ]
         for (name, start, awaited) in steps {
             let from = served.count
@@ -379,6 +378,17 @@ final class SquaddScreenPhotoTests: XCTestCase {
             }
         }
         XCTAssertFalse(served.contains { $0.hasPrefix("DELETE") || $0.hasPrefix("PATCH") }, "showing a confirmation or a sheet changes nothing")
+
+        // The share sheet draws in another process, so the photo shows only its dimming.
+        let from = served.count
+        try await shoot("f7-export-share", SquaddServerHome(authManager: manager, server: studio, start: .act(.export, threadTitle: "ciao zucchero")),
+                        dir: dir) { served[from...].contains("GET /api/threads/efb8fa96-47ef-4968-bb13-ce9aacada117/export") }
+        XCTAssertTrue(Self.shows(UIActivityViewController.self, from: window?.rootViewController), "export opens the share sheet")
+    }
+
+    private static func shows<T: UIViewController>(_ type: T.Type, from controller: UIViewController?) -> Bool {
+        guard let controller else { return false }
+        return controller is T || controller.children.contains { shows(type, from: $0) } || shows(type, from: controller.presentedViewController)
     }
 
     private func add(_ url: URL, name: String, initials: String, color: String, token: String, to manager: AuthManager) throws {

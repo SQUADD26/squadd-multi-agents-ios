@@ -105,7 +105,8 @@ struct SquaddServerHome: View {
         }
         .sheet(isPresented: $isAddingServer) { SquaddAddServerSheet(authManager: authManager) }
         .sheet(item: $renaming) { thread in
-            SessionRenameSheet(initialTitle: SessionRowView.displayTitle(for: thread.session), isSaving: false) {
+            SessionRenameSheet(title: "Rename Thread", fieldLabel: "Thread title",
+                               initialTitle: SessionRowView.displayTitle(for: thread.session), isSaving: false) {
                 renaming = nil
             } onSave: { title in
                 renaming = nil
