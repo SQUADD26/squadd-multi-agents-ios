@@ -8,6 +8,10 @@ struct SquaddPairingInvite: Equatable, Identifiable {
     let credential: String
     /// The computer's name as the link carries it; the pairing reply's `serverName` wins.
     var name: String?
+    /// Sent as `pairRequestId` on every try of this invite: a retry after a lost reply gets the same
+    /// device back instead of `pairing_not_open`, as the code works once. Random, so knowing the code
+    /// is not enough to replay someone else's pairing.
+    let requestID = "ios-" + UUID().uuidString
 
     var id: String { server.absoluteString + credential }
 

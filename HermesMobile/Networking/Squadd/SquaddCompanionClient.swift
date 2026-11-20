@@ -95,12 +95,12 @@ struct SquaddCompanionClient {
     /// Redeems the QR's one-time credential or the six-digit code shown on the computer for a device
     /// token. Both last two minutes and work once. `replacesToken`, the token this iPhone already holds
     /// for that computer, makes the computer replace this iPhone instead of adding a second one.
-    static func pair(server: URL, credential: String, deviceName: String, replacesToken: String? = nil,
-                     session: URLSession = .shared) async throws -> SquaddPairResponse {
+    static func pair(server: URL, credential: String, deviceName: String, requestID: String,
+                     replacesToken: String? = nil, session: URLSession = .shared) async throws -> SquaddPairResponse {
         var request = URLRequest(url: server.appendingPathComponent("api/pair"))
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        var body = ["credential": credential, "deviceName": deviceName]
+        var body = ["credential": credential, "deviceName": deviceName, "pairRequestId": requestID]
         body["replacesToken"] = replacesToken
         request.httpBody = try JSONEncoder().encode(body)
         return try JSONDecoder().decode(SquaddPairResponse.self, from: await send(request, session: session))

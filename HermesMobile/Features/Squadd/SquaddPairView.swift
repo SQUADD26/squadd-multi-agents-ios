@@ -10,13 +10,16 @@ struct SquaddPairView: View {
     /// From an `openmausbot://pair` link: paired as soon as the screen appears.
     var invite: SquaddPairingInvite?
     var onPaired: () -> Void
-    @State private var camera = AVCaptureDevice.authorizationStatus(for: .video)
+    /// Read from the system; a photo test sets `.denied` to show the way to Settings.
+    @State var camera = AVCaptureDevice.authorizationStatus(for: .video)
     /// None in the simulator: then nothing asks for the camera and the code is the way in.
     private static let hasCamera = AVCaptureDevice.default(for: .video) != nil
     @State private var address = ""
     @State private var code = ""
     @State private var isPairing = false
     @State private var errorMessage: String?
+    /// The last typed invite, so a second tap on Pair after a lost reply sends the same `pairRequestId`.
+    @State private var typedInvite: SquaddPairingInvite?
 
     var body: some View {
         Form {
@@ -40,7 +43,7 @@ struct SquaddPairView: View {
                 TextField("Pairing code", text: $code, prompt: Text(verbatim: "123456"))
                     .keyboardType(.numberPad)
                     .textContentType(.oneTimeCode)
-                Button("Pair") { pair(SquaddPairingInvite(typedAddress: address, code: code)) }
+                Button("Pair") { pairTyped() }
                     .disabled(SquaddPairingInvite(typedAddress: address, code: code) == nil || isPairing)
             } header: {
                 Text("Or Enter the Code")
@@ -93,6 +96,12 @@ struct SquaddPairView: View {
             .padding()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+
+    private func pairTyped() {
+        guard let fresh = SquaddPairingInvite(typedAddress: address, code: code) else { return }
+        if typedInvite?.server != fresh.server || typedInvite?.credential != fresh.credential { typedInvite = fresh }
+        pair(typedInvite)
     }
 
     private func pair(_ invite: SquaddPairingInvite?) {

@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftData
 import SwiftUI
 import XCTest
@@ -17,9 +18,12 @@ final class SquaddPairingTests: XCTestCase {
 
     func testQRLinkPairsAndKeepsTheTokenInTheKeychain() async throws {
         var seen: URLRequest?
+        var bodies: [[String: String]] = []
         SquaddHTTPFixture.handler = { request in
             seen = request
-            return (201, try! Self.fixture("pair-qr.json"))
+            bodies.append(try! Self.body(of: request))
+            // The first reply is lost on the way, as on a weak network; the retry must be the same request.
+            return bodies.count == 1 ? (502, Data()) : (201, try! Self.fixture("pair-qr.json"))
         }
         let link = try XCTUnwrap(URL(string: try String(decoding: Self.fixture("qr-link.txt"), as: UTF8.self)
             .trimmingCharacters(in: .whitespacesAndNewlines)))
@@ -27,11 +31,19 @@ final class SquaddPairingTests: XCTestCase {
         let keychain = InMemoryKeychainStore()
         let manager = makeManager(keychain: keychain)
 
+        do {
+            try await manager.pairSquadd(invite, deviceName: "iPhone di prova", session: session)
+            XCTFail("a lost reply paired")
+        } catch {}
         try await manager.pairSquadd(invite, deviceName: "iPhone di prova", session: session)
 
+        XCTAssertEqual(bodies.count, 2)
+        XCTAssertNotNil(bodies[0]["pairRequestId"]?.range(of: #"^[A-Za-z0-9._-]{16,128}$"#, options: .regularExpression),
+                        "the companion ignores a pairRequestId outside its pattern")
+        XCTAssertEqual(bodies[1]["pairRequestId"], bodies[0]["pairRequestId"], "a retry of one invite replays, it does not spend the code twice")
         XCTAssertEqual(seen?.url, computer.appendingPathComponent("api/pair"))
         XCTAssertNil(seen?.value(forHTTPHeaderField: "Origin"))
-        let body = try Self.body(of: seen)
+        let body = try XCTUnwrap(bodies.last)
         XCTAssertEqual(body["credential"], "omb_pair_" + String(repeating: "A", count: 43))
         XCTAssertEqual(body["deviceName"], "iPhone di prova")
         XCTAssertNil(body["replacesToken"], "a first pairing replaces nothing")
@@ -189,6 +201,11 @@ final class SquaddPairingPhotoTests: XCTestCase {
         reply = (401, try SquaddPairingTests.fixture("device-limit.json"))
         Self.served = 0
         try await shoot("c-device-limit", SquaddAddServerSheet(authManager: manager, invite: invite), dir: dir) { Self.served > 0 }
+
+        // e. The camera refused: the way to Settings, and the code below.
+        try await shoot("e-camera-denied", NavigationStack {
+            SquaddPairView(authManager: manager, onPaired: {}, camera: .denied)
+        }, dir: dir) { true }
 
         // d. Paired: the computer's agents under its own name.
         reply = (201, try SquaddPairingTests.fixture("pair-qr.json"))
