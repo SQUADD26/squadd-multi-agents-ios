@@ -403,7 +403,9 @@ struct ClarificationRequestCard: View {
         VStack(alignment: .leading, spacing: 14) {
             header
             scrollableBody
-            responseField
+            if prompt.allowsTypedResponse {
+                responseField
+            }
             footer
         }
         .padding(16)
@@ -414,7 +416,9 @@ struct ClarificationRequestCard: View {
         return resolvedBodyHeight != nil
     }
 
-    private var hasMeasuredBaseContent: Bool { headerHeight != nil && responseHeight != nil && bodyContentHeight != nil }
+    private var hasMeasuredBaseContent: Bool {
+        headerHeight != nil && (responseHeight != nil || !prompt.allowsTypedResponse) && bodyContentHeight != nil
+    }
 
     private var resolvedBodyHeight: CGFloat? {
         guard let measurements else { return nil }
@@ -427,11 +431,12 @@ struct ClarificationRequestCard: View {
     }
 
     private var measurements: (fixedContentHeight: CGFloat, bodyContentHeight: CGFloat)? {
+        let responseHeight = prompt.allowsTypedResponse ? self.responseHeight : 0
         guard let headerHeight, let responseHeight, let bodyContentHeight else { return nil }
         let hasFooter = nonEmpty(errorMessage) != nil
         guard !hasFooter || footerHeight != nil else { return nil }
 
-        let visibleSectionCount = hasFooter ? 4 : 3
+        let visibleSectionCount = (hasFooter ? 4 : 3) - (prompt.allowsTypedResponse ? 0 : 1)
         let fixedContentHeight = verticalPadding
             + headerHeight
             + responseHeight

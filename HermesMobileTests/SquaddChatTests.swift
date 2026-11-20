@@ -635,6 +635,104 @@ final class SquaddChatTests: XCTestCase {
         await waitUntil("the desktop's answer takes the card away") { coordinator.pendingApproval == nil }
     }
 
+    // MARK: Questions (#15), against a question recorded from a real companion (origin/dev 961cb8133)
+
+    private let questionBot = "fcfb2fc1-153d-47b4-a0bc-5e23ff873542"
+    private let questionThread = "a0d291da-61ad-4b75-abb4-fdc3db19f630"
+
+    /// The waiting question reaches the chat's request slot with its options and, being fixed, no typed reply; a tap
+    /// answers it as the desktop does, and the card leaves once the computer took it.
+    func testQuestionReachesTheSlotAndATapAnswersItAsTheDesktopDoes() async throws {
+        let thread = questionThread
+        var answer: [String: Any] = [:]
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, try! Self.fixture("thread-question-open.json"))
+            case ("GET", _): return .hold
+            case ("POST", "/api/threads/\(thread)/respond"):
+                answer = (try? Self.json(request)) ?? [:]
+                return .reply(200, Data(#"{"ok":true,"outcome":"answered"}"#.utf8))
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, coordinator) = makeChat(bot: questionBot, thread: thread)
+        await model.loadMessages()
+        let prompt = try XCTUnwrap(ChatView.squaddQuestion(in: model), "the recorded question waits in the chat's request slot").prompt
+        XCTAssertEqual(prompt.question, "Which color?")
+        XCTAssertEqual(prompt.choices, ["Blue", "Green"])
+        XCTAssertFalse(prompt.allowsTypedResponse, "a fixed question offers no typed reply")
+
+        let answered = await coordinator.answerQuestion("Blue")
+        XCTAssertTrue(answered)
+        XCTAssertEqual(answer["requestId"] as? String, "3080de20-e9be-412a-a539-3a193e9ff60f")
+        XCTAssertEqual(answer["behavior"] as? String, "answer")
+        XCTAssertEqual(answer["message"] as? String, "The user answered your questions.\n\nQ: Which color?\nA: Blue",
+                       "the recorded desktop's answer")
+        XCTAssertNil(coordinator.pendingQuestion, "the card leaves once the computer took the answer")
+    }
+
+    /// A card with two questions asks them one after the other and sends both answers once; a refused send keeps
+    /// the last question on screen with the reason.
+    func testTwoQuestionsAreAskedInTurnAndSentOnce() async throws {
+        let page = String(decoding: try Self.fixture("thread-question-open.json"), as: UTF8.self).replacingOccurrences(
+            of: #""questions":[{"question":"Which color?","options":[{"label":"Blue"},{"label":"Green"}],"custom":false}]"#,
+            with: #""questions":[{"question":"Which color?","options":[{"label":"Blue"},{"label":"Green"}],"custom":false},{"question":"Why?","options":[]}]"#)
+        XCTAssertTrue(page.contains(#""question":"Why?""#), "the recorded card took the second question")
+        let thread = questionThread
+        var sent: [[String: Any]] = []
+        var refuse = true
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, Data(page.utf8))
+            case ("GET", _): return .hold
+            case ("POST", "/api/threads/\(thread)/respond"):
+                sent.append((try? Self.json(request)) ?? [:])
+                return refuse ? .reply(409, Data(#"{"error":"no pending request"}"#.utf8)) : .reply(200, Data(#"{"ok":true}"#.utf8))
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, coordinator) = makeChat(bot: questionBot, thread: thread)
+        await model.loadMessages()
+
+        _ = await coordinator.answerQuestion("Blue")
+        XCTAssertTrue(sent.isEmpty, "the first answer waits for the second question")
+        let second = try XCTUnwrap(ChatView.squaddQuestion(in: model)).prompt
+        XCTAssertEqual(second.question, "Why?")
+        XCTAssertTrue(second.allowsTypedResponse, "a question with no options takes a typed reply")
+
+        let refused = await coordinator.answerQuestion("It's calm")
+        XCTAssertFalse(refused)
+        XCTAssertNotNil(coordinator.questionError)
+        XCTAssertEqual(ChatView.squaddQuestion(in: model)?.prompt.question, "Why?", "a refused answer keeps the question")
+
+        refuse = false
+        let answered = await coordinator.answerQuestion("It's calm")
+        XCTAssertTrue(answered)
+        XCTAssertEqual(sent.last?["message"] as? String,
+                       "The user answered your questions.\n\nQ: Which color?\nA: Blue\n\nQ: Why?\nA: It's calm")
+        XCTAssertNil(coordinator.pendingQuestion)
+    }
+
+    /// Answered on the desktop, the question leaves the phone when its patch arrives.
+    func testQuestionAnsweredOnTheDesktopLeavesThePhone() async throws {
+        let events = try Self.text("events-question.sse")
+        let thread = questionThread
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, Data(#"{"messages":[],"hasMore":false}"#.utf8))
+            case ("GET", _): return .hold
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, coordinator) = makeChat(bot: questionBot, thread: thread)
+        await model.loadMessages()
+        let answered = try XCTUnwrap(events.range(of: "id: 1cda109b:244")).lowerBound
+        SquaddChatFixture.stream(Data(events[..<answered].utf8))
+        await waitUntil("the question shows") { coordinator.pendingQuestion != nil }
+        SquaddChatFixture.stream(Data(events[answered...].utf8))
+        await waitUntil("the desktop's answer takes the question away") { coordinator.pendingQuestion == nil }
+    }
+
     private nonisolated static func json(_ request: URLRequest) throws -> [String: Any] {
         let body = try XCTUnwrap(request.httpBody ?? request.httpBodyStream.map(read))
         return try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
@@ -1058,5 +1156,46 @@ final class SquaddApprovalPhotoTests: XCTestCase {
         }
         XCTAssertNotNil(continuity.model?.squaddTurn?.pendingApproval)
         try await readyPhoto(of: window).write(to: dir.appendingPathComponent("14-a-approval-card.png"))
+    }
+}
+
+/// The recorded question above the composer (#15). Photos only, for photo runs (`FOTO_DIR`).
+@MainActor
+final class SquaddQuestionPhotoTests: XCTestCase {
+    override func tearDown() {
+        URLProtocol.unregisterClass(SquaddChatFixture.self)
+        SquaddChatFixture.reset()
+        super.tearDown()
+    }
+
+    func testPhotoQuestionCard() async throws {
+        let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
+        try XCTSkipIf(path == nil, "Only for photo runs")
+        let dir = URL(fileURLWithPath: path!)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let page = try Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/Squadd/thread-question-open.json"))
+        SquaddChatFixture.handler = { request in
+            request.url?.path.hasSuffix("/messages") == true ? .reply(200, page) : .hold
+        }
+        URLProtocol.registerClass(SquaddChatFixture.self)
+        let chat = SquaddThreadChat(server: URL(string: "http://192.0.2.10:8810")!, token: "device-token",
+                                    botId: "fcfb2fc1-153d-47b4-a0bc-5e23ff873542",
+                                    threadId: "a0d291da-61ad-4b75-abb4-fdc3db19f630", title: "Question fixture")
+        let continuity = ChatContinuity()
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = UIHostingController(rootView: NavigationStack {
+            ChatView(session: chat.session, server: chat.server, onAPIError: { _ in }, continuity: continuity, squaddThread: chat)
+        })
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline, continuity.model?.squaddTurn?.pendingQuestion == nil {
+            // test-wait: a photo, not a check; `ChatContinuity` isn't observable.
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        XCTAssertNotNil(continuity.model?.squaddTurn?.pendingQuestion)
+        try await readyPhoto(of: window).write(to: dir.appendingPathComponent("15-a-question-card.png"))
     }
 }

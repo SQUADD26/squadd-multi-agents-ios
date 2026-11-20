@@ -1113,6 +1113,46 @@ struct ChatView: View {
         viewModel.squaddTurn?.pendingApproval
     }
 
+    /// The Squadd question the request slot shows, before any approval (#15).
+    static func squaddQuestion(in viewModel: ChatViewModel) -> SquaddPendingQuestion? {
+        viewModel.squaddTurn?.pendingQuestion
+    }
+
+    /// A Squadd agent's question (#15) in the clarification card, one of its questions at a time.
+    private func squaddQuestionInset(
+        _ question: SquaddPendingQuestion,
+        turn: SquaddChatTurnCoordinator,
+        maximumExpandedHeight: CGFloat
+    ) -> some View {
+        let prompt = question.prompt
+        return ClarificationRequestInset(
+            prompt: prompt,
+            maximumExpandedHeight: maximumExpandedHeight,
+            isResponding: turn.isAnsweringQuestion,
+            isStopping: viewModel.isCancellingStream,
+            errorMessage: turn.questionError,
+            isHapticsEnabled: isHapticsEnabled,
+            onSubmit: { answer in
+                Task {
+                    if await turn.answerQuestion(answer) {
+                        ChatHaptics.clarificationSubmitted(isEnabled: isHapticsEnabled)
+                    }
+                }
+            },
+            onStop: {
+                Task { await cancelStream() }
+            },
+            onDismissKeyboard: dismissKeyboard,
+            onFootprintChange: { height in
+                clarificationBarHeight = height
+            }
+        )
+        .id(prompt.id)
+        .padding(.horizontal, 16)
+        .padding(.bottom, composerHeight + 8)
+        .transition(ChatMotion.bottomOverlayTransition(reduceMotion: reduceMotion))
+    }
+
     /// A Squadd agent's approval (#14): the card's own choices, no Skip all.
     private func squaddApprovalInset(
         _ approval: SquaddPendingApproval,
@@ -2096,6 +2136,8 @@ struct ChatView: View {
                 .transition(ChatMotion.bottomOverlayTransition(reduceMotion: reduceMotion))
             } else if let approvalPrompt = viewModel.approvalPrompt {
                 webuiApprovalInset(approvalPrompt, maximumExpandedHeight: maximumExpandedHeight)
+            } else if let squadd = viewModel.squaddTurn, let question = Self.squaddQuestion(in: viewModel) {
+                squaddQuestionInset(question, turn: squadd, maximumExpandedHeight: maximumExpandedHeight)
             } else if let squadd = viewModel.squaddTurn, let approval = Self.squaddApproval(in: viewModel) {
                 squaddApprovalInset(approval, turn: squadd, maximumExpandedHeight: maximumExpandedHeight)
             }
@@ -2228,7 +2270,7 @@ struct ChatView: View {
     /// inset request.
     private var requestInsetID: String? {
         hermesInsetRequest?.requestID ?? viewModel.clarificationPrompt?.id ?? viewModel.approvalPrompt?.id
-            ?? Self.squaddApproval(in: viewModel)?.messageId
+            ?? Self.squaddQuestion(in: viewModel)?.prompt.id ?? Self.squaddApproval(in: viewModel)?.messageId
     }
 
     @ViewBuilder
