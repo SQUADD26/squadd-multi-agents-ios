@@ -116,8 +116,9 @@ final class SquaddChatTurnCoordinator {
         let underlying: Error
     }
 
-    /// Uploads `files`, then sends `text` with a tag for each. Throws when the companion didn't
-    /// take a file (`UploadFailed`) or the message, so the chat puts it back.
+    /// Uploads `files`, then sends `text` with a tag for each, `/goal rest` as a goal the desktop's
+    /// way. Throws when the companion didn't take a file (`UploadFailed`) or the message, so the
+    /// chat puts it back.
     func send(_ text: String, files: [OutgoingFile] = [], sendId: String, localRowID: String) async throws {
         var tags: [SquaddAttachmentTags.File] = []
         for file in files {
@@ -131,8 +132,9 @@ final class SquaddChatTurnCoordinator {
         }
         ownSendIDs.insert(sendId)
         do {
-            let receipt = try await client.send(SquaddAttachmentTags.compose(text, files: tags), botId: chat.botId,
-                                                threadId: chat.threadId, sendId: sendId)
+            let outgoing = SquaddSlashCommands.outgoing(text)
+            let receipt = try await client.send(SquaddAttachmentTags.compose(outgoing.text, files: tags), botId: chat.botId,
+                                                threadId: chat.threadId, sendId: sendId, mode: outgoing.mode)
             if let stored = receipt.message?.id { rowIDs[stored] = localRowID; shownIDs.insert(stored) }
         } catch {
             ownSendIDs.remove(sendId)
@@ -144,6 +146,19 @@ final class SquaddChatTurnCoordinator {
     /// A stored file's bytes, for its thumbnail, its preview and the voice note player.
     func attachmentData(path: String) async throws -> Data {
         try await client.attachmentData(path: path)
+    }
+
+    /// What this thread's `/` panel offers: the built-ins the agent's engine and the computer allow,
+    /// and the agent's skills as this thread sees them.
+    func slashCatalog() async throws -> (scope: SlashCommandScope, skills: [SkillSlashSuggestion]) {
+        async let skills = client.skills(botId: chat.botId, threadId: chat.threadId)
+        async let bots = client.bots()
+        async let instances = client.instances()
+        async let authorsSkills = client.authorsSkills()
+        let engine = try await bots.first { $0.id == chat.botId }?.modelSelection?.instanceId
+        let runsAgents = try await instances.contains { $0.instanceId == engine && $0.runsAgents }
+        return (SquaddSlashCommands.scope(runsAgents: runsAgents, authorsSkills: try await authorsSkills),
+                SquaddSlashCommands.skills(try await skills))
     }
 
     func stop() {

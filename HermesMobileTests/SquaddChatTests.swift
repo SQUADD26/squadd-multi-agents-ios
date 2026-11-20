@@ -223,6 +223,56 @@ final class SquaddChatTests: XCTestCase {
         }
     }
 
+    /// The `slash-*.json` fixtures are the companion's answers (openmausbot origin/dev 9e05e3a04): skills
+    /// `goal`, `meeting-notes`, `old-digest` (turned off) and `weekly-report`; an agent on the Claude
+    /// engine (`slash-bots.json`) and one on a computer with no engine yet (`slash-bots-no-engine.json`);
+    /// the settings with skill drafting on and off.
+    func testSlashPanelOffersTheDesktopsCommandsAndTheThreadsEnabledSkills() async throws {
+        let (commands, skills, query) = try await slashCatalog(bots: "slash-bots.json", config: "slash-config.json")
+
+        XCTAssertEqual(commands, ["goal", "learn", "setup", "burst"])
+        XCTAssertEqual(skills, ["meeting-notes", "weekly-report"], "neither a turned-off skill nor one named like a built-in")
+        XCTAssertEqual(query, "threadId=\(threadId)", "the skills this thread's turn sees")
+    }
+
+    func testAnAgentWithNoEngineIsOfferedOnlyTheGoal() async throws {
+        let (commands, _, _) = try await slashCatalog(bots: "slash-bots-no-engine.json", config: "slash-config.json")
+
+        XCTAssertEqual(commands, ["goal"])
+    }
+
+    func testLearnLeavesThePanelWhenTheComputerTurnsSkillDraftingOff() async throws {
+        let (commands, _, _) = try await slashCatalog(bots: "slash-bots.json", config: "slash-config-no-learn.json")
+
+        XCTAssertEqual(commands, ["goal", "setup", "burst"])
+    }
+
+    func testGoalGoesWithoutItsPrefixInGoalModeAndOtherCommandsAsTyped() async throws {
+        var bodies: [[String: String]] = []
+        let botId = botId, threadId = threadId
+        SquaddChatFixture.handler = { request in
+            // After a send the chat reloads the thread, then listens.
+            if request.url?.path == "/api/threads/\(threadId)/messages" { return .reply(200, try! Self.fixture("thread-before.json")) }
+            guard request.httpMethod == "POST", request.url?.path == "/api/bots/\(botId)/messages" else { return .hold }
+            let body = request.httpBody ?? request.httpBodyStream.map(Self.read) ?? Data()
+            bodies.append((try? JSONSerialization.jsonObject(with: body)) as? [String: String] ?? [:])
+            return .reply(202, try! Self.fixture("send-receipt.json"))
+        }
+
+        let (goalChat, _) = makeChat()
+        let empty = await goalChat.send("/goal  ")
+        XCTAssertEqual(empty, .kept, "the companion refuses an empty goal")
+        XCTAssertEqual(goalChat.sendErrorMessage, String(localized: "Write the goal after /goal."))
+        XCTAssertTrue(bodies.isEmpty)
+        let goal = await goalChat.send("/Goal ship the weekly report")
+        let (learnChat, _) = makeChat()
+        let learn = await learnChat.send("/learn the report steps")
+
+        XCTAssertEqual([goal, learn], [.started, .started])
+        XCTAssertEqual(bodies.map { $0["text"] }, ["ship the weekly report", "/learn the report steps"])
+        XCTAssertEqual(bodies.map { $0["mode"] }, ["goal", nil])
+    }
+
     func testOlderPagesComeInFrontWithTheCursorOfTheOldestRow() async throws {
         func page(_ ids: [String], kind: String = "text", hasMore: Bool) -> Data {
             let rows = ids.map { #"{"id":"\#($0)","role":"user","kind":"\#(kind)","text":"row \#($0)","at":1}"# }
@@ -405,6 +455,29 @@ final class SquaddChatTests: XCTestCase {
     }()).pngData { context in
         UIColor.red.setFill()
         context.fill(CGRect(x: 0, y: 0, width: 4, height: 4))
+    }
+
+    /// The `/` panel's built-ins and skills once the chat loaded its catalog from `bots` and `config`,
+    /// and the skills request's query.
+    private func slashCatalog(bots: String, config: String) async throws -> (commands: [String], skills: [String], query: String?) {
+        let botId = try XCTUnwrap(JSONDecoder().decode(SquaddBotList.self, from: Self.fixture(bots)).bots.first?.id)
+        var query: String?
+        SquaddChatFixture.handler = { request in
+            switch request.url?.path {
+            case "/api/bots/\(botId)/skills": query = request.url?.query; return .reply(200, try! Self.fixture("slash-skills.json"))
+            case "/api/bots": return .reply(200, try! Self.fixture(bots))
+            case "/api/instances": return .reply(200, try! Self.fixture("slash-instances.json"))
+            case "/api/config": return .reply(200, try! Self.fixture(config))
+            default: return .hold
+            }
+        }
+        let (model, _) = makeChat(bot: botId)
+
+        await model.loadSkillSlashSuggestions()
+
+        XCTAssertNil(model.lastError)
+        let scope = try XCTUnwrap(model.squaddSlashScope)
+        return (scope.offeredBuiltins.map(\.name), model.composerSkillSuggestions.map(\.name), query)
     }
 
     private func makeChat(bot: String? = nil, thread: String? = nil, copies: (any ChatDraftAttachmentStoring)? = nil,
