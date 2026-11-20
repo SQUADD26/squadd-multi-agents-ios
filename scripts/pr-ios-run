@@ -399,6 +399,12 @@ class Live:
                     pass
         quiet = dict(capture_output=True, text=True, timeout=120)
         if self.branch:
+            # A run still going would hold the Mac runner for its 25 minutes, with its secrets gone.
+            listed = subprocess.run(["gh", "run", "list", "-R", self.repo, "--branch", self.branch, "--json",
+                                     "databaseId,status", "-q", '.[]|select(.status!="completed")|.databaseId'],
+                                    **quiet)
+            for run_id in (getattr(listed, "stdout", "") or "").split():
+                subprocess.run(["gh", "run", "cancel", run_id, "-R", self.repo], **quiet)
             subprocess.run(["git", "-C", str(ROOT), "push", "-q", "origin", "--delete", f"refs/heads/{self.branch}"],
                            **quiet)
         for name in self.secrets:

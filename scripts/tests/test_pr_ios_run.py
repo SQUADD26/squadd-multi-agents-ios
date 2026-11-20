@@ -258,9 +258,14 @@ class LiveTests(unittest.TestCase):
         run.branch, run.secrets, run.gist = "foto/16-live-2", ["LIVE_16_A_LOOKUP"], "abc123"
         run.omb = (Path("/work/me/openmausbot"), run.work / "openmausbot")
         calls = []
-        with patch.object(tool.subprocess, "run", lambda cmd, **_: calls.append(cmd)):
+        def run_(cmd, **_):
+            calls.append(cmd)
+            # A live run the launcher stopped waiting for still holds the Mac runner (20/11, run 44745771963).
+            return type("Done", (), {"stdout": "44745771963\n" if cmd[:3] == ["gh", "run", "list"] else ""})()
+        with patch.object(tool.subprocess, "run", run_):
             run.close()
-        self.assertEqual(calls, [
+        self.assertEqual([c for c in calls if c[:3] != ["gh", "run", "list"]], [
+            ["gh", "run", "cancel", "44745771963", "-R", REPO],
             ["git", "-C", str(tool.ROOT), "push", "-q", "origin", "--delete", "refs/heads/foto/16-live-2"],
             ["gh", "secret", "delete", "LIVE_16_A_LOOKUP", "-R", REPO],
             ["gh", "gist", "delete", "abc123", "--yes"],
