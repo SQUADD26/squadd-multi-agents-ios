@@ -23,6 +23,23 @@ struct SquaddThreadChat: Hashable, Identifiable {
     let title: String?
 
     var id: String { threadId }
+
+    /// The session the chat view keys the thread's draft and cache on.
+    var session: SessionSummary { SessionSummary(sessionId: threadId, title: title) }
+}
+
+extension SquaddThreadChat {
+    /// Every thread under the agent headers, in the home's on-screen order: the rows the
+    /// home links and the hardware-keyboard chat shortcuts step through.
+    static func all(in sections: [SquaddAgentSection], server: URL, token: String) -> [SquaddThreadChat] {
+        sections.flatMap { section in
+            section.threads.map { SquaddThreadChat(in: section, thread: $0, server: server, token: token) }
+        }
+    }
+
+    init(in section: SquaddAgentSection, thread: SessionSummary, server: URL, token: String) {
+        self.init(server: server, token: token, botId: section.id, threadId: thread.id, title: thread.title)
+    }
 }
 
 /// Runs a Squadd thread's turns for `ChatViewModel` (#11): the transcript from

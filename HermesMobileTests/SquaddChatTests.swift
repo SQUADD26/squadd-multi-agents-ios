@@ -120,6 +120,34 @@ final class SquaddChatTests: XCTestCase {
         }
     }
 
+    func testKeyboardShortcutsStepThroughTheHomeThreadsInOnScreenOrder() throws {
+        let bots = try JSONDecoder().decode(SquaddBotList.self, from: Self.fixture("bots.json")).bots
+        let chats = SquaddThreadChat.all(in: bots.map(SquaddAgentSection.init(bot:)), server: server, token: "device-token")
+
+        XCTAssertEqual(chats.map(\.title), ["File a bug about the login screen", "Weekly menu", "hi", "New thread"])
+        XCTAssertEqual(ChatShortcutNavigation.chat(atPosition: 3, in: chats)?.botId, bots[1].id, "⌘3 opens Pesto's second thread")
+        XCTAssertEqual(ChatShortcutNavigation.adjacentChat(offset: 1, from: chats[1].id, in: chats), chats[2])
+        XCTAssertEqual(ChatShortcutNavigation.adjacentChat(offset: 1, from: chats[3].id, in: chats), chats[0], "Next wraps")
+    }
+
+    func testDraftsStayWithTheirServerAndThread() async {
+        let store = ChatDraftStore(persistence: BotMemoryDrafts(), debounceDuration: .seconds(10))
+        let other = URL(string: "http://192.0.2.11:8810")!
+        func key(_ server: URL, _ thread: String) -> ChatDraftKey {
+            let chat = SquaddThreadChat(server: server, token: "device-token", botId: botId, threadId: thread, title: nil)
+            return ChatView.draftKey(for: chat.session, server: chat.server)
+        }
+
+        store.setDraft("half a thought", for: key(server, threadId))
+
+        let otherThread = await store.draft(for: key(server, "another-thread"))
+        let otherServer = await store.draft(for: key(other, threadId))
+        let reopened = await store.draft(for: key(server, threadId))
+        XCTAssertNil(otherThread?.text)
+        XCTAssertNil(otherServer?.text)
+        XCTAssertEqual(reopened?.text, "half a thought")
+    }
+
     // MARK: - Helpers
 
     private func makeChat() -> (ChatViewModel, SquaddChatTurnCoordinator) {

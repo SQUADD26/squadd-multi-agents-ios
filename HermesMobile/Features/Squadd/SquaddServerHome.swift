@@ -34,9 +34,11 @@ struct SquaddServerHome: View {
     @State private var token = ""
     @State private var isShowingSettings = false
     @State private var isAddingServer = false
+    /// The open thread, so the keyboard's chat shortcuts know where they stand.
+    @State private var path: [SquaddThreadChat] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             AppList(rows: .plain) {
                 SessionsHeader(logoColor: HeaderLogoColor.color(for: identity.headerLogoColorHex), avatar: avatar,
                                isSearchDisabled: true, openSearch: {})
@@ -47,6 +49,7 @@ struct SquaddServerHome: View {
             .toolbar(.hidden, for: .navigationBar)
             .navigationDestination(for: SquaddThreadChat.self) { ChatView(squaddThread: $0).id($0.id) }
         }
+        .focusedSceneValue(\.hermexSceneActions, sceneActions)
         .task {
             if model == nil {
                 let token = authManager.squaddToken(for: server) ?? ""
@@ -132,8 +135,7 @@ struct SquaddServerHome: View {
                         .sessionsScreenListRow()
                 }
                 ForEach(section.threads) { thread in
-                    NavigationLink(value: SquaddThreadChat(server: server, token: token, botId: section.id,
-                                                           threadId: thread.id, title: thread.title)) {
+                    NavigationLink(value: SquaddThreadChat(in: section, thread: thread, server: server, token: token)) {
                         SessionRowView(session: thread, showsMessageCount: false, showsWorkspace: false,
                                        isUnread: section.unreadThreadIDs.contains(thread.id))
                     }
@@ -143,6 +145,30 @@ struct SquaddServerHome: View {
                 }
             }
         }
+    }
+
+    /// The hardware-keyboard commands (`HermexCommands`): ⌘1–⌘9 and Next and Previous Chat open
+    /// the home's threads; there is no New Chat or search here yet.
+    private var sceneActions: HermexSceneActions {
+        HermexSceneActions(
+            canCreateNewChat: false,
+            createNewChat: {},
+            searchSessions: {},
+            openChat: { position in
+                if let chat = ChatShortcutNavigation.chat(atPosition: position, in: keyboardShortcutChats) { path = [chat] }
+            },
+            openAdjacentChat: { offset in
+                if let chat = ChatShortcutNavigation.adjacentChat(offset: offset, from: path.last?.id, in: keyboardShortcutChats) {
+                    path = [chat]
+                }
+            }
+        )
+    }
+
+    /// Read only on a key press, never in `body`.
+    private var keyboardShortcutChats: [SquaddThreadChat] {
+        guard case .loaded(let sections) = model?.phase else { return [] }
+        return SquaddThreadChat.all(in: sections, server: server, token: token)
     }
 
     private var identity: ServerAccount {

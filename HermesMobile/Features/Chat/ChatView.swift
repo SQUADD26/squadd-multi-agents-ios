@@ -594,8 +594,7 @@ struct ChatView: View {
     /// A Squadd agent's thread (#11): the transcript, sends and the streamed reply go through the
     /// companion; the rest of the screen is the same chat.
     init(squaddThread: SquaddThreadChat) {
-        self.init(session: SessionSummary(sessionId: squaddThread.threadId, title: squaddThread.title),
-                  server: squaddThread.server, onAPIError: { _ in }, squaddThread: squaddThread)
+        self.init(session: squaddThread.session, server: squaddThread.server, onAPIError: { _ in }, squaddThread: squaddThread)
     }
 
     /// A Hermes session on its Profile (#1010). It has no webui session, so nothing here
@@ -3493,13 +3492,14 @@ struct ChatView: View {
     }
 
     private var draftKey: ChatDraftKey {
-        if let hermesDraftKey = viewModel.hermesDraftKey { return hermesDraftKey }
+        viewModel.hermesDraftKey ?? Self.draftKey(for: session, server: server)
+    }
+
+    /// A webui session's or a Squadd thread's draft key: one per server and session id.
+    static func draftKey(for session: SessionSummary, server: URL) -> ChatDraftKey {
         let normalizedSessionID = session.sessionId?.trimmingCharacters(in: .whitespacesAndNewlines)
         let sessionID = normalizedSessionID.flatMap { $0.isEmpty ? nil : $0 } ?? session.id
-        return .session(
-            server: server,
-            sessionID: sessionID
-        )
+        return .session(server: server, sessionID: sessionID)
     }
 
     /// Records a draft edit the user made, after it lands in `draftMessage`:
