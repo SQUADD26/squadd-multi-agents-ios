@@ -344,6 +344,21 @@ final class SquaddRoomDeletePhotoTests: SquaddRoomPhotoTestCase {
     }
 }
 
+/// A link to a room's thread, as a tapped room mention in the notifications sends (#32), opens the
+/// room's chat from the home (`FOTO_DIR`).
+final class SquaddRoomLinkPhotoTests: SquaddRoomPhotoTestCase {
+    func testPhotoRoomLinkOpensTheRoomChat() async throws {
+        let dir = try photoDir()
+        let list = try JSONDecoder().decode(SquaddBotList.self, from: Self.fixture("room-bots.json"))
+        let room = SquaddRoomSection(room: try XCTUnwrap(list.rooms.first), bots: list.bots)
+        let thread = try XCTUnwrap(room.threads.first { $0.title?.hasPrefix("@Scrittura") == true })
+        let link = SquaddThreadLink(threadID: thread.id, server: server)
+        try await shoot("r7-room-link-opened", SquaddServerHome(authManager: try manager(), server: server, pendingThread: .constant(link)),
+                        dir: dir) { Self.served.contains("/api/threads/\(thread.id)/messages") }
+        XCTAssertTrue(Self.served.contains("/api/threads/\(thread.id)/messages"), "the room's chat opened on its thread")
+    }
+}
+
 /// A room's chat (`FOTO_DIR`) in ChatView: each reply under the member that wrote it, and the `@`
 /// panel offering the room's members.
 final class SquaddRoomChatPhotoTests: SquaddRoomPhotoTestCase {

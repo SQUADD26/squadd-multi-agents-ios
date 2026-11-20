@@ -74,6 +74,13 @@ struct SquaddThreadLink: Hashable {
         return sections.first { $0.threadID == threadID }.map(\.headerRowID)
     }
 
+    /// The room conversation the link points at, opened as the room's chat; nil for an agent's thread.
+    func roomChat(in rooms: [SquaddRoomSection], server: URL, token: String) -> SquaddThreadChat? {
+        rooms.lazy.compactMap { room in
+            room.threads.first { $0.id == threadID }.map { SquaddThreadChat(room: room, thread: $0, server: server, token: token) }
+        }.first
+    }
+
     /// Two addresses of one server, a trailing slash aside.
     static func sameServer(_ lhs: String, _ rhs: String) -> Bool {
         func trimmed(_ value: String) -> String { value.hasSuffix("/") ? String(value.dropLast()) : value }
