@@ -1,5 +1,6 @@
 import SwiftData
 import XCTest
+import UIKit
 @testable import HermesMobile
 
 /// A Squadd agent's chat (#11) against one turn recorded from a real `openmausbot` companion
@@ -367,6 +368,133 @@ final class SquaddChatTests: XCTestCase {
 
     // MARK: - Helpers
 
+    // MARK: Files (#23), against uploads recorded from a real companion (origin/dev 9e05e3a04)
+
+    /// A photo goes to `/api/attachments`, any other file (a voice note) to `/api/files`, each with
+    /// its staged id as `uploadId`; the message then carries a tag per stored path, and the sent
+    /// row shows them.
+    func testSendUploadsEachFileToItsRouteAndTagsTheMessage() async throws {
+        var uploads: [URLRequest] = []
+        var sentText: String?
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("POST", "/api/attachments"):
+                uploads.append(request); return .reply(201, try! Self.fixture("attachment-upload.json"))
+            case ("POST", "/api/files"):
+                uploads.append(request); return .reply(201, try! Self.fixture("file-upload.json"))
+            case ("POST", let path) where path?.hasSuffix("/messages") == true:
+                let body = request.httpBody ?? request.httpBodyStream.map(Self.read)
+                sentText = (body.flatMap { try? JSONSerialization.jsonObject(with: $0) } as? [String: String])?["text"]
+                return .reply(202, try! Self.fixture("send-receipt.json"))
+            case ("GET", "/api/events"): return .hold
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, _) = makeChat(copies: BotAttachmentCopies())
+        let photo = await model.uploadAttachment(data: Self.photo, filename: "foto.png")
+        let note = await model.uploadAttachment(data: Data("RIFF....WAVEfmt ".utf8), filename: "voice-note-prova.wav")
+        XCTAssertTrue(uploads.isEmpty, "staging keeps a local copy only")
+
+        let outcome = await model.send("Ecco la foto e la nota vocale")
+
+        XCTAssertEqual(outcome, .started)
+        XCTAssertEqual(uploads.map(\.url?.path), ["/api/attachments", "/api/files"])
+        XCTAssertEqual(uploads[0].value(forHTTPHeaderField: "Content-Type"), "image/jpeg")
+        XCTAssertEqual(uploads[1].value(forHTTPHeaderField: "Content-Type"), "audio/wav", "the type the computer stores as .wav")
+        let query = uploads.map { URLComponents(url: $0.url!, resolvingAgainstBaseURL: false)?.queryItems ?? [] }
+        XCTAssertEqual(query[0].first { $0.name == "uploadId" }?.value, photo?.id.uuidString.lowercased())
+        XCTAssertEqual(query[1].first { $0.name == "uploadId" }?.value, note?.id.uuidString.lowercased())
+        XCTAssertEqual(query[1].first { $0.name == "name" }?.value, "voice-note-prova.wav")
+        let text = try XCTUnwrap(sentText)
+        XCTAssertTrue(text.hasPrefix("Ecco la foto e la nota vocale\n\n<attached-image path=\"/tmp/openmausbot-verify-data-BYYG9b/attachments/6f1c0d7e-1a2b-4c3d-8e9f-000000000023.png\""))
+        XCTAssertTrue(text.hasSuffix("<attached-file path=\"/tmp/openmausbot-verify-data-BYYG9b/attachments/6f1c0d7e-1a2b-4c3d-8e9f-000000000024.wav\" name=\"voice-note-prova.wav\" />"))
+        XCTAssertTrue(model.pendingAttachments.isEmpty, "sent files leave the composer")
+        XCTAssertEqual(model.messages.last?.attachments?.map(\.name), ["foto.jpg", "voice-note-prova.wav"])
+    }
+
+    /// A file the companion didn't store keeps the message and every file in the composer, sends
+    /// no words, and Send again uploads it under the same id, so a store that did land counts once.
+    func testFailedUploadStaysInTheComposerAndSendRetriesIt() async throws {
+        var refusesUpload = true
+        var uploadIDs: [String?] = []
+        var sends = 0
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("POST", "/api/files"):
+                uploadIDs.append(URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "uploadId" }?.value)
+                return refusesUpload ? .reply(507, Data(#"{"error":"attachment storage is full"}"#.utf8))
+                    : .reply(201, try! Self.fixture("file-upload.json"))
+            case ("POST", let path) where path?.hasSuffix("/messages") == true:
+                sends += 1; return .reply(202, try! Self.fixture("send-receipt.json"))
+            case ("GET", "/api/events"): return .hold
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, _) = makeChat(copies: BotAttachmentCopies())
+        await model.uploadAttachment(data: Data("RIFF....WAVEfmt ".utf8), filename: "voice-note-prova.wav")
+
+        let failed = await model.send("Ascolta")
+
+        XCTAssertEqual(failed, .kept, "the composer keeps the words")
+        XCTAssertEqual(model.pendingAttachments.map(\.name), ["voice-note-prova.wav"], "the file stays staged")
+        XCTAssertEqual(sends, 0, "no words go without their file")
+        XCTAssertNotNil(model.sendErrorMessage)
+        XCTAssertFalse(model.messages.contains { $0.role == "user" }, "the prompt leaves the transcript")
+
+        refusesUpload = false
+        let retried = await model.send("Ascolta")
+
+        XCTAssertEqual(retried, .started)
+        XCTAssertEqual(sends, 1)
+        XCTAssertEqual(uploadIDs.count, 2)
+        XCTAssertEqual(uploadIDs[0], uploadIDs[1], "the retry stores under the same id")
+        XCTAssertTrue(model.pendingAttachments.isEmpty)
+        XCTAssertNil(model.sendErrorMessage)
+    }
+
+    /// A stored row's tags become its attachments, its words without them; a voice note's bytes
+    /// come back in ranged reads, as the companion serves them (206 with `Content-Range`).
+    func testStoredFilesShowAsAttachmentsAndAVoiceNotePlaysFromRangedReads() async throws {
+        let note = Data((0..<(SquaddCompanionClient.attachmentChunkBytes + 2_044)).map { UInt8(truncatingIfNeeded: $0) })
+        var ranges: [String?] = []
+        let threadId = threadId
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(threadId)/messages"):
+                return .reply(200, try! Self.fixture("thread-attachments.json"))
+            case ("GET", "/api/attachments/7ea1d668-e4e9-4782-8c51-4c5a91bcd6b0.wav"):
+                let range = request.value(forHTTPHeaderField: "Range")
+                ranges.append(range)
+                let bounds = range!.dropFirst("bytes=".count).split(separator: "-").map { Int($0)! }
+                let end = min(bounds[1], note.count - 1)
+                return .reply(206, note[bounds[0]...end], headers: ["Content-Range": "bytes \(bounds[0])-\(end)/\(note.count)"])
+            default: return .hold
+            }
+        }
+        let (model, _) = makeChat()
+        await model.loadMessages()
+
+        let row = try XCTUnwrap(model.messages.first { $0.role == "user" })
+        XCTAssertEqual(row.content, "Ecco la foto e la nota vocale")
+        XCTAssertEqual(row.attachments?.map(\.name), ["foto.png", "voice-note-live.wav"])
+        XCTAssertEqual(row.attachments?.map(\.isImage), [true, false])
+        XCTAssertEqual(row.attachments?.last?.inferredIsAudio, true, "the note draws as a player")
+
+        let played = await model.attachmentRawData(path: try XCTUnwrap(row.attachments?.last?.path))
+
+        XCTAssertEqual(played, note)
+        XCTAssertEqual(ranges, ["bytes=0-\(SquaddCompanionClient.attachmentChunkBytes - 1)",
+                                "bytes=\(SquaddCompanionClient.attachmentChunkBytes)-\(2 * SquaddCompanionClient.attachmentChunkBytes - 1)"])
+    }
+
+    /// Opaque, so staging re-encodes it as JPEG, as it does a camera photo.
+    private static let photo = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4), format: {
+        let format = UIGraphicsImageRendererFormat(); format.opaque = true; return format
+    }()).pngData { context in
+        UIColor.red.setFill()
+        context.fill(CGRect(x: 0, y: 0, width: 4, height: 4))
+    }
+
     /// The `/` panel's built-ins and skills once the chat loaded its catalog from `bots` and `config`,
     /// and the skills request's query.
     private func slashCatalog(bots: String, config: String) async throws -> (commands: [String], skills: [String], query: String?) {
@@ -391,6 +519,7 @@ final class SquaddChatTests: XCTestCase {
     }
 
     private func makeChat(server: URL? = nil, bot: String? = nil, thread: String? = nil, retrying: XCTestExpectation? = nil,
+                          copies: (any ChatDraftAttachmentStoring)? = nil,
                           reconnectDelay: @escaping ChatStreamReconnectDelay = { _ in try await Task.sleep(for: .seconds(3600)) })
         -> (ChatViewModel, SquaddChatTurnCoordinator) {
         let configuration = URLSessionConfiguration.ephemeral
@@ -404,8 +533,11 @@ final class SquaddChatTests: XCTestCase {
                                                         try await reconnectDelay(delay)
                                                     })
         addTeardownBlock { coordinator.stop() }
-        let model = ChatViewModel(session: SessionSummary(sessionId: threadId, title: "Prova"), server: server,
-                                  streamingRevealTick: {}, backend: .squadd(coordinator))
+        let model = copies.map {
+            ChatViewModel(session: SessionSummary(sessionId: threadId, title: "Prova"), server: server,
+                          streamingRevealTick: {}, draftAttachmentStore: $0, backend: .squadd(coordinator))
+        } ?? ChatViewModel(session: SessionSummary(sessionId: threadId, title: "Prova"), server: server,
+                           streamingRevealTick: {}, backend: .squadd(coordinator))
         return (model, coordinator)
     }
 
@@ -455,7 +587,9 @@ final class SquaddChatTests: XCTestCase {
 /// A companion that answers at once, or holds a request until the test answers it or streams
 /// into it, the way `/api/events` stays open.
 final class SquaddChatFixture: URLProtocol {
-    enum Answer { case reply(Int, Data), hold, offline }
+    enum Answer {
+        case reply(Int, Data, headers: [String: String] = [:]), hold, offline
+    }
 
     nonisolated(unsafe) static var handler: ((URLRequest) -> Answer)?
     nonisolated(unsafe) private static var held: [SquaddChatFixture] = []
@@ -495,8 +629,8 @@ final class SquaddChatFixture: URLProtocol {
 
     override func startLoading() {
         switch Self.handler?(request) ?? .hold {
-        case .reply(let status, let data):
-            respond(status: status)
+        case .reply(let status, let data, let headers):
+            respond(status: status, headers: headers)
             client?.urlProtocol(self, didLoad: data)
             client?.urlProtocolDidFinishLoading(self)
         case .offline:
@@ -512,10 +646,11 @@ final class SquaddChatFixture: URLProtocol {
         Self.lock.withLock { Self.held.removeAll { $0 === self } }
     }
 
-    private func respond(status: Int) {
+    private func respond(status: Int, headers: [String: String] = [:]) {
         // Without a Content-Type URLSession holds the first 512 bytes to sniff one, so a lone small frame never arrives.
         let type = request.url?.path == "/api/events" ? "text/event-stream" : "application/json"
-        let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: ["Content-Type": type])!
+        let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil,
+                                       headerFields: ["Content-Type": type].merging(headers) { $1 })!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
     }
 }
