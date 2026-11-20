@@ -30,7 +30,7 @@
 		</dict>
 		<dict>
 			<key>CFBundleURLName</key>
-			<string>$(PRODUCT_BUNDLE_IDENTIFIER).thread</string>
+			<string>$(PRODUCT_BUNDLE_IDENTIFIER).pair</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>openmausbot</string>
