@@ -6239,11 +6239,12 @@ final class ChatViewModel {
         }
     }
 
-    /// `/branch` and `/fork` in a Squadd thread, the commands Hermes chats have (#20); nil for any
-    /// other text, which goes to the agent as typed.
+    /// `/branch`, `/fork` and `/undo` in a Squadd thread, the commands Hermes chats have (#20); nil for
+    /// any other text, which goes to the agent as typed.
     func runSquaddSlashCommand(_ draft: String) async -> SlashCommandExecutionResult? {
-        guard let squaddTurn, let parsed = SlashCommandExecutor.parse(draft),
-              SquaddSlashCommands.forkNames.contains(parsed.name.lowercased()) else { return nil }
+        guard let squaddTurn, let parsed = SlashCommandExecutor.parse(draft) else { return nil }
+        if parsed.name.lowercased() == "undo" { return await undoSquaddExchange(on: squaddTurn) }
+        guard SquaddSlashCommands.forkNames.contains(parsed.name.lowercased()) else { return nil }
         if let refusal = squaddForkRefusal { return notDelivered(refusal) }
         isForkingMessage = true
         sendErrorMessage = nil
@@ -6253,6 +6254,20 @@ final class ChatViewModel {
         } catch {
             return notDelivered(SquaddChatTurnCoordinator.failureMessage(error))
         }
+    }
+
+    /// `/undo`: the thread back to before the last typed message. A thread whose first message is the
+    /// last typed one has nothing to undo, which the app says without asking the computer.
+    private func undoSquaddExchange(on squadd: SquaddChatTurnCoordinator) async -> SlashCommandExecutionResult {
+        if isViewingCachedData { return .unsupported(friendlyMessage: String(localized: "Reconnect to the server to undo messages.")) }
+        if activeStreamID != nil {
+            return .unsupported(friendlyMessage: String(localized: "Wait for the current response to finish before undoing messages."))
+        }
+        guard squadd.canUndo else { return .unsupported(friendlyMessage: String(localized: "Nothing to undo in this conversation.")) }
+        isUndoingExchange = true
+        defer { isUndoingExchange = false }
+        await squadd.undoLastExchange()
+        return .executed(message: nil)
     }
 
     /// Why a fork can't start now: the companion forks only a thread at rest.
