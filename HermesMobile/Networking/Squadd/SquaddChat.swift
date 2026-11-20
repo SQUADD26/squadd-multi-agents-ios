@@ -393,6 +393,44 @@ extension SquaddCompanionClient {
     }
 }
 
+// MARK: - Listen (#25)
+
+extension SquaddCompanionClient {
+    private struct Prepared: Decodable {
+        let ready: Bool
+        let utterances: [String]
+    }
+
+    /// A reply read aloud in the computer's own voice, one clip per utterance, each with a file
+    /// name its type opens by: `POST /api/tts/prepare` cleans the text (secrets redacted, markdown
+    /// dropped) and splits it into utterances of 500 characters at most, `POST /api/tts/speak`
+    /// voices each. Nil when the computer has no voice set up.
+    func speech(for text: String) async throws -> [(data: Data, filename: String)]? {
+        var prepare = authorized("api/tts/prepare")
+        prepare.httpMethod = "POST"
+        prepare.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        prepare.httpBody = try JSONEncoder().encode(["text": text])
+        let prepared = try JSONDecoder().decode(Prepared.self, from: await Self.send(prepare, session: session))
+        guard prepared.ready, !prepared.utterances.isEmpty else { return nil }
+        var clips: [(data: Data, filename: String)] = []
+        for utterance in prepared.utterances {
+            try Task.checkCancellation()
+            var speak = authorized("api/tts/speak")
+            speak.httpMethod = "POST"
+            speak.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            speak.setValue(nil, forHTTPHeaderField: "Origin")
+            speak.httpBody = try JSONEncoder().encode(["text": utterance])
+            let (data, response) = try await session.data(for: speak)
+            guard let http = response as? HTTPURLResponse else { throw SquaddError.invalidResponse }
+            guard http.statusCode != 401 else { throw SquaddError.unpaired }
+            guard http.statusCode == 200 else { throw SquaddError.status(http.statusCode) }
+            let mp3 = http.value(forHTTPHeaderField: "Content-Type")?.hasPrefix("audio/mp") == true
+            clips.append((data, "clip\(clips.count).\(mp3 ? "mp3" : "wav")"))
+        }
+        return clips
+    }
+}
+
 /// The tags a Squadd message carries its files in, as the desktop's composer writes them
 /// (`composeMessage`, `src/lib/composer-attachments.ts`): one per file after the text, each in its
 /// own paragraph, the path and name quoted with `&`, `"`, `<`, `>`, tab and line breaks escaped.
