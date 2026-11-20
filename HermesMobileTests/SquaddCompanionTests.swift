@@ -509,7 +509,9 @@ final class SquaddScreenPhotoTests: XCTestCase {
         // A confirmation or a sheet from the last shot leaves with its screen.
         window.rootViewController?.presentedViewController?.dismiss(animated: false)
         window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
+        let start = ContinuousClock.now
         try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
+        print("FOTO-TEMPO \(name) \(ContinuousClock.now - start)")
     }
 
     private nonisolated static func fixture(_ name: String) throws -> Data {
