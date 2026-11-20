@@ -38,7 +38,6 @@ struct SquaddSecretCard: Decodable, Equatable {
 /// in the place it works (`place`: `browser`, `vm`, `cloud` or `local`). A sign-in made on this iPhone would
 /// not reach that browser (`sign-in-request.ts`), so the phone says where and takes Done or Cancel.
 struct SquaddSignInCard: Decodable, Equatable {
-    let url: String?
     let site: String
     let place: String?
     let reason: String?

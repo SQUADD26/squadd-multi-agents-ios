@@ -324,10 +324,10 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         let connectorCard = try await settle(seconds: 30) { ChatView.squaddCard(in: connectorModel) }
         note("connector card: \(connectorCard.map { "\($0.kind)" } ?? "none")")
         try await readyPhoto(of: connectorWindow).write(to: folder.appendingPathComponent("16-g-live-connector-card.png"))
-        let link = await connectorTurn.connectorLink()
+        // The sheet the Connect button opens; the person signing in there is what the companion's broker stands for.
+        var link: URL?
+        await connectorTurn.connect { link = $0 }
         note("sign-in link: \(link?.absoluteString ?? "none"), error: \(connectorTurn.cardError ?? "none")")
-        // The browser sheet would show the link; the person signing in there is what the companion's broker stands for.
-        await connectorTurn.checkConnector()
         let left = try await settle(seconds: 30) { connectorTurn.pendingCard == nil ? true : nil }
         note("after the check: error \(connectorTurn.cardError ?? "none"), card \(left == true ? "gone" : "still there")")
         try await readyPhoto(of: connectorWindow).write(to: folder.appendingPathComponent("16-h-live-after-connect.png"))

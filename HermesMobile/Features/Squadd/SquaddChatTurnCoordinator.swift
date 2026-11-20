@@ -1,3 +1,4 @@
+import AuthenticationServices
 import Foundation
 import Observation
 import OSLog
@@ -658,8 +659,22 @@ final class SquaddChatTurnCoordinator {
         }
     }
 
-    /// The connector card's sign-in page, to open in the browser sheet.
-    func connectorLink() async -> URL? {
+    /// Shows the service's sign-in in `authenticate` (the browser sheet) and, once the sheet closes, asks the computer
+    /// whether the service is connected. The link names no return to this app, so the person closing the sheet is the
+    /// usual end; a sheet that fails to open says so on the card and checks nothing.
+    func connect(_ authenticate: (URL) async throws -> Void) async {
+        guard let link = await connectorLink() else { return }
+        do {
+            try await authenticate(link)
+        } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+        } catch {
+            cardError = Self.failureMessage(error)
+            return
+        }
+        await checkConnector()
+    }
+
+    private func connectorLink() async -> URL? {
         guard let card = pendingCard, case .connector = card.kind, !isAnsweringCard else { return nil }
         isAnsweringCard = true
         cardError = nil
@@ -675,7 +690,7 @@ final class SquaddChatTurnCoordinator {
 
     /// After the browser sheet closed: the computer checks the service and updates the card, whose patch shows
     /// Continue once it is connected. Still not connected says so on the card.
-    func checkConnector() async {
+    private func checkConnector() async {
         guard let card = pendingCard, case .connector = card.kind else { return }
         do {
             let connected = try await client.connectorCardStatus(botId: card.botId ?? chat.botId, threadId: chat.threadId,

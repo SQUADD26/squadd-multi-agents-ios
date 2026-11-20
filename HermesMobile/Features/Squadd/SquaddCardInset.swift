@@ -127,7 +127,13 @@ struct SquaddCardInset: View {
                     button("Continue", symbol: "arrow.right", emphasis: .primary) { await turn.resumeConnector() }
                 } else {
                     Button {
-                        Task { await connect() }
+                        Task {
+                            await turn.connect { link in
+                                _ = try await webAuthenticationSession.authenticate(
+                                    using: link, callback: .customScheme("squadd-multi-agents"),
+                                    preferredBrowserSession: .shared, additionalHeaderFields: [:])
+                            }
+                        }
                     } label: {
                         Label("Connect", systemImage: "link").frame(maxWidth: .infinity)
                     }
@@ -136,16 +142,6 @@ struct SquaddCardInset: View {
                 }
             }
         }
-    }
-
-    /// Shows the service's sign-in and, once the sheet closes however it closed, asks the computer whether the
-    /// service is connected: the link names no return to this app, so the sheet's closing is the only signal.
-    private func connect() async {
-        guard let link = await turn.connectorLink() else { return }
-        _ = try? await webAuthenticationSession.authenticate(
-            using: link, callback: .customScheme("squadd-multi-agents"),
-            preferredBrowserSession: .shared, additionalHeaderFields: [:])
-        await turn.checkConnector()
     }
 
     // MARK: Parts

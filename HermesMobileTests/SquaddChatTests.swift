@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 import SwiftData
 import XCTest
@@ -933,10 +934,12 @@ final class SquaddChatTests: XCTestCase {
         await model.loadMessages()
         XCTAssertNotNil(ChatView.squaddCard(in: model), "the recorded connector card waits in the chat's request slot")
 
-        let link = await coordinator.connectorLink()
-        XCTAssertEqual(link, URL(string: "https://connect.composio.dev/link/fixture-gmail"))
-        await coordinator.checkConnector()
-        XCTAssertEqual(asked, ["authorize", "status threadId=\(thread)"])
+        // The person closes the sheet: the link never comes back to the app.
+        await coordinator.connect { link in
+            asked.append("sheet \(link)")
+            throw ASWebAuthenticationSessionError(.canceledLogin)
+        }
+        XCTAssertEqual(asked, ["authorize", "sheet https://connect.composio.dev/link/fixture-gmail", "status threadId=\(thread)"])
         XCTAssertNil(coordinator.cardError)
         let resumed = try XCTUnwrap(events.range(of: "id: dacb845f:182")).lowerBound
         SquaddChatFixture.stream(Data(events[..<resumed].utf8))
@@ -953,6 +956,75 @@ final class SquaddChatTests: XCTestCase {
         XCTAssertTrue(dismissed)
         XCTAssertEqual(asked.last, "dismiss")
         XCTAssertNil(ChatView.squaddCard(in: otherModel))
+    }
+
+    /// A sheet that can't open says so on the card, and nothing asks the computer about a sign-in that never showed.
+    func testAConnectorSheetThatFailsToOpenSaysSo() async throws {
+        let bot = "f6231aa0-f288-48a7-80b6-c9e5567f21a2", thread = "c9b197de-4cf9-4332-8401-de64297a1efa"
+        let card = "/api/bots/\(bot)/connector-cards/f48243be-58ec-4e88-b07d-308124a9c167"
+        var asked: [String] = []
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, try! Self.fixture("thread-connector-open.json"))
+            case ("POST", card + "/authorize"): return .reply(200, Data(#"{"url":"https://connect.composio.dev/link/fixture-gmail"}"#.utf8))
+            case ("GET", card + "/status"):
+                asked.append("status")
+                return .reply(200, Data(#"{"connected":true}"#.utf8))
+            case ("GET", _): return .hold
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, coordinator) = makeChat(bot: bot, thread: thread)
+        await model.loadMessages()
+        await coordinator.connect { _ in throw ASWebAuthenticationSessionError(.presentationContextInvalid) }
+        XCTAssertNotNil(coordinator.cardError)
+        XCTAssertEqual(asked, [])
+        XCTAssertNotNil(ChatView.squaddCard(in: model), "the card stays to try again")
+    }
+
+    /// The typed secret leaves the field the moment it is sent, and a refusal doesn't bring it back or keep it.
+    func testTheTypedSecretLeavesTheFieldOnSendEvenWhenRefused() async throws {
+        let thread = secretThread, path = "/api/bots/\(secretBot)/secret-cards/\(secretMessage)/provide"
+        var posts = 0
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, try! Self.fixture("thread-secret-open.json"))
+            case ("GET", _): return .hold
+            case ("POST", path):
+                posts += 1
+                return .reply(409, Data(#"{"error":"The computer could not save it."}"#.utf8))
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, coordinator) = makeChat(server: hosted, bot: secretBot, thread: thread)
+        coordinator.secretPairing = {
+            SquaddSecretPairing(deviceId: "81fc5c68-67d2-4cb3-816b-3f8ef798bb71", secretKey: P256.KeyAgreement.PrivateKey().publicKey.x963Representation)
+        }
+        await model.loadMessages()
+        let card = try XCTUnwrap(ChatView.squaddCard(in: model))
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = UIHostingController(rootView: SquaddCardInset(
+            card: card, turn: coordinator, maximumExpandedHeight: 700, onFootprintChange: { _ in }))
+        window.makeKeyAndVisible()
+        addTeardownBlock { window.isHidden = true }
+        window.layoutIfNeeded()
+        let secure = try XCTUnwrap(Self.secureField(in: window), "the card shows its secure field")
+        secure.text = "wx-typed-key"
+        secure.sendActions(for: .editingChanged)
+        _ = secure.delegate?.textFieldShouldReturn?(secure)
+
+        await waitUntil("the computer refused it") { coordinator.cardError != nil }
+        XCTAssertEqual(posts, 1, "the typed secret was sent")
+        window.layoutIfNeeded()
+        XCTAssertEqual(Self.secureField(in: window)?.text, "", "the field is empty")
+        XCTAssertFalse(coordinator.cardError?.contains("wx-typed-key") ?? true)
+        XCTAssertFalse("\(String(describing: coordinator.pendingCard))".contains("wx-typed-key"))
+    }
+
+    private static func secureField(in view: UIView) -> UITextField? {
+        if let field = view as? UITextField, field.isSecureTextEntry { return field }
+        return view.subviews.lazy.compactMap { secureField(in: $0) }.first
     }
 
     /// Opens a sealed secret as the computer does, with `key`.
