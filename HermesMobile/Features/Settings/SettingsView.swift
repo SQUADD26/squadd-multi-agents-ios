@@ -118,8 +118,10 @@ struct SettingsView: View {
         .listStyle(.insetGrouped)
         .themedPageBackground()
         .navigationTitle("Settings")
-        .onAppear {
-            isPushOn = PushRegistrar.shared?.pairing(for: server) != nil
+        .task {
+            isPushOn = authManager.kind(of: server) == .squadd
+                ? await SquaddPushRegistrar.shared.isEnabled(for: server)?.isRegistered == true
+                : PushRegistrar.shared?.pairing(for: server) != nil
         }
         .sheet(isPresented: $isPresentingAddServer) {
             AddServerView(authManager: authManager)
