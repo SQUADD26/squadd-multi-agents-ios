@@ -89,9 +89,13 @@ def repository():
 
 
 def find_run(repo, branch, sha, workflow=WORKFLOW):
-    runs = json.loads(sh("gh", "run", "list", "-R", repo, "--branch", branch, "--workflow", workflow,
-                         "-L", "20", "--json", "databaseId,headSha,status,conclusion") or "[]")
-    return next((run for run in runs if run["headSha"] == sha), None)
+    """`workflow` is a file on dev, or the name of a workflow only the branch has: `--workflow` finds a file
+    only on the default branch (HTTP 404 for the live one)."""
+    by_file = workflow.endswith(".yml")
+    runs = json.loads(sh("gh", "run", "list", "-R", repo, "--branch", branch, *(["--workflow", workflow] * by_file),
+                         "-L", "20", "--json", "databaseId,headSha,status,conclusion,workflowName") or "[]")
+    return next((run for run in runs if run["headSha"] == sha and (by_file or run.get("workflowName") == workflow)),
+                None)
 
 
 def wait_run(repo, branch, sha, workflow=WORKFLOW, cap_minutes=CAP_MINUTES):
@@ -380,7 +384,7 @@ class Live:
         sha = git("commit-tree", tree, "-p", "HEAD", "-m", f"foto({self.issue}): live run of {test}").strip()
         git("push", "-q", "origin", f"{sha}:refs/heads/{branch}")
         self.branch = branch
-        return branch, sha, Path(path).name
+        return branch, sha, f"Foto {self.issue} live"
 
     def close(self):
         self.stopping.set()

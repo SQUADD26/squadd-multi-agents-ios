@@ -33,13 +33,13 @@ def main(repo, sha):
     if not hosted:
         return 0
     for _ in range(10):  # a push creates all its runs within seconds
-        runs = json.loads(gh("run", "list", "-R", repo, "--commit", sha, "--json", "databaseId,path,status"))
-        mine = [run for run in runs if run["path"].split("@")[0] in hosted and run["status"] != "completed"]
+        runs = json.loads(gh("api", f"repos/{repo}/actions/runs?head_sha={sha}", "--jq", "[.workflow_runs[] | {id, path, status}]"))
+        mine = [run for run in runs if run["path"] in hosted and run["status"] != "completed"]
         if mine:
             break
         time.sleep(3)
     for run in mine:
-        gh("run", "cancel", str(run["databaseId"]), "-R", repo)
+        gh("run", "cancel", str(run["id"]), "-R", repo)
     print(f"::error::{', '.join(hosted)} runs on a hosted macOS runner, which builds from scratch (#67: 40 minutes): "
           "cancelled. Tests and red rows: PR iOS and scripts/pr-ios-run red; the real app against a companion: "
           "scripts/pr-ios-run live.")
