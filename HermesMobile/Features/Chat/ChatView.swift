@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 import SwiftData
 import UIKit
@@ -647,10 +648,11 @@ struct ChatView: View {
             isSending: viewModel.isStartingChat || viewModel.isSendingVoiceNote || viewModel.isHermesSubmissionUncertain
                 || viewModel.isUndoingExchange || viewModel.hermesRequests?.answeringRequestID != nil
                 || viewModel.isCachedCopyProvisional
-                // Squadd has no Stop yet (its own ticket): Send stays held until the turn ends.
-                || isSquaddThread && viewModel.activeStreamID != nil,
+                // An agent's Squadd thread has no Stop yet (its own ticket): Send stays held until the
+                // turn ends. A room has Stop, and queues what is sent meanwhile (#21).
+                || isSquaddThread && !viewModel.isSquaddRoom && viewModel.activeStreamID != nil,
             isCompressingSession: viewModel.isCompressingSession,
-            isWaitingForStream: viewModel.activeStreamID != nil && !isSquaddThread,
+            isWaitingForStream: viewModel.activeStreamID != nil && (!isSquaddThread || viewModel.isSquaddRoom),
             isCancellingStream: viewModel.isCancellingStream,
             // Offline the draft stays editable and Send waits for the reconnect (#1375); a Hermes
             // chat's plain-text Send waits as the transcript's waiting bubble (#1407).
@@ -702,7 +704,7 @@ struct ChatView: View {
             server: server,
             searchFilePaths: viewModel.offersFilePathSearch ? { await viewModel.searchFilePaths($0) } : nil,
             chipFilePaths: viewModel.fileChipPaths,
-            botMentions: viewModel.hermesBotChat?.mentions,
+            botMentions: viewModel.hermesBotChat?.mentions ?? viewModel.squaddRoomMentions,
             mentionAvatars: viewModel.hermesBotChat?.settings.avatars ?? [:],
             filePathSearch: viewModel.filePathSearch,
             uploadAttachmentErrorMessage: viewModel.uploadAttachmentErrorMessage,
@@ -712,6 +714,7 @@ struct ChatView: View {
                 }
             },
             streamingSendBehavior: StreamingSendBehavior.storedValue(streamingSendBehaviorRawValue),
+            offersSendChoices: !viewModel.isSquaddRoom,
             onSend: { behavior in
                 Task { await sendDraftMessage(behavior: behavior) }
             },
@@ -872,7 +875,8 @@ struct ChatView: View {
             showsNewChatControls: showsNewChatControls,
             uploadsAttachmentsOnSend: isHermesSession,
             onCancelAttachmentUpload: viewModel.isSendingAttachments ? { viewModel.cancelAttachmentUpload() } : nil,
-            hermesTranscriber: hermesTranscriber
+            hermesTranscriber: hermesTranscriber,
+            dictatesOnDevice: viewModel.dictatesOnDevice
         )
         // The composer flips wholesale with the transcript under the RTL
         // toggle (#259): input, placeholder, and chrome mirror together.
@@ -1217,6 +1221,11 @@ struct ChatView: View {
             }
             .onChange(of: scenePhase) {
                 handleScenePhaseChange(scenePhase)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: AVAudioSession.interruptionNotification)) { note in
+                // A call or another app taking the audio.
+                guard (note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt) == AVAudioSession.InterruptionType.began.rawValue else { return }
+                viewModel.stopSquaddListening()
             }
             .onChange(of: NetworkPathMonitor.shared.changeCount) {
                 handleNetworkPathChange()
@@ -2616,6 +2625,7 @@ struct ChatView: View {
                 UIPasteboard.general.string = text
                 ChatHaptics.copied(isEnabled: isHapticsEnabled)
             },
+            onRemoveQueuedPrompt: viewModel.isSquaddRoom ? { row in Task { await viewModel.cancelSquaddQueuedPrompt(row) } } : nil,
             waitingSend: viewModel.waitingSendMessage,
             onCancelWaitingSend: viewModel.cancelWaitingSend,
             continuity: continuity,
@@ -4175,6 +4185,7 @@ struct ChatView: View {
 
         switch phase {
         case .background:
+            viewModel.stopSquaddListening()
             if isHermesSession {
                 // The app closes the gateway socket in the background (#902); the turn
                 // runs on, and returning reattaches to it.

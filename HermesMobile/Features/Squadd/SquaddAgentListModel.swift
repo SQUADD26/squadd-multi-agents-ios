@@ -64,6 +64,37 @@ struct SquaddAgentSection: Identifiable, Equatable {
     }
 }
 
+/// A room in the Squadd home (#21): its name and its conversations as session rows, newest
+/// first as the desktop lists them, with the members `@` reaches in each.
+struct SquaddRoomSection: Identifiable, Equatable {
+    let id: String
+    let name: String
+    let isBusy: Bool
+    let threads: [SessionSummary]
+    let unreadThreadIDs: Set<String>
+    let members: [SquaddRoomChat.Member]
+
+    init(room: SquaddRoom, bots: [SquaddBot]) {
+        id = room.id
+        let name = room.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        self.name = name.isEmpty ? String(localized: "Unnamed Group Chat") : name
+        isBusy = room.working == true
+        let tasks = SquaddTask.desktopOrder(room.tasks).filter { !$0.isArchived }
+        threads = tasks.map {
+            SessionSummary(sessionId: $0.threadId, title: $0.title, updatedAt: $0.updatedAt.map { $0 / 1000 },
+                           pinned: $0.pinned, isStreaming: $0.busy)
+        }
+        unreadThreadIDs = Set(tasks.filter { $0.unread == true }.map(\.threadId))
+        let names = Dictionary(bots.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
+        members = room.memberIds.compactMap { id in
+            guard let name = names[id] ?? nil, !name.isEmpty else { return nil }
+            return SquaddRoomChat.Member(id: id, name: name)
+        }
+    }
+
+    var headerRowID: String { "room-\(id)" }
+}
+
 /// The Squadd home's screen state for one server. Built per server (the logged-in tree is keyed
 /// by it), so one companion's agents never show under another.
 ///
@@ -84,9 +115,12 @@ final class SquaddAgentListModel {
     private(set) var phase: Phase = .loading
     /// Matches for the last query; nil while no query is active.
     private(set) var searchHits: [SquaddSearchHit]?
+    /// The rooms, below the agents; set with `phase`.
+    private(set) var rooms: [SquaddRoomSection] = []
     /// The agents on screen are the cached copy, not the computer's answer.
     private(set) var isShowingCache = false
     @ObservationIgnored private var bots: [SquaddBot] = []
+    @ObservationIgnored private var roomList: [SquaddRoom] = []
     @ObservationIgnored private let client: SquaddCompanionClient
     @ObservationIgnored private let onUnpaired: () -> Void
     @ObservationIgnored private let cache: ModelContext?
@@ -107,7 +141,9 @@ final class SquaddAgentListModel {
 
     func load() async {
         do {
-            bots = try await client.bots()
+            let list = try await client.botList()
+            bots = list.bots
+            roomList = list.rooms
             isShowingCache = false
             publish()
         } catch {
@@ -238,6 +274,58 @@ final class SquaddAgentListModel {
         }
     }
 
+    // MARK: Rooms
+
+    /// Renames the room at once and puts the old name back when the computer refuses.
+    func renameRoom(_ roomId: String, to name: String) async -> Bool {
+        guard let index = roomList.firstIndex(where: { $0.id == roomId }) else { return false }
+        let before = roomList[index].name
+        editRoom(roomId) { $0.name = name }
+        do {
+            _ = try await client.renameRoom(roomId, to: name)
+            return true
+        } catch {
+            editRoom(roomId) { $0.name = before }
+            _ = handled(error)
+            return false
+        }
+    }
+
+    /// Deletes the room on the computer; the row leaves at once and comes back if refused.
+    /// Returns nil when deleted, else what to tell the person (a working room is refused).
+    func deleteRoom(_ roomId: String) async -> String? {
+        guard let index = roomList.firstIndex(where: { $0.id == roomId }) else { return nil }
+        let removed = roomList.remove(at: index)
+        publish()
+        do {
+            try await client.deleteRoom(roomId)
+            return nil
+        } catch {
+            roomList.insert(removed, at: min(index, roomList.count))
+            publish()
+            guard handled(error) else { return nil }
+            return SquaddChatTurnCoordinator.failureMessage(error)
+        }
+    }
+
+    /// A new, empty conversation at the top of the room; waits for the computer's answer.
+    func createRoomThread(_ roomId: String) async -> Bool {
+        do {
+            let room = try await client.createRoomTask(roomId)
+            editRoom(roomId) { $0.tasks = room.tasks }
+            return true
+        } catch {
+            _ = handled(error)
+            return false
+        }
+    }
+
+    private func editRoom(_ roomId: String, _ update: (inout SquaddRoom) -> Void) {
+        guard let index = roomList.firstIndex(where: { $0.id == roomId }) else { return }
+        update(&roomList[index])
+        publish()
+    }
+
     /// Searches every conversation's messages; an empty query ends the search. False when the
     /// search failed: the last results stay, since an empty list would say nothing matched.
     func search(_ query: String) async -> Bool {
@@ -307,6 +395,7 @@ final class SquaddAgentListModel {
     }
 
     private func publish() {
+        rooms = roomList.map { SquaddRoomSection(room: $0, bots: bots) }
         phase = .loaded(bots.map(SquaddAgentSection.init(bot:)))
         guard !isShowingCache, let cache else { return }
         do {
