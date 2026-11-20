@@ -113,7 +113,7 @@ final class SquaddThreadLinkTests: XCTestCase {
 
 /// Photographs a thread link opening in the real `ContentView`, through the same deep-link path
 /// Siri and Shortcuts take, with the companion played back from the recordings: a link to a thread
-/// on the inactive computer, one to a deleted thread, and one to a computer never paired (photos
+/// on the inactive computer, one to a deleted thread, and one to a computer never paired, all in one window (photos
 /// only when `FOTO_DIR` is set, `TEST_RUNNER_FOTO_DIR`); and a link queued before the app appears.
 @MainActor
 final class SquaddThreadLinkPhotoTests: XCTestCase {
@@ -136,7 +136,7 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         let dir = URL(fileURLWithPath: path!)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let manager = try twoPairedComputers()
-        var router = try host(manager)
+        let router = try host(manager)
 
         // a. A link to Pesto's "hi" thread on the Mac Studio, with the MacBook active: the app
         // switches computer, reads its agents and marks the thread.
@@ -149,13 +149,12 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         }
         XCTAssertEqual(manager.state, .loggedIn(server: studio))
 
-        // b. A thread deleted on the computer. Each alert gets a fresh app window.
-        router = try host(manager)
+        // b. A thread deleted on the computer, in the same window: the link clears the mark.
         router.requestDeepLink(SquaddThreadLink(threadID: "deleted-thread", server: studio).url)
         try await shoot("f2-thread-not-found", dir: dir) { self.window?.rootViewController?.presentedViewController != nil }
 
-        // c. A computer this iPhone never paired.
-        router = try host(manager)
+        // c. A computer this iPhone never paired, once the alert above is gone.
+        await window?.rootViewController?.dismiss(animated: false)
         router.requestDeepLink(SquaddThreadLink(threadID: "t", server: URL(string: "http://other.tailnet.test:8810")!).url)
         try await shoot("f3-computer-not-paired", dir: dir) { self.window?.rootViewController?.presentedViewController != nil }
         XCTAssertEqual(manager.state, .loggedIn(server: studio), "a link to an unpaired computer switches nothing")
