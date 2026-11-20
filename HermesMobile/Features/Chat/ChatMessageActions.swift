@@ -69,6 +69,14 @@ extension ChatMessageActionItem {
                                      isEnabled: isEnabled && squadd.canUndo,
                                      perform: { Task { await squadd.undoLastExchange() } })
     }
+
+    /// What a Squadd thread adds to row `rowID`'s long-press menu: React, then Undo on the last exchange.
+    @MainActor
+    static func squaddRowItems(ofRow rowID: String, in squadd: SquaddChatTurnCoordinator,
+                               isViewingCachedData: Bool, hasActiveStream: Bool) -> [ChatMessageActionItem] {
+        [squaddReactions(ofRow: rowID, in: squadd, isEnabled: !isViewingCachedData),
+         squaddUndo(ofRow: rowID, in: squadd, isEnabled: !isViewingCachedData && !hasActiveStream)].compactMap { $0 }
+    }
 }
 
 /// The long-press menu is built from the item list alone, so any transcript

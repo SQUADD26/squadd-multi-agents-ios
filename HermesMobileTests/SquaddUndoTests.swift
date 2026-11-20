@@ -26,15 +26,16 @@ final class SquaddUndoTests: XCTestCase {
         SquaddChatFixture.handler = Self.answer(undo)
         let (model, squadd) = makeChat(Self.threadId)
         await model.loadMessages()
-        XCTAssertNil(ChatMessageActionItem.squaddUndo(ofRow: Self.firstReply, in: squadd, isEnabled: true), "only the last exchange offers it")
-        let item = try XCTUnwrap(ChatMessageActionItem.squaddUndo(ofRow: Self.secondReply, in: squadd, isEnabled: true))
+        XCTAssertNil(Self.undoInMenu(ofRow: Self.firstReply, squadd), "only the last exchange offers it")
+        let item = try XCTUnwrap(Self.undoInMenu(ofRow: Self.secondReply, squadd))
         XCTAssertTrue(item.isEnabled)
+        XCTAssertEqual(Self.undoInMenu(ofRow: Self.secondReply, squadd, hasActiveStream: true)?.isEnabled, false, "off while a reply streams")
 
         item.perform()
         await waitUntil("the second exchange is off screen") { !model.messages.contains { $0.messageId == Self.secondPrompt } }
         XCTAssertEqual(try XCTUnwrap(undo.request.flatMap(SquaddVersionsTests.body))["threadId"] as? String, Self.threadId)
         XCTAssertTrue(model.messages.contains { $0.messageId == Self.firstReply }, "the first exchange stays")
-        XCTAssertNotNil(ChatMessageActionItem.squaddUndo(ofRow: Self.firstReply, in: squadd, isEnabled: true), "the one before is next")
+        XCTAssertNotNil(Self.undoInMenu(ofRow: Self.firstReply, squadd), "the one before is next")
     }
 
     func testUndoIsOffWhenThePersonsMessageBeganTheThread() async throws {
@@ -42,7 +43,7 @@ final class SquaddUndoTests: XCTestCase {
         SquaddChatFixture.handler = Self.answer(undo)
         let (model, squadd) = makeChat(Self.rootThreadId)
         await model.loadMessages()
-        let item = try XCTUnwrap(ChatMessageActionItem.squaddUndo(ofRow: Self.rootPrompt, in: squadd, isEnabled: true))
+        let item = try XCTUnwrap(Self.undoInMenu(ofRow: Self.rootPrompt, squadd))
         XCTAssertFalse(item.isEnabled, "the menu shows Undo off")
 
         let result = await model.runSquaddSlashCommand("/undo")
@@ -51,6 +52,12 @@ final class SquaddUndoTests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// Undo in the list the row hands its long-press menu.
+    static func undoInMenu(ofRow rowID: String, _ squadd: SquaddChatTurnCoordinator, hasActiveStream: Bool = false) -> ChatMessageActionItem? {
+        ChatMessageActionItem.squaddRowItems(ofRow: rowID, in: squadd, isViewingCachedData: false, hasActiveStream: hasActiveStream)
+            .first { $0.kind == .undo }
+    }
 
     /// Answers both threads; the first thread reads as undone once `undo-exchange` came.
     static func answer(_ undo: SquaddForkTests.Recorded) -> (URLRequest) -> SquaddChatFixture.Answer {
