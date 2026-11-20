@@ -8,7 +8,7 @@
 #
 # It runs on every push to a branch of this repo, so a PR to dev shows the result of its head commit, often before
 # it is opened; a push event also starts ~5 s sooner than a pull_request one. A branch with an open PR to dev runs
-# on either runner (label `squadd-multi-ios-pr`); any other branch (rosso/*, foto/*, an issue before its PR) only
+# on either runner (label `squadd-multi-ios-pr`); any other branch (rosso/*, an issue before its PR) only
 # on runner 2 (`squadd-multi-ios-senza-pr`), so the trial runs never queue a PR. Runner 1 carries no other label:
 # a workflow still asking for the old `squadd-multi-ios-shared` (a branch that hasn't merged dev, the Foto live
 # ones) also lands on runner 2. A rosso/* run only shows a test failing: it

@@ -163,9 +163,9 @@ The XCTests open a tapped payload directly. A photo of a banner delivered by
 `simctl push`, and of the thread a real tap opens, needs the simulator itself.
 #30 found the way in six 30-minute runs on the hosted `xcode-27` runner. The
 working job is `.github/workflows/foto-simulatore.yml` with `ci/foto/` on the
-never-merged branch `foto/30-push-3` (run 44681321290): copy it to
-`foto/<issue>-push` and push it once per PR, as for a live run
-(`live-companion.md`).
+never-merged branch `foto/30-push-3` (run 44681321290). `Runner guard` now
+cancels a push workflow on hosted macOS, so that job runs again only on the
+Mac runners, a port not yet tried.
 
 - **Permission.** `SquaddPushPhotoTests/testPrepareTheSimulatorForARealPush`
   (`TEST_RUNNER_PUSH_REAL=1`) asks for notification permission and pairs the
