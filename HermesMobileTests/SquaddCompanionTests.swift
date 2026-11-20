@@ -450,7 +450,7 @@ final class SquaddScreenPhotoTests: XCTestCase {
             ("f4-archived-open", .showArchived, "GET /api/bots"),
             ("f5-delete-confirm", .act(.delete, threadTitle: "ciao zucchero"), "GET /api/bots"),
             ("f6-rename", .act(.rename, threadTitle: "ciao zucchero"), "GET /api/bots"),
-            ("f7-export-share", .act(.export, threadTitle: "ciao zucchero"), "GET /api/threads/\(sugarThread)/export"),
+            ("f7-export-share", .act(.export, threadTitle: "ciao zucchero"), "GET /api/threads/efb8fa96-47ef-4968-bb13-ce9aacada117/export"),
             ("g2-new-folder", .newFolder, "GET /api/bots"),
             ("g3-delete-folder-confirm", .deleteFolder("Clienti"), "GET /api/bots"),
         ]
@@ -493,11 +493,7 @@ final class SquaddScreenPhotoTests: XCTestCase {
         }
         check(100)
         await fulfillment(of: [landed], timeout: 10)
-        try await Task.sleep(for: .seconds(1)) // test-wait: lets the reply draw before the shot; a photo for review, never an assertion
-        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
-            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-        }
-        try XCTUnwrap(image.pngData()).write(to: dir.appendingPathComponent("\(name).png"))
+        try await readyPhoto(of: window).write(to: dir.appendingPathComponent("\(name).png"))
     }
 
     private nonisolated static func fixture(_ name: String) throws -> Data {

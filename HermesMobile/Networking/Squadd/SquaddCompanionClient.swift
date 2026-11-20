@@ -64,30 +64,13 @@ struct SquaddCompanionClient {
 
     /// Message matches across every conversation this phone can see.
     func search(_ query: String) async throws -> [SquaddSearchHit] {
-        var components = URLComponents(url: server.appendingPathComponent("api/search"), resolvingAgainstBaseURL: false)!
-        components.queryItems = [URLQueryItem(name: "q", value: query)]
-        let data = try await call("GET", components.url!)
+        let data = try await call("GET", "api/search?q=\(Self.segment(query))")
         return try JSONDecoder().decode(SquaddSearchResponse.self, from: data).hits
     }
 
     /// A thread's visible conversation as Markdown, the desktop's own export.
     func exportMarkdown(threadId: String) async throws -> Data {
         try await call("GET", "api/threads/\(threadId)/export")
-    }
-
-    private func call(_ method: String, _ path: String, body: [String: Any]? = nil) async throws -> Data {
-        try await call(method, server.appendingPathComponent(path), body: body)
-    }
-
-    private func call(_ method: String, _ url: URL, body: [String: Any]? = nil) async throws -> Data {
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        if let body {
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        }
-        return try await Self.send(request, session: session)
     }
 
     /// The computer's engines and their models, for the agent model picker.
@@ -161,7 +144,7 @@ struct SquaddCompanionClient {
     }
 
     /// `reportsRefusal` turns a refusal that names its reason into `.refused`; pairing keeps the bare status.
-    private static func send(_ request: URLRequest, session: URLSession, reportsRefusal: Bool = false) async throws -> Data {
+    static func send(_ request: URLRequest, session: URLSession, reportsRefusal: Bool = false) async throws -> Data {
         var request = request
         request.setValue(nil, forHTTPHeaderField: "Origin")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
