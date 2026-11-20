@@ -51,7 +51,8 @@ class FakeWorld:
                     state = timeline[min(seen, len(timeline) - 1)]
                     if state:
                         sha_runs.append({"databaseId": state[0], "headSha": sha,
-                                         "status": state[1], "conclusion": state[2]})
+                                         "status": state[1], "conclusion": state[2],
+                                         **dict(zip(("createdAt", "updatedAt"), state[3:]))})
                 return json.dumps(sha_runs)
             if cmd[1:3] == ("run", "view"):
                 return self.logs.get(int(cmd[3]), "")
@@ -144,6 +145,54 @@ class WaitTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("run 11 failure", out)
         self.assertIn("HermesMobileTests/SquaddNotificationsTests.swift:59: error", out)
+
+    def test_a_run_cancelled_by_a_newer_push_names_the_run_to_wait_for(self):
+        # #122 L2155: a merge pushed to the branch cancelled its own run; "cancelled" alone sent the session to the log.
+        world = FakeWorld(runs={SHA["route"]: [(11, "completed", "cancelled", "2026-11-20T09:30:46Z",
+                                                 "2026-11-20T09:31:58Z")],
+                                SHA["link"]: [(12, "in_progress", "", "2026-11-20T09:31:55Z", "2026-11-20T09:32:10Z")]})
+        code, out, _ = world.run(["wait", "claude/relay-e2e", SHA["route"]])
+        self.assertEqual(code, 1)
+        self.assertIn("cancelled by a newer push to claude/relay-e2e: run 12 of bbbbbbb", out)
+
+    def test_a_run_cancelled_by_its_timeout_names_the_classes_that_never_ended(self):
+        # #122 L2298-L2354: SquaddE2ETests hung on a quadratic hex() until timeout-minutes; six calls to find it.
+        log = "\n".join(f"job\tstep\t2026-11-20T09:34:03Z {line}" for line in [
+            "Tests of the touched files:",
+            "-only-testing:HermesMobileTests/SquaddSettingsTests",
+            "-only-testing:HermesMobileTests/SquaddE2ETests",
+            "-only-testing:HermesMobileTests/SquaddRouteTests",
+            "Test Suite 'SquaddSettingsTests' passed at 2026-11-20 11:35:03.633.",
+            "Test Suite 'SquaddRouteTests' failed at 2026-11-20 11:35:04.100.",
+            "##[error]The operation was canceled."])
+        # The real runs of #122: 44711340082 hit the timeout at 09:32:55, the session pushed again at 09:33:50.
+        world = FakeWorld(runs={SHA["route"]: [(11, "completed", "cancelled", "2026-11-20T09:30:46Z",
+                                                 "2026-11-20T09:32:55Z")],
+                                SHA["link"]: [(12, "in_progress", "", "2026-11-20T09:33:50Z", "2026-11-20T09:34:01Z")]},
+                          logs={11: log})
+        code, out, _ = world.run(["wait", "claude/relay-e2e", SHA["route"]])
+        self.assertEqual(code, 1)
+        self.assertIn("the job hit its timeout-minutes", out)
+        self.assertNotIn("cancelled by a newer push", out)
+        self.assertIn("never ended (a hung class holds back the output of its simulator): SquaddE2ETests\n", out)
+
+    def test_a_test_case_started_and_never_ended_is_named(self):
+        # With the hung simulator's lines in the log, the case itself is named, not every class of that simulator.
+        log = "\n".join(f"job\tstep\t2026-11-20T09:34:03Z {line}" for line in [
+            "-only-testing:HermesMobileTests/SquaddE2ETests",
+            "-only-testing:HermesMobileTests/SquaddRouteTests",
+            "Test Case '-[HermesMobileTests.SquaddE2ETests testDerivationsAndPointsMatchTheVectors]' started.",
+            "Test Case '-[HermesMobileTests.SquaddE2ETests testDerivationsAndPointsMatchTheVectors]' passed (0.010 seconds).",
+            "Test Case '-[HermesMobileTests.SquaddRouteTests testRealRouteToACompanion]' started.",
+            "Test Case '-[HermesMobileTests.SquaddRouteTests testRealRouteToACompanion]' skipped (0.000 seconds).",
+            "Test Case '-[HermesMobileTests.SquaddE2ETests testHandshakeMatchesTheVectors]' started.",
+            "##[error]The operation was canceled."])
+        world = FakeWorld(runs={SHA["route"]: [(11, "completed", "cancelled", "2026-11-20T09:30:46Z",
+                                                 "2026-11-20T09:32:55Z")]}, logs={11: log})
+        code, out, _ = world.run(["wait", "claude/relay-e2e", SHA["route"]])
+        self.assertEqual(code, 1)
+        self.assertIn("started and never ended: SquaddE2ETests.testHandshakeMatchesTheVectors\n", out)
+        self.assertNotIn("SquaddRouteTests", out)  # a skipped case ends too (#122 run 44711340082)
 
 
 if __name__ == "__main__":
