@@ -1103,6 +1103,41 @@ struct ChatView: View {
         .transition(ChatMotion.bottomOverlayTransition(reduceMotion: reduceMotion))
     }
 
+    /// A Squadd agent's approval (#14): the card's own choices, no Skip all.
+    private func squaddApprovalInset(
+        _ approval: SquaddPendingApproval,
+        turn: SquaddChatTurnCoordinator,
+        maximumExpandedHeight: CGFloat
+    ) -> some View {
+        ApprovalRequestInset(
+            content: approval.content,
+            maximumExpandedHeight: maximumExpandedHeight,
+            isResponding: turn.isAnsweringApproval,
+            isStopping: viewModel.isCancellingStream,
+            errorMessage: turn.approvalError,
+            isHapticsEnabled: isHapticsEnabled,
+            onChoice: { choice in
+                Task {
+                    if await turn.answerApproval(choice) {
+                        ChatHaptics.approvalSubmitted(choice, isEnabled: isHapticsEnabled)
+                    }
+                }
+            },
+            onSkipAll: nil,
+            onStop: {
+                Task { await cancelStream() }
+            },
+            onDismissKeyboard: dismissKeyboard,
+            onFootprintChange: { height in
+                clarificationBarHeight = height
+            }
+        )
+        .id(approval.messageId)
+        .padding(.horizontal, 16)
+        .padding(.bottom, composerHeight + 8)
+        .transition(ChatMotion.bottomOverlayTransition(reduceMotion: reduceMotion))
+    }
+
     /// A Hermes session's approval (#1011, #1584): only the host's choices, each answered once,
     /// and Skip all, which turns the session's bypass on and releases this approval.
     private func hermesApprovalInset(
@@ -2051,6 +2086,8 @@ struct ChatView: View {
                 .transition(ChatMotion.bottomOverlayTransition(reduceMotion: reduceMotion))
             } else if let approvalPrompt = viewModel.approvalPrompt {
                 webuiApprovalInset(approvalPrompt, maximumExpandedHeight: maximumExpandedHeight)
+            } else if let squadd = viewModel.squaddTurn, let approval = squadd.pendingApproval {
+                squaddApprovalInset(approval, turn: squadd, maximumExpandedHeight: maximumExpandedHeight)
             }
         }
         .zIndex(9)
@@ -2181,6 +2218,7 @@ struct ChatView: View {
     /// inset request.
     private var requestInsetID: String? {
         hermesInsetRequest?.requestID ?? viewModel.clarificationPrompt?.id ?? viewModel.approvalPrompt?.id
+            ?? viewModel.squaddTurn?.pendingApproval?.messageId
     }
 
     @ViewBuilder
