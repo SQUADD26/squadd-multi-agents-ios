@@ -8,6 +8,12 @@ extension SquaddCompanionClient {
         try SquaddKeyStatus.statuses(fromConfig: await call("GET", "api/config"))
     }
 
+    /// Whether the computer lets agents draft skills (`features.skillAuthoring`, on unless turned off).
+    func authorsSkills() async throws -> Bool {
+        struct Config: Decodable { struct Features: Decodable { let skillAuthoring: Bool? }; let features: Features? }
+        return try JSONDecoder().decode(Config.self, from: await call("GET", "api/config")).features?.skillAuthoring != false
+    }
+
     func engines() async throws -> [SquaddEngine] {
         try JSONDecoder().decode(SquaddEngineList.self, from: await call("GET", "api/instances?fresh=1")).instances
     }

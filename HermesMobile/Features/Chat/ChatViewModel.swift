@@ -1525,7 +1525,9 @@ final class ChatViewModel {
                 guard let self else { return }
                 do {
                     if let squadd = self.squaddTurn {
-                        self.applySkillSlashSuggestions(try await squadd.slashSkills())
+                        let catalog = try await squadd.slashCatalog()
+                        self.squaddSlashScope = catalog.scope
+                        self.applySkillSlashSuggestions(catalog.skills)
                     } else {
                         let response = try await self.client.skills()
                         self.applySkillSlashSuggestions(
@@ -4607,6 +4609,9 @@ final class ChatViewModel {
     }
 
     // MARK: Hermes slash commands
+
+    /// The built-ins a Squadd thread's `/` panel offers, once its catalog loaded.
+    private(set) var squaddSlashScope: SlashCommandScope?
 
     /// The host's slash commands in a Hermes chat (#1036); nil on webui.
     var hermesSlashCommands: HermesSlashCommands? { hermesTurn?.slashCommands }

@@ -833,7 +833,10 @@ struct ChatView: View {
                 Task { await gitAvailabilityViewModel.loadBranches() }
             },
             showsSessionControls: !isHermesSession && !isSquaddThread,
-            slashScope: isSquaddThread ? SquaddSlashCommands.scope : viewModel.hermesSlashCommands?.scope ?? .webui,
+            // A Squadd thread offers `/goal` alone until its catalog says what the agent can run.
+            slashScope: isSquaddThread
+                ? viewModel.squaddSlashScope ?? SquaddSlashCommands.scope(runsAgents: false, authorsSkills: false)
+                : viewModel.hermesSlashCommands?.scope ?? .webui,
             hostSlashCompletion: viewModel.hermesSlashCommands?.completion,
             onCompleteHostSlashArgument: { text in
                 await viewModel.hermesSlashCommands?.complete(text)

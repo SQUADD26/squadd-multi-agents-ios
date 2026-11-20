@@ -120,23 +120,28 @@ final class SquaddChatTests: XCTestCase {
         }
     }
 
-    /// `slash-skills.json` is the companion's answer (openmausbot origin/dev 9e05e3a04) for an agent
-    /// with skills `goal`, `meeting-notes`, `old-digest` (turned off) and `weekly-report`.
-    func testSlashPanelOffersTheThreadsEnabledSkillsButNotOneNamedLikeABuiltIn() async throws {
-        let botId = botId
-        var query: String?
-        SquaddChatFixture.handler = { request in
-            guard request.httpMethod == "GET", request.url?.path == "/api/bots/\(botId)/skills" else { return .hold }
-            query = request.url?.query
-            return .reply(200, try! Self.fixture("slash-skills.json"))
-        }
-        let (model, _) = makeChat()
+    /// The `slash-*.json` fixtures are the companion's answers (openmausbot origin/dev 9e05e3a04): skills
+    /// `goal`, `meeting-notes`, `old-digest` (turned off) and `weekly-report`; an agent on the Claude
+    /// engine (`slash-bots.json`) and one on a computer with no engine yet (`slash-bots-no-engine.json`);
+    /// the settings with skill drafting on and off.
+    func testSlashPanelOffersTheDesktopsCommandsAndTheThreadsEnabledSkills() async throws {
+        let (commands, skills, query) = try await slashCatalog(bots: "slash-bots.json", config: "slash-config.json")
 
-        await model.loadSkillSlashSuggestions()
-
+        XCTAssertEqual(commands, ["goal", "learn", "setup", "burst"])
+        XCTAssertEqual(skills, ["meeting-notes", "weekly-report"], "neither a turned-off skill nor one named like a built-in")
         XCTAssertEqual(query, "threadId=\(threadId)", "the skills this thread's turn sees")
-        XCTAssertEqual(model.composerSkillSuggestions.map(\.name), ["meeting-notes", "weekly-report"])
-        XCTAssertTrue(model.hasLoadedSkillSlashSuggestions)
+    }
+
+    func testAnAgentWithNoEngineIsOfferedOnlyTheGoal() async throws {
+        let (commands, _, _) = try await slashCatalog(bots: "slash-bots-no-engine.json", config: "slash-config.json")
+
+        XCTAssertEqual(commands, ["goal"])
+    }
+
+    func testLearnLeavesThePanelWhenTheComputerTurnsSkillDraftingOff() async throws {
+        let (commands, _, _) = try await slashCatalog(bots: "slash-bots.json", config: "slash-config-no-learn.json")
+
+        XCTAssertEqual(commands, ["goal", "setup", "burst"])
     }
 
     func testGoalGoesWithoutItsPrefixInGoalModeAndOtherCommandsAsTyped() async throws {
@@ -222,10 +227,33 @@ final class SquaddChatTests: XCTestCase {
 
     // MARK: - Helpers
 
-    private func makeChat() -> (ChatViewModel, SquaddChatTurnCoordinator) {
+    /// The `/` panel's built-ins and skills once the chat loaded its catalog from `bots` and `config`,
+    /// and the skills request's query.
+    private func slashCatalog(bots: String, config: String) async throws -> (commands: [String], skills: [String], query: String?) {
+        let botId = try XCTUnwrap(JSONDecoder().decode(SquaddBotList.self, from: Self.fixture(bots)).bots.first?.id)
+        var query: String?
+        SquaddChatFixture.handler = { request in
+            switch request.url?.path {
+            case "/api/bots/\(botId)/skills": query = request.url?.query; return .reply(200, try! Self.fixture("slash-skills.json"))
+            case "/api/bots": return .reply(200, try! Self.fixture(bots))
+            case "/api/instances": return .reply(200, try! Self.fixture("slash-instances.json"))
+            case "/api/config": return .reply(200, try! Self.fixture(config))
+            default: return .hold
+            }
+        }
+        let (model, _) = makeChat(botId: botId)
+
+        await model.loadSkillSlashSuggestions()
+
+        XCTAssertNil(model.lastError)
+        let scope = try XCTUnwrap(model.squaddSlashScope)
+        return (scope.offeredBuiltins.map(\.name), model.composerSkillSuggestions.map(\.name), query)
+    }
+
+    private func makeChat(botId: String? = nil) -> (ChatViewModel, SquaddChatTurnCoordinator) {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [SquaddChatFixture.self]
-        let chat = SquaddThreadChat(server: server, token: "device-token", botId: botId, threadId: threadId, title: "Prova")
+        let chat = SquaddThreadChat(server: server, token: "device-token", botId: botId ?? self.botId, threadId: threadId, title: "Prova")
         let coordinator = SquaddChatTurnCoordinator(chat, session: URLSession(configuration: configuration),
                                                     retryDelay: { _ in try await Task.sleep(for: .seconds(3600)) })
         addTeardownBlock { coordinator.stop() }

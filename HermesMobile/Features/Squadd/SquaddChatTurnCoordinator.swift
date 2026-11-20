@@ -117,9 +117,17 @@ final class SquaddChatTurnCoordinator {
         if stream == nil { await activate() }
     }
 
-    /// The agent's skills its `/` panel offers in this thread.
-    func slashSkills() async throws -> [SkillSlashSuggestion] {
-        SquaddSlashCommands.skills(try await client.skills(botId: chat.botId, threadId: chat.threadId))
+    /// What this thread's `/` panel offers: the built-ins the agent's engine and the computer allow,
+    /// and the agent's skills as this thread sees them.
+    func slashCatalog() async throws -> (scope: SlashCommandScope, skills: [SkillSlashSuggestion]) {
+        async let skills = client.skills(botId: chat.botId, threadId: chat.threadId)
+        async let bots = client.bots()
+        async let instances = client.instances()
+        async let authorsSkills = client.authorsSkills()
+        let engine = try await bots.first { $0.id == chat.botId }?.modelSelection?.instanceId
+        let runsAgents = try await instances.contains { $0.instanceId == engine && $0.runsAgents }
+        return (SquaddSlashCommands.scope(runsAgents: runsAgents, authorsSkills: try await authorsSkills),
+                SquaddSlashCommands.skills(try await skills))
     }
 
     func stop() {
