@@ -193,7 +193,7 @@ class SquaddAgentPhotoTestCase: XCTestCase {
     }
 
     /// Shows `view` in the class's one window (made on the first shot) and photographs it.
-    final func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: () -> Bool = { true }) async throws {
+    final func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: () -> Bool) async throws {
         if window == nil {
             let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
             window = UIWindow(windowScene: scene)
@@ -207,7 +207,7 @@ class SquaddAgentPhotoTestCase: XCTestCase {
     }
 
     /// Writes `<name>.png` of what the window shows now, once it has drawn.
-    final func shoot(_ name: String, dir: URL, until ready: () -> Bool = { true }) async throws {
+    final func shoot(_ name: String, dir: URL, until ready: () -> Bool) async throws {
         let window = try XCTUnwrap(window)
         try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
     }
@@ -229,11 +229,11 @@ final class SquaddAgentPhotoTests: SquaddAgentPhotoTestCase {
         await new.loadModels()
         new.draft = .init(name: "Ricerca", title: "Analista", description: "Cerca e riassume", instructions: "Rispondi breve.")
         if let opus = new.modelGroups.first?.allModels.first(where: { $0.id == "claude-opus-5-5" }) { await new.selectModel(opus) }
-        try await shoot("a-new-agent", SquaddAgentEditorView(editor: new), dir: dir)
+        try await shoot("a-new-agent", SquaddAgentEditorView(editor: new), dir: dir) { true }
 
         // a2. Once made, the same sheet shows the agent with its avatar section.
         await new.save()
-        try await shoot("a2-created", dir: dir)
+        try await shoot("a2-created", dir: dir) { true }
 
         // c. An existing agent with the avatar the computer drew.
         let drawn = try JSONDecoder().decode(SquaddBotEnvelope.self, from: Self.fixture("bot-avatar.json")).bot
@@ -247,7 +247,7 @@ final class SquaddAgentPhotoTests: SquaddAgentPhotoTestCase {
         Self.profileReply = (400, Self.fixture("bot-profile-invalid.json"))
         edit.draft.name = String(repeating: "n", count: 101)
         await edit.save()
-        try await shoot("d-refused-name", dir: dir)
+        try await shoot("d-refused-name", dir: dir) { true }
     }
 }
 
@@ -263,14 +263,14 @@ final class SquaddAgentPickerPhotoTests: SquaddAgentPhotoTestCase {
         new.draft = .init(name: "Ricerca", title: "Analista", description: "Cerca e riassume", instructions: "Rispondi breve.")
         if let opus = new.modelGroups.first?.allModels.first(where: { $0.id == "claude-opus-5-5" }) { await new.selectModel(opus) }
         await new.save()
-        try await shoot("b-model-picker", picker(new), dir: dir)
+        try await shoot("b-model-picker", picker(new), dir: dir) { true }
 
         // e. A model the engine no longer offers: the agent keeps its model, with the reason.
         let drawn = try JSONDecoder().decode(SquaddBotEnvelope.self, from: Self.fixture("bot-avatar.json")).bot
         let edit = SquaddAgentEditor(client: client, bot: drawn)
         await edit.loadModels()
         await edit.selectModel(ModelCatalogOption(id: "gpt-x", displayName: "GPT X", providerID: "chatgpt"))
-        try await shoot("e-refused-model", picker(edit), dir: dir)
+        try await shoot("e-refused-model", picker(edit), dir: dir) { true }
     }
 }
 
