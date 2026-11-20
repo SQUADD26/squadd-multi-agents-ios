@@ -6,7 +6,10 @@
 # builds run at night (pr-ci.yml).
 #
 # It runs on every push to a branch of this repo, so a PR to dev shows the result of its head commit, often before
-# it is opened; a push event also starts ~5 s sooner than a pull_request one. The repo is public and the runner is
+# it is opened; a push event also starts ~5 s sooner than a pull_request one. A branch with an open PR to dev runs
+# on either runner; any other branch (rosso/*, foto/*, an issue before its PR) only on runner 2 (label
+# `squadd-multi-ios-senza-pr`), so the trial runs never queue a PR. A rosso/* run only shows a test failing: it
+# runs the touched test classes, without photos. The repo is public and the runner is
 # a real Mac: only people with write access push here, so fork PRs never reach it (they also need a maintainer's
 # approval in the repo settings). Pushes to dev, main and master are left to the nightly run. No secrets.
 name: PR iOS
@@ -23,10 +26,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # A hosted runner asks GitHub whether this branch has an open PR to dev and picks the Mac runners' label.
+  instrada:
+    name: Runner
+    if: ${{ !github.event.deleted }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    permissions:
+      pull-requests: read
+    outputs:
+      label: ${{ steps.pr.outputs.label }}
+    steps:
+      - id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          prs=$(gh pr list -R "${GITHUB_REPOSITORY}" --head "${BRANCH}" --base dev --state open --json number --jq length)
+          label=squadd-multi-ios-senza-pr; [[ ${prs} != 0 ]] && label=squadd-multi-ios-shared
+          echo "Open PRs to dev: ${prs} -> ${label}"; echo "label=${label}" >> "$GITHUB_OUTPUT"
+
   prova:
     name: Build, touched tests, photos, catalog
-    if: ${{ !github.event.deleted }}
-    runs-on: [squadd-multi-ios-shared]
+    needs: instrada
+    runs-on: ${{ needs.instrada.outputs.label }}
     timeout-minutes: 2
     env:
       HEAD_SHA: ${{ github.sha }}
@@ -62,7 +85,8 @@ jobs:
           git checkout -qf --detach "${HEAD_SHA}"
           git clean -ffdq
           git diff --name-only "$(git merge-base origin/dev HEAD)" HEAD > "${RUNNER_TEMP}/changed.txt"
-          python3 ci/pr_tests.py < "${RUNNER_TEMP}/changed.txt" > "${RUNNER_TEMP}/tests.txt"
+          red=""; [[ ${BRANCH} == rosso/* ]] && red=--rosso
+          python3 ci/pr_tests.py ${red} < "${RUNNER_TEMP}/changed.txt" > "${RUNNER_TEMP}/tests.txt"
           echo "Tests of the touched files:"; cat "${RUNNER_TEMP}/tests.txt"
           # This runner's own simulator, then the one both runners share (ci/pr_sims.py).
           own="${SIMULATOR_NAME}"; [[ ${RUNNER_NAME} == *-2 ]] && own="${SIMULATOR_NAME} 3"
@@ -127,7 +151,7 @@ jobs:
           echo "::endgroup::"
 
           # Icon, launch screen and first screen: no test reaches them, so the installed app is photographed.
-          if grep -qiE 'AppIcon|LaunchScreen|Info\.plist|Onboarding/' "${RUNNER_TEMP}/changed.txt"; then
+          if [[ ${GITHUB_REF_NAME} != rosso/* ]] && grep -qiE 'AppIcon|LaunchScreen|Info\.plist|Onboarding/' "${RUNNER_TEMP}/changed.txt"; then
             echo "::group::Home screen, launch and welcome photos"
             app="${DERIVED_DATA}/Build/Products/Debug-iphonesimulator/HermesMobile.app"
             id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "${app}/Info.plist")
