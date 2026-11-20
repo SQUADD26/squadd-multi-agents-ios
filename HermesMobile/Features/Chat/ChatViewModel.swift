@@ -1515,7 +1515,7 @@ final class ChatViewModel {
     /// chat shows its offline cache; the composer and transcript ask again on
     /// reconnect.
     func loadSkillSlashSuggestions() async {
-        guard hermesTurn == nil, squaddTurn == nil, !hasLoadedSkillSlashSuggestions, !showsOfflineCache else { return }
+        guard hermesTurn == nil, !hasLoadedSkillSlashSuggestions, !showsOfflineCache else { return }
 
         let load: Task<Void, Never>
         if let existing = skillSlashSuggestionsLoad {
@@ -1524,10 +1524,14 @@ final class ChatViewModel {
             load = Task { [weak self] in
                 guard let self else { return }
                 do {
-                    let response = try await self.client.skills()
-                    self.applySkillSlashSuggestions(
-                        SlashSkillFormatter.suggestions(from: response.skills ?? [])
-                    )
+                    if let squadd = self.squaddTurn {
+                        self.applySkillSlashSuggestions(try await squadd.slashSkills())
+                    } else {
+                        let response = try await self.client.skills()
+                        self.applySkillSlashSuggestions(
+                            SlashSkillFormatter.suggestions(from: response.skills ?? [])
+                        )
+                    }
                     self.hasLoadedSkillSlashSuggestions = true
                 } catch {
                     self.lastError = error
@@ -9950,6 +9954,11 @@ extension ChatViewModel: SquaddChatTurnDelegate {
         // Files to a Squadd agent are their own ticket: refuse rather than drop them.
         guard pendingAttachments.isEmpty else {
             sendErrorMessage = String(localized: "Agents on the computer can't receive files yet. Remove them to send.")
+            return .kept
+        }
+        // The companion refuses an empty goal; say so instead of a server error.
+        if SquaddSlashCommands.outgoing(text) == (text: "", mode: "goal") {
+            sendErrorMessage = String(localized: "Write the goal after /goal.")
             return .kept
         }
         let sendId = squadd.makeSendID()

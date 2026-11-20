@@ -120,6 +120,49 @@ final class SquaddChatTests: XCTestCase {
         }
     }
 
+    /// `slash-skills.json` is the companion's answer (openmausbot origin/dev 9e05e3a04) for an agent
+    /// with skills `goal`, `meeting-notes`, `old-digest` (turned off) and `weekly-report`.
+    func testSlashPanelOffersTheThreadsEnabledSkillsButNotOneNamedLikeABuiltIn() async throws {
+        let botId = botId
+        var query: String?
+        SquaddChatFixture.handler = { request in
+            guard request.httpMethod == "GET", request.url?.path == "/api/bots/\(botId)/skills" else { return .hold }
+            query = request.url?.query
+            return .reply(200, try! Self.fixture("slash-skills.json"))
+        }
+        let (model, _) = makeChat()
+
+        await model.loadSkillSlashSuggestions()
+
+        XCTAssertEqual(query, "threadId=\(threadId)", "the skills this thread's turn sees")
+        XCTAssertEqual(model.composerSkillSuggestions.map(\.name), ["meeting-notes", "weekly-report"])
+        XCTAssertTrue(model.hasLoadedSkillSlashSuggestions)
+    }
+
+    func testGoalGoesWithoutItsPrefixInGoalModeAndOtherCommandsAsTyped() async throws {
+        var bodies: [[String: String]] = []
+        let botId = botId
+        SquaddChatFixture.handler = { request in
+            guard request.httpMethod == "POST", request.url?.path == "/api/bots/\(botId)/messages" else { return .hold }
+            let body = request.httpBody ?? request.httpBodyStream.map(Self.read) ?? Data()
+            bodies.append((try? JSONSerialization.jsonObject(with: body)) as? [String: String] ?? [:])
+            return .reply(202, try! Self.fixture("send-receipt.json"))
+        }
+
+        let (goalChat, _) = makeChat()
+        let empty = await goalChat.send("/goal  ")
+        XCTAssertEqual(empty, .kept, "the companion refuses an empty goal")
+        XCTAssertEqual(goalChat.sendErrorMessage, String(localized: "Write the goal after /goal."))
+        XCTAssertTrue(bodies.isEmpty)
+        let goal = await goalChat.send("/Goal ship the weekly report")
+        let (learnChat, _) = makeChat()
+        let learn = await learnChat.send("/learn the report steps")
+
+        XCTAssertEqual([goal, learn], [.started, .started])
+        XCTAssertEqual(bodies.map { $0["text"] }, ["ship the weekly report", "/learn the report steps"])
+        XCTAssertEqual(bodies.map { $0["mode"] }, ["goal", nil])
+    }
+
     func testOlderPagesComeInFrontWithTheCursorOfTheOldestRow() async throws {
         func page(_ ids: [String], kind: String = "text", hasMore: Bool) -> Data {
             let rows = ids.map { #"{"id":"\#($0)","role":"user","kind":"\#(kind)","text":"row \#($0)","at":1}"# }

@@ -24,8 +24,10 @@ extension SquaddCompanionClient {
         try JSONDecoder().decode(SquaddMCPServerList.self, from: await call("GET", "api/bots/\(Self.segment(botId))/mcp-servers")).servers
     }
 
-    func skills(botId: String) async throws -> [SquaddSkill] {
-        try JSONDecoder().decode(SquaddSkillList.self, from: await call("GET", "api/bots/\(Self.segment(botId))/skills")).skills
+    /// The agent's skills; with `threadId`, as that thread's turn sees them.
+    func skills(botId: String, threadId: String? = nil) async throws -> [SquaddSkill] {
+        let query = threadId.map { "?threadId=\(Self.segment($0))" } ?? ""
+        return try JSONDecoder().decode(SquaddSkillList.self, from: await call("GET", "api/bots/\(Self.segment(botId))/skills\(query)")).skills
     }
 
     /// The whole team's memory (the empty section; departments have their own).

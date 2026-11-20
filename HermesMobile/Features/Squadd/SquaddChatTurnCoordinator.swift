@@ -101,17 +101,25 @@ final class SquaddChatTurnCoordinator {
         await reload()
     }
 
-    /// Sends a typed message. Throws when the companion didn't take it, so the chat puts it back.
+    /// Sends a typed message, `/goal rest` as a goal the desktop's way. Throws when the companion
+    /// didn't take it, so the chat puts it back.
     func send(_ text: String, sendId: String, localRowID: String) async throws {
+        let outgoing = SquaddSlashCommands.outgoing(text)
         ownSendIDs.insert(sendId)
         do {
-            let receipt = try await client.send(text, botId: chat.botId, threadId: chat.threadId, sendId: sendId)
+            let receipt = try await client.send(outgoing.text, botId: chat.botId, threadId: chat.threadId,
+                                                sendId: sendId, mode: outgoing.mode)
             if let stored = receipt.message?.id { rowIDs[stored] = localRowID; shownIDs.insert(stored) }
         } catch {
             ownSendIDs.remove(sendId)
             throw error
         }
         if stream == nil { await activate() }
+    }
+
+    /// The agent's skills its `/` panel offers in this thread.
+    func slashSkills() async throws -> [SkillSlashSuggestion] {
+        SquaddSlashCommands.skills(try await client.skills(botId: chat.botId, threadId: chat.threadId))
     }
 
     func stop() {
