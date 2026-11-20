@@ -1,3 +1,4 @@
+import SwiftData
 import XCTest
 import UIKit
 import AVFoundation
@@ -329,6 +330,43 @@ final class SquaddChatTests: XCTestCase {
         XCTAssertEqual(reopened?.text, "half a thought")
     }
 
+    func testOfflineThreadShowsItsServersCachedTranscriptAndRefreshesWhenTheNetworkReturns() async throws {
+        let cache = try ModelContext(ModelContainer(for: CachedSession.self, CachedMessage.self,
+                                                    configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+        let threadId = threadId
+        var online = true
+        SquaddChatFixture.handler = { request in
+            guard online else { return .offline }
+            return request.url?.path == "/api/threads/\(threadId)/messages" ? .reply(200, try! Self.fixture("thread-after.json")) : .hold
+        }
+        let (live, liveTurn) = makeChat()
+        await live.loadMessages(modelContext: cache)
+        liveTurn.stop()
+        let saved = live.messages.map(\.messageId)
+        XCTAssertFalse(saved.isEmpty)
+
+        online = false
+        let retrying = expectation(description: "the stream waits to reconnect")
+        let (offline, _) = makeChat(retrying: retrying)
+        // The way `ChatView` opens a chat: it reconnects as it appears, then loads.
+        await offline.reconnectStreamIfNeeded(modelContext: cache)
+        await offline.loadMessages(modelContext: cache)
+        XCTAssertEqual(offline.messages.map(\.messageId), saved, "the last read shows without the computer")
+        XCTAssertTrue(offline.showsOfflineCache, "marked offline")
+        XCTAssertNil(offline.errorMessage)
+
+        let (elsewhere, _) = makeChat(server: URL(string: "http://192.0.2.11:8810")!)
+        await elsewhere.loadMessages(modelContext: cache)
+        XCTAssertTrue(elsewhere.messages.isEmpty, "another server never shows this server's thread")
+        XCTAssertNotNil(elsewhere.errorMessage)
+
+        await fulfillment(of: [retrying], timeout: 5)
+        online = true
+        await offline.networkPathDidChange(modelContext: cache)
+        XCTAssertFalse(offline.showsOfflineCache, "the network came back: the computer's transcript replaces the copy")
+        XCTAssertEqual(offline.messages.map(\.messageId), saved)
+    }
+
     // MARK: - Helpers
 
     // MARK: Files (#23), against uploads recorded from a real companion (origin/dev 9e05e3a04)
@@ -531,16 +569,21 @@ final class SquaddChatTests: XCTestCase {
         return (scope.offeredBuiltins.map(\.name), model.composerSkillSuggestions.map(\.name), query)
     }
 
-    private func makeChat(bot: String? = nil, thread: String? = nil, copies: (any ChatDraftAttachmentStoring)? = nil,
+    private func makeChat(server: URL? = nil, bot: String? = nil, thread: String? = nil, retrying: XCTestExpectation? = nil,
+                          copies: (any ChatDraftAttachmentStoring)? = nil,
                           listen: (@MainActor (Data) throws -> any ListenAudioPlaying)? = nil,
                           reconnectDelay: @escaping ChatStreamReconnectDelay = { _ in try await Task.sleep(for: .seconds(3600)) })
         -> (ChatViewModel, SquaddChatTurnCoordinator) {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [SquaddChatFixture.self]
+        let server = server ?? self.server
         let threadId = thread ?? threadId
         let chat = SquaddThreadChat(server: server, token: "device-token", botId: bot ?? botId, threadId: threadId, title: "Prova")
         let coordinator = SquaddChatTurnCoordinator(chat, session: URLSession(configuration: configuration),
-                                                    reconnectDelay: reconnectDelay)
+                                                    reconnectDelay: { delay in
+                                                        retrying?.fulfill()
+                                                        try await reconnectDelay(delay)
+                                                    })
         addTeardownBlock { coordinator.stop() }
         let model = ChatViewModel(session: SessionSummary(sessionId: threadId, title: "Prova"), server: server,
                                   streamingRevealTick: {}, renderOnDeviceSpeech: { _ in throw CancellationError() },
@@ -596,7 +639,7 @@ final class SquaddChatTests: XCTestCase {
 /// into it, the way `/api/events` stays open.
 final class SquaddChatFixture: URLProtocol {
     enum Answer {
-        case reply(Int, Data, headers: [String: String] = [:]), hold
+        case reply(Int, Data, headers: [String: String] = [:]), hold, offline
     }
 
     nonisolated(unsafe) static var handler: ((URLRequest) -> Answer)?
@@ -641,6 +684,8 @@ final class SquaddChatFixture: URLProtocol {
             respond(status: status, headers: headers)
             client?.urlProtocol(self, didLoad: data)
             client?.urlProtocolDidFinishLoading(self)
+        case .offline:
+            client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
         case .hold:
             if request.url?.path == "/api/events" { respond(status: 200) }
             Self.lock.withLock { Self.held.append(self) }

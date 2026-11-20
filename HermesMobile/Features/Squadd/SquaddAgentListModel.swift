@@ -1,5 +1,7 @@
 import Foundation
 import Observation
+import OSLog
+import SwiftData
 
 /// One agent in the Squadd home as the desktop sidebar shows it: its folders with their open
 /// threads, then the open threads in no folder, and its archived threads apart, as session rows.
@@ -67,6 +69,10 @@ struct SquaddAgentSection: Identifiable, Equatable {
 ///
 /// Rename, pin, archive and delete change the row at once and put it back as it was when the
 /// companion refuses; creating a thread waits for the companion's answer.
+///
+/// What the home shows is saved in the server's offline cache (#34); a load that fails before
+/// anything showed puts the saved copy on screen, marked offline, and reads again on the chat
+/// stream's backoff until the computer answers.
 @MainActor @Observable
 final class SquaddAgentListModel {
     enum Phase: Equatable {
@@ -78,25 +84,58 @@ final class SquaddAgentListModel {
     private(set) var phase: Phase = .loading
     /// Matches for the last query; nil while no query is active.
     private(set) var searchHits: [SquaddSearchHit]?
+    /// The agents on screen are the cached copy, not the computer's answer.
+    private(set) var isShowingCache = false
     @ObservationIgnored private var bots: [SquaddBot] = []
     @ObservationIgnored private let client: SquaddCompanionClient
     @ObservationIgnored private let onUnpaired: () -> Void
+    @ObservationIgnored private let cache: ModelContext?
+    @ObservationIgnored private let retryDelay: ChatStreamReconnectDelay
+    /// Reads again while the cached copy shows; ends with the first answer.
+    @ObservationIgnored private(set) var retrying: Task<Void, Never>?
 
-    /// `onUnpaired` runs when the companion refused the token.
-    init(client: SquaddCompanionClient, onUnpaired: @escaping () -> Void) {
+    /// `onUnpaired` runs when the companion refused the token. `cache` keeps the home under
+    /// `client.server`; nil keeps nothing. `retryDelay` waits between reads of an offline home.
+    init(client: SquaddCompanionClient, cache: ModelContext? = nil,
+         retryDelay: @escaping ChatStreamReconnectDelay = ChatStreamReconnectBackoff.standardDelay,
+         onUnpaired: @escaping () -> Void) {
         self.client = client
+        self.cache = cache
+        self.retryDelay = retryDelay
         self.onUnpaired = onUnpaired
     }
 
     func load() async {
         do {
             bots = try await client.bots()
+            isShowingCache = false
             publish()
         } catch {
             guard handled(error) else { return }
             // Keep what is on screen through a failed refresh; only an empty screen says it failed.
             if case .loaded = phase { return }
+            if let cache, let cached = try? CacheStore.cachedSquaddBots(serverURL: client.server, in: cache) {
+                bots = cached
+                isShowingCache = true
+                publish()
+                retryWhileOffline()
+                return
+            }
             phase = .failed
+        }
+    }
+
+    private func retryWhileOffline() {
+        guard retrying == nil else { return }
+        retrying = Task { [weak self, retryDelay] in
+            let delays = ChatStreamReconnectBackoff.delays
+            var attempt = 0
+            while self?.isShowingCache == true {
+                attempt += 1
+                do { try await retryDelay(delays[min(attempt, delays.count) - 1]) } catch { break }
+                await self?.load()
+            }
+            self?.retrying = nil
         }
     }
 
@@ -268,6 +307,12 @@ final class SquaddAgentListModel {
 
     private func publish() {
         phase = .loaded(bots.map(SquaddAgentSection.init(bot:)))
+        guard !isShowingCache, let cache else { return }
+        do {
+            try CacheStore.cacheSquaddBots(bots, serverURL: client.server, in: cache)
+        } catch {
+            Logger(subsystem: "com.squaddcrm.multiagents", category: "cache").error("Squadd home cache write failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     /// False for a cancelled request, which says nothing about the companion.
