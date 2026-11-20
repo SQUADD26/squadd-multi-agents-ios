@@ -146,6 +146,13 @@ final class SquaddChatTurnCoordinator {
     private(set) var isAnsweringQuestion = false
     private(set) var questionError: String?
     @ObservationIgnored private var openQuestions: [String: SquaddMessage] = [:]
+    /// The oldest secret, sign-in or connector card the agent waits on (#16).
+    private(set) var pendingCard: SquaddPendingCard?
+    private(set) var isAnsweringCard = false
+    private(set) var cardError: String?
+    @ObservationIgnored private var openCards: [String: SquaddMessage] = [:]
+    /// The device id and computer key a QR pairing saved, read when a secret goes out; tests pass their own.
+    @ObservationIgnored var secretPairing: () -> SquaddSecretPairing? = { nil }
     /// The rows of the last exchange on screen, from this person's last typed message on, which offer
     /// Undo; and whether it can go: not when that message is the thread's first (#20).
     private(set) var lastExchangeRowIDs: Set<String> = []
@@ -206,6 +213,7 @@ final class SquaddChatTurnCoordinator {
         mentions = chat.room?.mentions
         client = SquaddCompanionClient(server: chat.server, token: chat.token, session: session)
         self.reconnectDelay = reconnectDelay
+        secretPairing = { [server = chat.server] in SquaddSecretPairing.saved(for: server) }
     }
 
     /// Reads the transcript and opens the event stream, unless it is already open.
@@ -360,6 +368,7 @@ final class SquaddChatTurnCoordinator {
             activeLeafID = page.activeLeafId
             openApprovals = [:]
             openQuestions = [:]
+            openCards = [:]
             (olderMessages + pageMessages).forEach(trackApproval)
             delegate?.squaddConnectionDidChange(failure: nil)
             let rows = transcriptRows(of: olderMessages + pageMessages)
@@ -581,6 +590,11 @@ final class SquaddChatTurnCoordinator {
     }
 
     private func trackApproval(_ message: SquaddMessage) {
+        if message.secret != nil || message.signIn != nil || message.connector != nil {
+            openCards[message.id] = SquaddPendingCard(message) == nil ? nil : message
+            refreshPendingCard()
+            return
+        }
         if let card = message.card, card.requestId != nil, card.requestType == "question" || card.questionRequest != nil {
             openQuestions[message.id] = card.isOpen ? message : nil
             refreshPendingQuestion()
@@ -596,6 +610,116 @@ final class SquaddChatTurnCoordinator {
         guard next != pendingApproval else { return }
         if next?.messageId != pendingApproval?.messageId { approvalError = nil }
         pendingApproval = next
+    }
+
+    // MARK: Secret, sign-in and connector cards (#16)
+
+    /// Why the pinned secret card can't take a secret here; nil when it can.
+    var secretBlock: SquaddSecretBlock? {
+        guard case .secret(let card) = pendingCard?.kind else { return nil }
+        return client.secretBlock(card, pairing: secretPairing())
+    }
+
+    /// Seals `value` to the computer's key and sends it. The value lives only in this call: nothing here keeps
+    /// it, and a refusal leaves the card for another try.
+    func provideSecret(_ value: String) async -> Bool {
+        guard let card = pendingCard, case .secret(let secret) = card.kind else { return false }
+        return await settleCard(card) {
+            try await client.provideSecret(value, card: secret, pairing: secretPairing(), botId: card.botId ?? chat.botId,
+                                           threadId: chat.threadId, messageId: card.messageId)
+        }
+    }
+
+    /// Not now: the secret or connector card is put away, the sign-in cancelled. The agent goes on without it.
+    func dismissCard() async -> Bool {
+        guard let card = pendingCard else { return false }
+        return await settleCard(card) {
+            let botId = card.botId ?? chat.botId
+            switch card.kind {
+            case .secret: try await client.dismissSecret(botId: botId, threadId: chat.threadId, messageId: card.messageId)
+            case .signIn: try await client.settleSignIn(done: false, botId: botId, threadId: chat.threadId, messageId: card.messageId)
+            case .connector: try await client.dismissConnectorCard(botId: botId, threadId: chat.threadId, messageId: card.messageId)
+            }
+        }
+    }
+
+    /// The person signed in where the card said.
+    func finishSignIn() async -> Bool {
+        guard let card = pendingCard, case .signIn = card.kind else { return false }
+        return await settleCard(card) {
+            try await client.settleSignIn(done: true, botId: card.botId ?? chat.botId, threadId: chat.threadId, messageId: card.messageId)
+        }
+    }
+
+    /// The connector card's sign-in page, to open in the browser sheet.
+    func connectorLink() async -> URL? {
+        guard let card = pendingCard, case .connector = card.kind, !isAnsweringCard else { return nil }
+        isAnsweringCard = true
+        cardError = nil
+        defer { isAnsweringCard = false }
+        do {
+            return try await client.authorizeConnectorCard(botId: card.botId ?? chat.botId, threadId: chat.threadId,
+                                                          messageId: card.messageId)
+        } catch {
+            cardError = Self.failureMessage(error)
+            return nil
+        }
+    }
+
+    /// After the browser sheet closed: the computer checks the service and updates the card, whose patch shows
+    /// Continue once it is connected. Still not connected says so on the card.
+    func checkConnector() async {
+        guard let card = pendingCard, case .connector = card.kind else { return }
+        do {
+            let connected = try await client.connectorCardStatus(botId: card.botId ?? chat.botId, threadId: chat.threadId,
+                                                                messageId: card.messageId)
+            cardError = connected ? nil : String(localized: "Not connected yet. Finish signing in, or try again.")
+        } catch {
+            cardError = Self.failureMessage(error)
+        }
+    }
+
+    /// Connected: the agent goes on with the service.
+    func resumeConnector() async -> Bool {
+        guard let card = pendingCard, case .connector = card.kind else { return false }
+        return await settleCard(card) {
+            try await client.resumeConnectorCard(botId: card.botId ?? chat.botId, threadId: chat.threadId, messageId: card.messageId)
+        }
+    }
+
+    /// Runs one answer to `card`; the card leaves once the computer took it, a refusal stays on it as `cardError`.
+    private func settleCard(_ card: SquaddPendingCard, _ answer: () async throws -> Void) async -> Bool {
+        guard !isAnsweringCard else { return false }
+        isAnsweringCard = true
+        cardError = nil
+        defer { isAnsweringCard = false }
+        do {
+            try await answer()
+            openCards[card.messageId] = nil
+            refreshPendingCard()
+            return true
+        } catch {
+            cardError = Self.cardFailureMessage(error)
+            return false
+        }
+    }
+
+    private func refreshPendingCard() {
+        let next = openCards.values.min { ($0.at ?? 0, $0.id) < ($1.at ?? 0, $1.id) }.flatMap(SquaddPendingCard.init)
+        guard next != pendingCard else { return }
+        if next?.messageId != pendingCard?.messageId { cardError = nil }
+        pendingCard = next
+    }
+
+    static func cardFailureMessage(_ error: Error) -> String {
+        switch error {
+        case SquaddSecretEnvelope.Failure.size:
+            String(localized: "A secret is 1 to 4096 bytes.")
+        case let block as SquaddSecretBlock:
+            block.explanation
+        default:
+            failureMessage(error)
+        }
     }
 
     /// Takes a changed copy of a row already read; only its marks can differ on screen.
@@ -879,6 +1003,49 @@ struct SquaddPendingApproval: Equatable {
     var content: ApprovalRequestContent {
         ApprovalRequestContent(description: card.title, command: card.subtitle, scopeLine: nil, pendingCount: 1,
                                choices: choices)
+    }
+}
+
+/// A secret, sign-in or connector card a Squadd agent waits on (#16).
+struct SquaddPendingCard: Equatable {
+    enum Kind: Equatable {
+        case secret(SquaddSecretCard)
+        case signIn(SquaddSignInCard)
+        case connector(SquaddConnectorCard)
+    }
+
+    let messageId: String
+    /// The agent that asked; in a room, the member's own.
+    let botId: String?
+    let kind: Kind
+
+    /// Nil once the card is answered, put away, replaced or stopped.
+    init?(_ message: SquaddMessage) {
+        if let card = message.secret, card.isOpen {
+            kind = .secret(card)
+        } else if let card = message.signIn, card.isOpen {
+            kind = .signIn(card)
+        } else if let card = message.connector, card.isOpen {
+            kind = .connector(card)
+        } else {
+            return nil
+        }
+        messageId = message.id
+        botId = message.from?.botId
+    }
+}
+
+extension SquaddSecretBlock {
+    /// What the secret card says in place of the field.
+    var explanation: String {
+        switch self {
+        case .computerOnly:
+            String(localized: "This key is entered only in Squadd Multi-Agents on your computer.")
+        case .notPairedByQR:
+            String(localized: "To send secrets from this iPhone, pair it again by scanning the computer's QR code.")
+        case .localNetwork:
+            String(localized: "On your local network the connection to the computer isn't encrypted, so the secret isn't sent from here. Connect over Tailscale or the computer's internet address, or enter it on the computer.")
+        }
     }
 }
 

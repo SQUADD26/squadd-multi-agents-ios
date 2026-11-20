@@ -44,6 +44,7 @@ extension AuthManager {
         guard let existing else {
             try addSquaddServer(address: invite.server, token: reply.token)
             saveSquaddRoutes(book, for: invite.server)
+            saveSecretPairing(reply, invite: invite)
             // A new server is named after its host; the computer's own name reads better.
             if let name = (reply.serverName ?? invite.name)?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty,
                let account = servers.first(where: { $0.id == invite.server.absoluteString }) {
@@ -55,7 +56,22 @@ extension AuthManager {
         }
         try repairSquaddServer(invite.server, token: reply.token)
         saveSquaddRoutes(book, for: invite.server)
+        saveSecretPairing(reply, invite: invite)
         switchActiveServer(to: existing)
+    }
+
+    /// The new device id, with the QR's key, or the key an earlier QR left when this pairing was typed. Without
+    /// them only the secret card loses its way in: it asks for a QR pairing.
+    private func saveSecretPairing(_ reply: SquaddPairResponse, invite: SquaddPairingInvite) {
+        let scope = invite.server.absoluteString
+        guard let deviceId = reply.deviceId else {
+            try? keychain.delete(.squaddSecretPairing, scope: scope)
+            return
+        }
+        let pairing = SquaddSecretPairing(
+            deviceId: deviceId, secretKey: invite.secretKey ?? SquaddSecretPairing.saved(for: invite.server, keychain: keychain)?.secretKey)
+        guard let data = try? JSONEncoder().encode(pairing) else { return }
+        try? keychain.save(String(decoding: data, as: UTF8.self), forKey: .squaddSecretPairing, scope: scope)
     }
 
     /// The routes and name a Squadd computer gave at its last pairing; empty before any.
@@ -101,6 +117,7 @@ extension AuthManager {
         removeBotConnection(for: server)
         try? keychain.delete(.squaddDeviceToken, scope: server.absoluteString)
         try? keychain.delete(.squaddRoutes, scope: server.absoluteString)
+        try? keychain.delete(.squaddSecretPairing, scope: server.absoluteString)
         SquaddRoutes.shared.set(nil, for: server)
     }
 }

@@ -30,6 +30,10 @@ struct SquaddMessage: Decodable, Equatable {
     let attachments: [Attachment]
     /// An `options` row's card: an approval or a question the agent waits on (#14, #15).
     let card: SquaddCard?
+    /// A `secret`, `signin` or `connector` row's card (#16).
+    let secret: SquaddSecretCard?
+    let signIn: SquaddSignInCard?
+    let connector: SquaddConnectorCard?
 
     struct Author: Decodable, Equatable {
         let botId: String?
@@ -45,7 +49,8 @@ struct SquaddMessage: Decodable, Equatable {
         let bytes: Int?
     }
 
-    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, from, parentId, reactions, reaction, attachments, compaction, card }
+    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, from, parentId, reactions, reaction, attachments, compaction, card,
+                                              secret, signIn, connector }
     private struct Compaction: Decodable { let summary: String? }
 
     init(id: String, role: String?, kind: String? = "text", text: String?, at: Double? = nil,
@@ -66,6 +71,9 @@ struct SquaddMessage: Decodable, Equatable {
         self.reaction = reaction
         self.attachments = attachments
         self.card = card
+        secret = nil
+        signIn = nil
+        connector = nil
     }
 
     init(from decoder: Decoder) throws {
@@ -86,6 +94,9 @@ struct SquaddMessage: Decodable, Equatable {
             .compactMap(\.value) ?? []
         compactionSummary = (try? container.decodeIfPresent(Compaction.self, forKey: .compaction))?.summary
         card = try? container.decodeIfPresent(SquaddCard.self, forKey: .card)
+        secret = try? container.decodeIfPresent(SquaddSecretCard.self, forKey: .secret)
+        signIn = try? container.decodeIfPresent(SquaddSignInCard.self, forKey: .signIn)
+        connector = try? container.decodeIfPresent(SquaddConnectorCard.self, forKey: .connector)
     }
 
     /// A version of a typed message: the rows an edit puts side by side.

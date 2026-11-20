@@ -1118,6 +1118,11 @@ struct ChatView: View {
         viewModel.squaddTurn?.pendingQuestion
     }
 
+    /// The Squadd secret, sign-in or connector card the request slot shows, after questions and approvals (#16).
+    static func squaddCard(in viewModel: ChatViewModel) -> SquaddPendingCard? {
+        viewModel.squaddTurn?.pendingCard
+    }
+
     /// A Squadd agent's question (#15) in the clarification card, one of its questions at a time.
     private func squaddQuestionInset(
         _ question: SquaddPendingQuestion,
@@ -2140,6 +2145,13 @@ struct ChatView: View {
                 squaddQuestionInset(question, turn: squadd, maximumExpandedHeight: maximumExpandedHeight)
             } else if let squadd = viewModel.squaddTurn, let approval = Self.squaddApproval(in: viewModel) {
                 squaddApprovalInset(approval, turn: squadd, maximumExpandedHeight: maximumExpandedHeight)
+            } else if let squadd = viewModel.squaddTurn, let card = Self.squaddCard(in: viewModel) {
+                SquaddCardInset(card: card, turn: squadd, maximumExpandedHeight: maximumExpandedHeight,
+                                onFootprintChange: { clarificationBarHeight = $0 })
+                    .id(card.messageId)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, composerHeight + 8)
+                    .transition(ChatMotion.bottomOverlayTransition(reduceMotion: reduceMotion))
             }
         }
         .zIndex(9)
@@ -2271,6 +2283,7 @@ struct ChatView: View {
     private var requestInsetID: String? {
         hermesInsetRequest?.requestID ?? viewModel.clarificationPrompt?.id ?? viewModel.approvalPrompt?.id
             ?? Self.squaddQuestion(in: viewModel)?.prompt.id ?? Self.squaddApproval(in: viewModel)?.messageId
+            ?? Self.squaddCard(in: viewModel)?.messageId
     }
 
     @ViewBuilder

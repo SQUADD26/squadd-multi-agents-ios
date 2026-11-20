@@ -58,8 +58,10 @@ extension SquaddCompanionClient {
     // MARK: - Plumbing
 
     /// `pathAndQuery` is relative to the server and already escaped. `body` is JSON, `NSNull()` for a null.
-    func call(_ method: String, _ pathAndQuery: String, body: [String: Any]? = nil) async throws -> Data {
-        guard let url = URL(string: pathAndQuery, relativeTo: base.appendingPathComponent("/")) else {
+    /// `base` pins the route a caller already checked; `reportsRefusal` turns a refusal's `{"error"}` into `.refused`.
+    func call(_ method: String, _ pathAndQuery: String, body: [String: Any]? = nil, base: URL? = nil,
+              reportsRefusal: Bool = false) async throws -> Data {
+        guard let url = URL(string: pathAndQuery, relativeTo: (base ?? self.base).appendingPathComponent("/")) else {
             throw SquaddError.invalidResponse
         }
         var request = URLRequest(url: url.absoluteURL)
@@ -69,7 +71,7 @@ extension SquaddCompanionClient {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
         }
-        return try await Self.send(request, session: session)
+        return try await Self.send(request, session: session, reportsRefusal: reportsRefusal)
     }
 
     /// One escaped path segment or query value.

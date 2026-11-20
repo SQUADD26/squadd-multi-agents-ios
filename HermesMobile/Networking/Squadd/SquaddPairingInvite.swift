@@ -8,6 +8,8 @@ struct SquaddPairingInvite: Equatable, Identifiable {
     let credential: String
     /// The computer's name as the link carries it; the pairing reply's `serverName` wins.
     var name: String?
+    /// The computer's public HPKE key for secrets (`secretKey`): a 65-byte uncompressed P-256 point. Only a QR has it.
+    var secretKey: Data?
     /// Sent as `pairRequestId` on every try of this invite: a retry after a lost reply gets the same
     /// device back instead of `pairing_not_open`, as the code works once. Random, so knowing the code
     /// is not enough to replay someone else's pairing.
@@ -31,6 +33,9 @@ struct SquaddPairingInvite: Equatable, Identifiable {
         else { return nil }
         let name = value("name")
         self.init(server: server, credential: token, name: name?.isEmpty == false ? name : nil)
+        // A malformed key leaves only the secret card without it, as the rest of the link still pairs.
+        secretKey = value("secretKey").flatMap { $0.count == 87 ? Data(base64URL: $0) : nil }
+            .flatMap { $0.count == 65 && $0.first == 0x04 ? $0 : nil }
     }
 
     /// What someone typed: the address the computer shows (`192.168.1.10:8810`, or a full http(s) address)

@@ -125,12 +125,14 @@
 		5D0ADD000000000000000105 /* SquaddServerHome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADD000000000000000005 /* SquaddServerHome.swift */; };
 		5D0A09000000000000000102 /* SquaddRouteFinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A09000000000000000002 /* SquaddRouteFinder.swift */; };
 		5D0ADE280000000000001401 /* SquaddConnectorsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000001400 /* SquaddConnectorsView.swift */; };
+		5D0A16000000000000000102 /* SquaddCardInset.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A16000000000000000002 /* SquaddCardInset.swift */; };
 		5D0ADE280000000000001301 /* SquaddConnectorsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000001300 /* SquaddConnectorsModel.swift */; };
 		5D0ADE280000000000000501 /* SquaddTeamMemoryViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000000500 /* SquaddTeamMemoryViews.swift */; };
 		5D0ADE280000000000000401 /* SquaddSettingsViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000000400 /* SquaddSettingsViews.swift */; };
 		5D0ADE280000000000000301 /* SquaddSettingsModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000000300 /* SquaddSettingsModel.swift */; };
 		5D0ADD000000000000000106 /* SquaddPairingViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADD000000000000000006 /* SquaddPairingViews.swift */; };
 		5D0A08000000000000000101 /* SquaddPairingInvite.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A08000000000000000001 /* SquaddPairingInvite.swift */; };
+		5D0A16000000000000000101 /* SquaddCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A16000000000000000001 /* SquaddCards.swift */; };
 		5D0A08000000000000000102 /* SquaddPairView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A08000000000000000002 /* SquaddPairView.swift */; };
 		5D0A08000000000000000103 /* SquaddPairingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A08000000000000000003 /* SquaddPairingTests.swift */; };
 		5D0A08000000000000000104 /* SquaddPairingLiveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A08000000000000000004 /* SquaddPairingLiveTests.swift */; };
@@ -942,12 +944,14 @@
 		5D0ADD000000000000000005 /* SquaddServerHome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddServerHome.swift"; sourceTree = "<group>"; };
 		5D0A09000000000000000002 /* SquaddRouteFinder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddRouteFinder.swift"; sourceTree = "<group>"; };
 		5D0ADE280000000000001400 /* SquaddConnectorsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddConnectorsView.swift"; sourceTree = "<group>"; };
+		5D0A16000000000000000002 /* SquaddCardInset.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddCardInset.swift"; sourceTree = "<group>"; };
 		5D0ADE280000000000001300 /* SquaddConnectorsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddConnectorsModel.swift"; sourceTree = "<group>"; };
 		5D0ADE280000000000000500 /* SquaddTeamMemoryViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddTeamMemoryViews.swift"; sourceTree = "<group>"; };
 		5D0ADE280000000000000400 /* SquaddSettingsViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddSettingsViews.swift"; sourceTree = "<group>"; };
 		5D0ADE280000000000000300 /* SquaddSettingsModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddSettingsModel.swift"; sourceTree = "<group>"; };
 		5D0ADD000000000000000006 /* SquaddPairingViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddPairingViews.swift"; sourceTree = "<group>"; };
 		5D0A08000000000000000001 /* SquaddPairingInvite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddPairingInvite.swift"; sourceTree = "<group>"; };
+		5D0A16000000000000000001 /* SquaddCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddCards.swift"; sourceTree = "<group>"; };
 		5D0A08000000000000000002 /* SquaddPairView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddPairView.swift"; sourceTree = "<group>"; };
 		5D0A08000000000000000003 /* SquaddPairingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddPairingTests.swift; sourceTree = "<group>"; };
 		5D0A08000000000000000004 /* SquaddPairingLiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddPairingLiveTests.swift; sourceTree = "<group>"; };
@@ -2103,6 +2107,7 @@
 				5D0A30000000000000000010 /* SquaddPush.swift */,
 				5D0A09000000000000000001 /* SquaddEndpoint.swift */,
 				5D0A08000000000000000001 /* SquaddPairingInvite.swift */,
+				5D0A16000000000000000001 /* SquaddCards.swift */,
 				5D0ADE280000000000001100 /* SquaddCompanionClient+Connectors.swift */,
 				5D0ADE280000000000000100 /* SquaddCompanionClient+Settings.swift */,
 			);
@@ -2231,6 +2236,7 @@
 				5D0ADD000000000000000005 /* SquaddServerHome.swift */,
 				5D0A09000000000000000002 /* SquaddRouteFinder.swift */,
 				5D0ADE280000000000001400 /* SquaddConnectorsView.swift */,
+				5D0A16000000000000000002 /* SquaddCardInset.swift */,
 				5D0ADE280000000000001300 /* SquaddConnectorsModel.swift */,
 				5D0ADE280000000000000500 /* SquaddTeamMemoryViews.swift */,
 				5D0ADE280000000000000400 /* SquaddSettingsViews.swift */,
@@ -3064,6 +3070,7 @@
 				5D0A30000000000000000011 /* SquaddPush.swift in Sources */,
 				5D0A09000000000000000101 /* SquaddEndpoint.swift in Sources */,
 				5D0A08000000000000000101 /* SquaddPairingInvite.swift in Sources */,
+				5D0A16000000000000000101 /* SquaddCards.swift in Sources */,
 				5D0ADE280000000000001101 /* SquaddCompanionClient+Connectors.swift in Sources */,
 				5D0ADE280000000000000101 /* SquaddCompanionClient+Settings.swift in Sources */,
 				5D0ADD000000000000000104 /* SquaddAgentListModel.swift in Sources */,
@@ -3079,6 +3086,7 @@
 				5D0ADD000000000000000105 /* SquaddServerHome.swift in Sources */,
 				5D0A09000000000000000102 /* SquaddRouteFinder.swift in Sources */,
 				5D0ADE280000000000001401 /* SquaddConnectorsView.swift in Sources */,
+				5D0A16000000000000000102 /* SquaddCardInset.swift in Sources */,
 				5D0ADE280000000000001301 /* SquaddConnectorsModel.swift in Sources */,
 				5D0ADE280000000000000501 /* SquaddTeamMemoryViews.swift in Sources */,
 				5D0ADE280000000000000401 /* SquaddSettingsViews.swift in Sources */,
