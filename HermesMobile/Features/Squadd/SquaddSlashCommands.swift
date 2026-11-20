@@ -9,7 +9,9 @@ import Foundation
 /// which the computer expands from the message text, as it does `/learn`, `/setup` and `/burst`.
 /// Only `/goal` changes the send: its text goes without the prefix, with `mode: "goal"`.
 enum SquaddSlashCommands {
-    static let builtInNames: Set<String> = ["goal", "learn", "setup", "burst"]
+    static let builtInNames = Set(["goal", "learn", "setup", "burst"]).union(forkNames)
+    /// The app's own commands, which fork the thread the way Hermes chats' do (#20).
+    static let forkNames: Set<String> = ["branch", "fork"]
 
     static func scope(runsAgents: Bool, authorsSkills: Bool) -> SlashCommandScope {
         let goal = SlashCommand(name: "goal", description: String(localized: "Keep this agent working until the goal is complete"),
@@ -17,7 +19,10 @@ enum SquaddSlashCommands {
         let learn = SlashCommand(name: "learn", description: String(localized: "Draft a reusable skill from this conversation"))
         let setup = SlashCommand(name: "setup", description: String(localized: "Have this agent interview you and set itself up"))
         let burst = SlashCommand(name: "burst", description: String(localized: "Run many parts of a job at once, then merge the results"))
-        return SlashCommandScope(builtins: [goal] + (runsAgents && authorsSkills ? [learn] : []) + (runsAgents ? [setup, burst] : []))
+        let branch = SlashCommand(name: "branch", description: String(localized: "Fork the conversation"))
+        let fork = SlashCommand(name: "fork", description: String(localized: "Alias for \("/branch")"))
+        return SlashCommandScope(builtins: [goal] + (runsAgents && authorsSkills ? [learn] : []) + (runsAgents ? [setup, burst] : [])
+                                 + [branch, fork])
     }
 
     /// The agent's enabled skills the desktop offers as `/name`: a skill name

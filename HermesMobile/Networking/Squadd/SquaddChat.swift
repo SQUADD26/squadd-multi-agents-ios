@@ -269,6 +269,13 @@ extension SquaddCompanionClient {
         let _: SquaddActiveBranch = try await post("api/bots/\(botId)/active-branch", ["messageId": messageId, "threadId": threadId])
     }
 
+    /// A new thread of the agent holding this one up to the stored text message `messageId`, as the
+    /// desktop's Fork does. Returns the new thread.
+    func fork(threadId: String, through messageId: String, botId: String) async throws -> SquaddTask {
+        let reply: SquaddTaskResponse = try await post("api/bots/\(botId)/tasks/\(threadId)/forks", ["messageId": messageId])
+        return reply.task
+    }
+
     /// Puts this person's `emoji` on a message (`on`) or takes it off. Returns the message as saved.
     func react(_ emoji: String, on: Bool, messageId: String, threadId: String) async throws -> SquaddMessage {
         var request = authorized("api/threads/\(threadId)/messages/\(messageId)/reactions")
