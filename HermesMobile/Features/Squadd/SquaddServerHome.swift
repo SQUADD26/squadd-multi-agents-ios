@@ -84,7 +84,9 @@ struct SquaddServerHome: View {
     /// The share the thread it opened shows in its composer.
     @State private var openedShare: (chatID: String, share: SharedImport, notice: SharedSkipsNotice?)?
 
-    var body: some View {
+    /// The home's list and chats, and the agent picker a share from another app opens (#24).
+    /// Its own property, so the compiler checks `body` in reasonable time.
+    private var sharing: some View {
         NavigationStack(path: $path) {
             ScrollViewReader { proxy in
                 AppList(rows: .plain) {
@@ -130,6 +132,10 @@ struct SquaddServerHome: View {
         } message: {
             Text("A new thread opens with what you shared in its composer.")
         }
+    }
+
+    var body: some View {
+        sharing
         .focusedSceneValue(\.hermexSceneActions, sceneActions)
         .alert("Thread Not Found", isPresented: $isLinkedThreadMissing) {
             Button("OK", role: .cancel) {}
