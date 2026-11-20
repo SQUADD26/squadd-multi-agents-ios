@@ -1,0 +1,46 @@
+{
+  "device": {
+    "id": "00000000-0000-4000-8000-000000000009",
+    "name": "iPhone di prova",
+    "createdAt": 1795138594236,
+    "lastSeenAt": 1795138594236,
+    "cloudDesktopAccess": false,
+    "browserControlAccess": false,
+    "routes": "any"
+  },
+  "token": "omb_dev_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "serverName": "Mac di prova",
+  "hosts": [
+    "10.0.7.2",
+    "10.0.2.10",
+    "10.0.1.16",
+    "openmausbot-bb7a253f.local"
+  ],
+  "endpoints": [
+    {
+      "url": "https://mac-di-prova.example.net",
+      "kind": "hosted",
+      "priority": 0
+    },
+    {
+      "url": "http://10.0.7.2:18810",
+      "kind": "lan",
+      "priority": 200
+    },
+    {
+      "url": "http://10.0.2.10:18810",
+      "kind": "lan",
+      "priority": 201
+    },
+    {
+      "url": "http://10.0.1.16:18810",
+      "kind": "lan",
+      "priority": 202
+    },
+    {
+      "url": "http://openmausbot-bb7a253f.local:18810",
+      "kind": "bonjour",
+      "priority": 300
+    }
+  ]
+}

@@ -113,11 +113,13 @@ final class SquaddCompanionTests: XCTestCase {
 /// Answers every request with `handler`'s status and body.
 final class SquaddHTTPFixture: URLProtocol {
     // The system builds the protocol instances; tests set this before a request and tearDown clears it.
+    /// Status 0 is a host that refuses the connection.
     nonisolated(unsafe) static var handler: ((URLRequest) -> (Int, Data))?
     override class func canInit(with request: URLRequest) -> Bool { true }
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         guard let (status, data) = Self.handler?(request) else { return }
+        guard status != 0 else { return client!.urlProtocol(self, didFailWithError: URLError(.cannotConnectToHost)) }
         let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: data)
