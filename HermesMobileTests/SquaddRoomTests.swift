@@ -188,7 +188,7 @@ final class SquaddRoomTests: XCTestCase {
         let chat = SquaddThreadChat(room: room, thread: SessionSummary(sessionId: threadId, title: "Lancio"),
                                     server: server, token: "device-token")
         let coordinator = SquaddChatTurnCoordinator(chat, session: session,
-                                                    retryDelay: { _ in try await Task.sleep(for: .seconds(3600)) })
+                                                    reconnectDelay: { _ in try await Task.sleep(for: .seconds(3600)) })
         addTeardownBlock { coordinator.stop() }
         let model = ChatViewModel(session: chat.session, server: server, streamingRevealTick: {}, backend: .squadd(coordinator))
         return (model, coordinator)
