@@ -679,12 +679,15 @@ final class SquaddShareTests: XCTestCase {
             // test-wait: the chat opens, takes the share and saves its draft on its own run loop turns.
             try await Task.sleep(for: .milliseconds(50))
         }
+        // Waits for the screen to settle, so a picker shown again over the thread is on it.
+        let photo = try await readyPhoto(of: window)
         if let directory = ProcessInfo.processInfo.environment["FOTO_DIR"] {
-            try await readyPhoto(of: window).write(to: URL(fileURLWithPath: directory).appendingPathComponent("24-share-in-composer.png"))
+            try photo.write(to: URL(fileURLWithPath: directory).appendingPathComponent("24-share-in-composer.png"))
         }
 
         XCTAssertEqual(served.filter { $0.hasPrefix("POST") }, ["POST /api/bots/\(pesto)/tasks"], "one new thread, of the agent picked")
         XCTAssertEqual(routed, ["reservation-1"])
+        XCTAssertNil(window.rootViewController?.presentedViewController, "the agent picker stays closed over the opened thread")
         XCTAssertEqual(draft?.text, HermesShareDraft.composerDraft(from: "Leggi questo appunto"), "the words as a Hermes share puts them")
         XCTAssertEqual(draft?.attachments.map(\.name), ["appunto.txt"])
     }

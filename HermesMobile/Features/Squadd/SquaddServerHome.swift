@@ -76,6 +76,8 @@ struct SquaddServerHome: View {
     /// The open thread, so the keyboard's chat shortcuts know where they stand.
     @State private var path: [SquaddThreadChat] = []
     @State private var isChoosingShareAgent = false
+    /// The share already offered: the agents reload while its thread opens, and it isn't asked again.
+    @State private var offeredShare: String?
     /// The share the thread it opened shows in its composer.
     @State private var openedShare: (chatID: String, share: SharedImport, notice: SharedSkipsNotice?)?
 
@@ -566,13 +568,15 @@ struct SquaddServerHome: View {
 
     /// Asks for the agent once this server's agents are loaded.
     private func offerShare() {
-        guard pendingShare != nil, !isChoosingShareAgent, case .loaded = model?.phase else { return }
+        guard let pendingShare, pendingShare.reservationID != offeredShare, case .loaded = model?.phase else { return }
+        offeredShare = pendingShare.reservationID
         isChoosingShareAgent = true
     }
 
     /// Opens a new thread of `botId` holding the pending share in its composer.
     private func share(to botId: String) {
         guard let reservation = pendingShare, let model else { return }
+        offeredShare = reservation.reservationID
         isChoosingShareAgent = false
         Task {
             guard let task = await model.createThread(botId: botId) else {
