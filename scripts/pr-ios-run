@@ -59,6 +59,15 @@ SUPERSEDED_SECONDS = 20  # a newer push's run exists by the time the old one is 
 LIVE_TEMPLATE = ROOT / "scripts" / "pr-ios-live.yml"
 LIVE_CAP_MINUTES = 30   # the live job's own timeout is 25
 # serveo also prints https://console.serveo.net/… links (tips, key notice); #15 wrote one into the gist.
+# The fake engine's own reply, «hello from fake claude», comes in one piece: SquaddChatLivePhotoTests never sees a
+# partial and stops on XCTUnwrap (#129, live run 44746035945). With none of these set, live streams a long reply.
+ENGINE_KEYS = ("FAKE_CLAUDE_REPLIES", "FAKE_CLAUDE_STREAM_CADENCE", "FAKE_CLAUDE_MODE")
+ENGINE_DEFAULT = {
+    "FAKE_CLAUDE_REPLIES": json.dumps(["Ciao dal companion usa e getta: questa risposta arriva a pezzi, otto caratteri "
+                                       "ogni centocinquanta millisecondi, così il simulatore la vede crescere mentre "
+                                       "scorre e poi la fotografa finita. Ancora qualche parola per allungarla abbastanza "
+                                       "da riempire più righe della chat e rendere evidente lo streaming."]),
+    "FAKE_CLAUDE_STREAM_CADENCE": "8:150"}
 SERVEO_ADDRESS = re.compile(r"https://[a-z0-9-]+\.serveousercontent\.com")
 
 
@@ -219,6 +228,11 @@ def tunnel_command(key, known_hosts, port):
             "serveo.net"]
 
 
+def engine_env(environ):
+    """The server's environment: the caller's FAKE_CLAUDE_* as given, or a long streamed reply when none is set."""
+    return dict(environ) if any(key in environ for key in ENGINE_KEYS) else {**environ, **ENGINE_DEFAULT}
+
+
 def live_branch(issue, taken):
     """The first foto/<issue>-live, -2, -3… not on GitHub: the push guard refuses rewriting a branch (#115)."""
     branch, n = f"foto/{issue}-live", 1
@@ -301,7 +315,7 @@ class Live:
         engine and answers «Not logged in» (#94). Its JSON names the url."""
         log = self.work / "server.log"
         process = self.spawn(["node", "--experimental-strip-types", "scripts/control-omb.ts", "launch"],
-                             omb, os.environ.copy(), log)
+                             omb, engine_env(os.environ), log)
 
         def ready():
             if process.poll() is not None:
