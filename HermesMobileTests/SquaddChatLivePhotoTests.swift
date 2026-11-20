@@ -116,6 +116,69 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         XCTAssertEqual(model.messages.filter { $0.content == reply }.count, storedCount, "each stored reply shows once")
     }
 
+    /// #13: two messages queued behind a running reply show with Steer and Delete; one deleted,
+    /// one steered in; Stop ends the turn; Compact leaves its marker. Log `squadd-control-log.txt`.
+    func testPhotographStopQueueAndCompact() async throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let directory = environment["BRAND_PHOTOS_DIR"],
+              let token = environment["SQUADD_LIVE_TOKEN"], !token.isEmpty,
+              environment["SQUADD_LIVE_URL"] != nil || environment["SQUADD_LIVE_LOOKUP"] != nil else {
+            throw XCTSkip("Live photos only: a photo branch's workflow with a companion in the secrets.")
+        }
+        let folder = URL(fileURLWithPath: directory, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var log: [String] = []
+        let started = Date()
+        func note(_ line: String) { log.append(String(format: "%6.2fs  ", Date().timeIntervalSince(started)) + line) }
+        defer { try? log.joined(separator: "\n").write(to: folder.appendingPathComponent("squadd-control-log.txt"), atomically: true, encoding: .utf8) }
+        let (window, model, chat) = try await openLiveChat(environment, token: token, folder: folder, note: note)
+        defer { window.isHidden = true }
+        func streamed() -> String? {
+            model.streamingAssistantMessageID.flatMap { id in model.messages.first { $0.messageId == id } }?.content
+        }
+        func markers() -> Int { model.messages.filter { ChatMarkerMessageClassifier.classify($0) == .contextCompaction }.count }
+
+        let sending = Task { await model.send("Rispondimi a lungo, poi ti fermo") }
+        _ = try await settle(seconds: 30) { streamed().flatMap { $0.count > 20 ? $0 : nil } }
+        _ = await model.submitStreamingMessage("Poi dimmi solo ok", behavior: .queue)
+        _ = await model.submitStreamingMessage("Questo lo cancello", behavior: .queue)
+        let queued = try await settle(seconds: 10) { model.queuedPromptMessages.count == 2 ? model.queuedPromptMessages : nil }
+        note("queued behind the running reply: \(queued?.compactMap(\.content) ?? [])")
+        try await readyPhoto(of: window).write(to: folder.appendingPathComponent("13-squadd-queued.png"))
+
+        await model.deleteQueuedPrompt(try XCTUnwrap(queued?.last?.messageId))
+        let left = try await settle(seconds: 10) { model.queuedPromptMessages.count == 1 ? model.queuedPromptMessages : nil }
+        note("after Delete: \(left?.compactMap(\.content) ?? [])")
+        await model.steerQueuedPrompt(try XCTUnwrap(left?.first?.messageId))
+        let steered = try await settle(seconds: 10) {
+            model.queuedPromptMessages.isEmpty && model.messages.contains { $0.role == "user" && $0.content == "Poi dimmi solo ok" } ? true : nil
+        }
+        note("after Steer: queue empty and the message in the running turn: \(steered == true), still running: \(model.activeStreamID != nil)")
+        try await readyPhoto(of: window).write(to: folder.appendingPathComponent("14-squadd-steered.png"))
+
+        let accepted = await model.cancelActiveStream()
+        note("Stop accepted: \(accepted), still running until the stream says: \(model.activeStreamID != nil)")
+        _ = await sending.value
+        let stopped = try await settle(seconds: 20) { model.activeStreamID == nil ? true : nil }
+        let shown = model.messages.last { $0.role == "assistant" }?.content ?? ""
+        note("stopped: \(stopped == true), reply cut at \(shown.count) characters, error: \(model.sendErrorMessage ?? "none")")
+        try await readyPhoto(of: window, until: { model.activeStreamID == nil })
+            .write(to: folder.appendingPathComponent("15-squadd-stopped.png"))
+
+        let before = markers()
+        let result = await model.executeSlashCommand(try XCTUnwrap(SlashCommandCatalog.command(named: "compact")))
+        let compacted = try await settle(seconds: 30) { markers() > before ? markers() : nil }
+        let page = try await SquaddCompanionClient(server: chat.server, token: token).messages(threadId: chat.threadId)
+        note("Compact: \(result), markers on screen \(before) → \(compacted ?? before), stored markers \(page.messages.filter { $0.kind == "compaction" }.count)")
+        try await readyPhoto(of: window).write(to: folder.appendingPathComponent("16-squadd-compacted.png"))
+
+        XCTAssertEqual(queued?.count, 2)
+        XCTAssertEqual(steered, true)
+        XCTAssertTrue(accepted)
+        XCTAssertEqual(stopped, true)
+        XCTAssertNotNil(compacted, "the compaction marker shows")
+    }
+
     /// Finds the companion through the tunnel, pushes the first agent thread's chat, and waits for it to load.
     private func openLiveChat(_ environment: [String: String], token: String, folder: URL,
                               note: (String) -> Void) async throws -> (UIWindow, ChatViewModel, SquaddThreadChat) {
