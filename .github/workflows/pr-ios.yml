@@ -27,7 +27,7 @@ jobs:
     name: Build, touched tests, photos, catalog
     if: ${{ !github.event.deleted }}
     runs-on: [squadd-multi-ios-shared]
-    timeout-minutes: 2
+    timeout-minutes: 6  # misura
     env:
       HEAD_SHA: ${{ github.sha }}
       DERIVED_DATA: ${{ github.workspace }}/../../DerivedData
