@@ -240,8 +240,8 @@ final class SquaddPushPhotoTests: XCTestCase {
         XCTAssertEqual(manager.state, .loggedIn(server: sender))
     }
 
-    /// Readies the simulator for the recorded push the photo job sends with `simctl push`: notification permission
-    /// (the job taps Allow on the system alert) and the sender paired in the app's own Keychain, so the tap opens its
+    /// Readies the simulator for the recorded push `scripts/pr-ios-run live <issue> --push` sends with `simctl push`:
+    /// notification permission (`ci/foto/tap_allow.py` taps Allow on the system alert) and the sender paired in the app's own Keychain, so the tap opens its
     /// thread. Skipped unless `PUSH_REAL` is set (`TEST_RUNNER_PUSH_REAL`).
     func testPrepareTheSimulatorForARealPush() async throws {
         try XCTSkipIf(ProcessInfo.processInfo.environment["PUSH_REAL"] == nil, "Only for the push photo job")

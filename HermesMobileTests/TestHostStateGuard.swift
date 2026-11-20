@@ -37,6 +37,8 @@ final class TestHostStateGuard: NSObject, XCTestObservation {
     }
 
     func testBundleDidFinish(_ testBundle: Bundle) {
+        // The real-push run (scripts/pr-ios-push.yml) keeps the sender its test paired, for the tap to open.
+        if ProcessInfo.processInfo.environment["PUSH_REAL"] != nil { return }
         if let keychainItems, let current = Self.genericPasswords(returningData: false) {
             for item in current {
                 SecItemDelete(Self.identity(of: item) as CFDictionary)

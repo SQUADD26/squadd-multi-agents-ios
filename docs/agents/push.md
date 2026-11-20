@@ -160,25 +160,9 @@ move record, which outlives the webui entry and goes with the destination
 ## A real push in the simulator (photo)
 
 The XCTests open a tapped payload directly. A photo of a banner delivered by
-`simctl push`, and of the thread a real tap opens, needs the simulator itself.
-#30 found the way in six 30-minute runs on the hosted `xcode-27` runner. The
-working job is `.github/workflows/foto-simulatore.yml` with `ci/foto/` on the
-never-merged branch `foto/30-push-3` (run 44681321290). `Runner guard` now
-cancels a push workflow on hosted macOS, so that job runs again only on the
-Mac runners, a port not yet tried.
-
-- **Permission.** `SquaddPushPhotoTests/testPrepareTheSimulatorForARealPush`
-  (`TEST_RUNNER_PUSH_REAL=1`) asks for notification permission and pairs the
-  sender. `ci/foto/tap_allow.py` taps Allow on the system alert, found by its
-  label in `idb ui describe-all`. Start it before `xcodebuild` and let it wait
-  longer than the build: a 5-minute wait lost a 60-minute run whose build took
-  12.
-- **Pairing.** `TestHostStateGuard` restores the Keychain when the test bundle
-  ends, so a server the test paired is gone when the app relaunches. On dev it
-  doesn't skip; the photo branch adds the `PUSH_REAL` early return to
-  `testBundleDidFinish`.
-- **Tap.** `idb ui tap` opens the banner only while it slides in, about 2.5 s
-  after `simctl push` (201,70 on an iPhone 17). A tap on the settled banner
-  does nothing, and the banner isn't in the accessibility tree.
-- **Failures.** Record the run with `simctl io recordVideo` and watch the
-  video first: in #30 it showed the real cause every time.
+`simctl push`, and of the thread a real tap opens, needs the simulator itself:
+`scripts/pr-ios-run live <issue> --push` runs `scripts/pr-ios-push.yml` on the
+Mac runner, in a simulator of its own (#30 found the way in six 30-minute runs
+on a hosted runner). It is green only when the tap opened the pushed thread;
+the photo, the video (`push.mp4`) and the logs are in the artifact, and the
+video shows the real cause of a failure.

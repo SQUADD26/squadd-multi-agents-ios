@@ -1,0 +1,118 @@
+# The real-push run `scripts/pr-ios-run live <issue> --push` commits as .github/workflows/foto-__ISSUE__-push.yml on
+# its own branch __BRANCH__, on top of the head it tests: never copy it by hand. #30's recipe (six 30-minute runs on a
+# hosted runner) on the Mac runner: a simulator of this run, with notification permission and the sender paired, gets a
+# recorded Squadd push with `simctl push`; the banner is tapped as it slides in, and the run is green only when the
+# stand-in companion then serves the pushed thread. Photos, video and logs are the artifact.
+name: Foto __ISSUE__ push
+
+on:
+  push:
+    branches: ['__BRANCH__']
+
+permissions:
+  contents: read
+
+jobs:
+  push:
+    runs-on: [squadd-multi-ios-senza-pr]
+    timeout-minutes: 25
+    env:
+      HEAD_SHA: ${{ github.sha }}
+      # Ad-hoc signed (the Keychain needs it): its own DerivedData, so PR iOS's unsigned incremental build stays warm.
+      DERIVED_DATA: ${{ github.workspace }}/../../DerivedData-push
+      IDB: ${{ github.workspace }}/../../idb-1.7.8
+      PHOTOS: ${{ github.workspace }}/ci-foto
+      RUNNER_TRACKING_ID: ""
+    steps:
+      - name: Code, idb, simulator and build
+        id: sim
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          dev="+refs/heads/dev:refs/remotes/origin/dev"
+          git fetch -q --no-tags origin "${HEAD_SHA}" "${dev}"
+          git show "${HEAD_SHA}:ci/pr_state.py" > "${RUNNER_TEMP}/pr_state.py"
+          git show "${HEAD_SHA}:ci/pr_group.py" > "${RUNNER_TEMP}/pr_group.py"
+          python3 "${RUNNER_TEMP}/pr_state.py" "${BRANCH}" "${HEAD_SHA}"
+          cd "${GITHUB_WORKSPACE}"
+          git fetch -q --no-tags origin "${HEAD_SHA}" "${dev}"
+          git checkout -qf --detach "${HEAD_SHA}"
+          git clean -ffdq
+          mkdir -p "${PHOTOS}"
+          # idb in the runner's folder, never in the Mac's system: the companion from facebook/idb's release, checked
+          # against its sha256, and the client in a venv of its own.
+          if [[ ! -x "${IDB}/venv/bin/idb" ]]; then
+            rm -rf "${IDB}"; mkdir -p "${IDB}/companion"
+            curl -fsSL -o "${RUNNER_TEMP}/companion.tgz" https://github.com/facebook/idb/releases/download/v1.7.8/idb-companion.macos-arm64.tar.gz
+            echo "44369a2df0b62e3a1764de61bd09280999c7e9b27ea8f20bff1ea3a9db0302a2  ${RUNNER_TEMP}/companion.tgz" | shasum -a 256 -c -
+            tar xzf "${RUNNER_TEMP}/companion.tgz" -C "${IDB}/companion" 2>/dev/null
+            python3 -m venv "${IDB}/venv"
+            "${IDB}/venv/bin/pip" install -q fb-idb==1.7.7
+          fi
+          # A simulator of this run: its notification permission and Keychain go with it.
+          runtime=$(xcrun simctl list runtimes available --json | python3 -c '
+          import json, sys
+          print([r["identifier"] for r in json.load(sys.stdin)["runtimes"] if r["platform"] == "iOS"][-1])')
+          udid=$(xcrun simctl create "Squadd push ${GITHUB_RUN_ID}" "iPhone 17" "${runtime}")
+          echo "udid=${udid}" >> "$GITHUB_OUTPUT"
+          xcrun simctl boot "${udid}"
+          xcrun simctl bootstatus "${udid}" -b > /dev/null
+          nice -n 10 xcodebuild build-for-testing -project HermesMobile.xcodeproj -scheme HermesMobile -configuration Debug \
+            -destination "platform=iOS Simulator,id=${udid}" -derivedDataPath "${DERIVED_DATA}" \
+            -disableAutomaticPackageResolution -enableCodeCoverage NO COMPILER_INDEX_STORE_ENABLE=NO \
+            CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= -quiet
+
+      - name: Permission, pairing, push and tap
+        # An untapped permission alert holds the test forever: tap_allow.py gives up at 5 minutes, the step soon after.
+        timeout-minutes: 8
+        env:
+          UDID: ${{ steps.sim.outputs.udid }}
+          TEST_RUNNER_PUSH_REAL: "1"
+        run: |
+          set -euo pipefail
+          export PATH="${IDB}/venv/bin:${IDB}/companion:${PATH}"
+          python3 ci/foto/companion.py 22020 > "${PHOTOS}/companion.log" 2>&1 & echo $! > "${RUNNER_TEMP}/pids"
+          idb_companion --udid "${UDID}" --grpc-port 10882 > "${PHOTOS}/idb-companion.log" 2>&1 & echo $! >> "${RUNNER_TEMP}/pids"
+          for _ in $(seq 30); do idb connect localhost 10882 > /dev/null 2>&1 && break; sleep 1; done
+          python3 ci/foto/tap_allow.py "${UDID}" "Allow|Consenti" 300 > "${PHOTOS}/tap-allow.log" 2>&1 & allow=$!
+          nice -n 10 xcodebuild test-without-building -project HermesMobile.xcodeproj -scheme HermesMobile \
+            -destination "platform=iOS Simulator,id=${UDID}" -derivedDataPath "${DERIVED_DATA}" \
+            -disableAutomaticPackageResolution -parallel-testing-enabled NO -collect-test-diagnostics never \
+            -only-testing:HermesMobileTests/SquaddPushPhotoTests/testPrepareTheSimulatorForARealPush \
+            | tee "${PHOTOS}/prepare-test.log" | grep -E "^Test (Case|Suite)|: error: -\[|\*\* TEST"
+          kill "${allow}" 2>/dev/null || true
+          cat "${PHOTOS}/tap-allow.log"
+          bundle_id=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' \
+            "${DERIVED_DATA}/Build/Products/Debug-iphonesimulator/HermesMobile.app/Info.plist")
+          xcrun simctl terminate "${UDID}" "${bundle_id}" || true
+          sleep 3
+          xcrun simctl io "${UDID}" recordVideo --codec h264 --force "${PHOTOS}/push.mp4" > "${PHOTOS}/video.log" 2>&1 & video=$!
+          sleep 3
+          before=$(wc -l < "${PHOTOS}/companion.log")
+          xcrun simctl push "${UDID}" "${bundle_id}" HermesMobileTests/Fixtures/Squadd/apns-done.json
+          # Tapped while the banner slides in (#30 run 44662995537); a tap on the settled banner does nothing, and the
+          # banner is not in the accessibility tree.
+          sleep 2.5
+          idb ui tap --udid "${UDID}" 201 70
+          sleep 10
+          xcrun simctl io "${UDID}" screenshot "${PHOTOS}/n4-tap-opens-thread.png"
+          kill -INT "${video}"; wait "${video}" || true
+          tail -n +"$((before + 1))" "${PHOTOS}/companion.log"
+          if ! tail -n +"$((before + 1))" "${PHOTOS}/companion.log" | grep -q "GET /api/threads/6f85c7af-a71e-487f-8072-abd6b0765715/messages"; then
+            echo "::error::the tapped push did not open its thread: the companion never served its messages"; exit 1
+          fi
+
+      - name: Clean up the run's simulator and processes
+        if: always()
+        env:
+          UDID: ${{ steps.sim.outputs.udid }}
+        run: |
+          [[ -f "${RUNNER_TEMP}/pids" ]] && xargs kill < "${RUNNER_TEMP}/pids" 2>/dev/null || true
+          if [[ -n "${UDID}" ]]; then xcrun simctl shutdown "${UDID}" || true; xcrun simctl delete "${UDID}" || true; fi
+
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: live-run
+          path: ci-foto

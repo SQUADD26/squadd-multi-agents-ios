@@ -5,6 +5,7 @@ Usage:
   scripts/pr-ios-run red <issue> <name>=<commit> [<name>=<commit> ...]
   scripts/pr-ios-run wait <branch> <sha>
   scripts/pr-ios-run live <issue> <TestClass>[/<testMethod>]
+  scripts/pr-ios-run live <issue> --push
 
 red pushes each mutation commit to its own branch rosso/<issue>-<name>, all at
 once, waits for every PR iOS run, prints each failing assertion and deletes
@@ -19,14 +20,17 @@ cancelled, 2 as above.
 live runs one test class of this checkout's HEAD on the Mac runner against a
 disposable Squadd companion in this sandbox, the whole recipe of
 docs/agents/live-companion.md: an openmausbot worktree of its own with its
-packages, the fake-engine server (control-omb.ts launch; FAKE_CLAUDE_* in the
-environment pass through), a companion on free ports, paired; a serveo tunnel
+packages, the fake-engine server (control-omb.ts launch; FAKE_CLAUDE_* and
+OMB_VERIFY_APPROVALS in the environment pass through), a companion on free ports, paired; a serveo tunnel
 on port 443 with a key of this run, checked to answer with this companion's
 token, its address kept in a secret gist; two secrets of this run; the
 workflow scripts/pr-ios-live.yml committed on top of HEAD on the first free
 branch foto/<issue>-live, -2, -3…, pushed once. It waits for the run, prints
 the failing assertions and the artifact's logs, and cleans up everything it
 made. Exit 0 green, 1 red, 2 as above.
+With --push it runs scripts/pr-ios-push.yml instead, on foto/<issue>-push: a
+recorded Squadd push into a simulator of its own, tapped, green only when the
+tap opened the pushed thread.
 
 Works from any folder: every git call runs in this checkout and every gh call
 names the repository. Why: #98 waited 36 minutes on a push that had failed
@@ -57,6 +61,7 @@ NO_RUN_MINUTES = 4   # a push starts its run within a minute
 CAP_MINUTES = 20     # a PR iOS run takes a few minutes
 SUPERSEDED_SECONDS = 20  # a newer push's run exists by the time the old one is cancelled
 LIVE_TEMPLATE = ROOT / "scripts" / "pr-ios-live.yml"
+PUSH_TEMPLATE = ROOT / "scripts" / "pr-ios-push.yml"
 LIVE_CAP_MINUTES = 30   # the live job's own timeout is 25
 # serveo also prints https://console.serveo.net/… links (tips, key notice); #15 wrote one into the gist.
 # The fake engine's own reply, «hello from fake claude», comes in one piece: SquaddChatLivePhotoTests never sees a
@@ -233,23 +238,24 @@ def engine_env(environ):
     return dict(environ) if any(key in environ for key in ENGINE_KEYS) else {**environ, **ENGINE_DEFAULT}
 
 
-def live_branch(issue, taken):
-    """The first foto/<issue>-live, -2, -3… not on GitHub: the push guard refuses rewriting a branch (#115)."""
-    branch, n = f"foto/{issue}-live", 1
+def live_branch(issue, taken, kind="live"):
+    """The first foto/<issue>-<kind>, -2, -3… not on GitHub: the push guard refuses rewriting a branch (#115)."""
+    branch, n = f"foto/{issue}-{kind}", 1
     while branch in taken:
         n += 1
-        branch = f"foto/{issue}-live-{n}"
+        branch = f"foto/{issue}-{kind}-{n}"
     return branch
 
 
-def live_workflow(issue, test, branch, lookup, token):
-    """The live workflow for this run: its trigger is exactly the branch it is pushed to (#117)."""
-    text = LIVE_TEMPLATE.read_text()
+def live_workflow(issue, test, branch, lookup, token, template=None):
+    """The live (or real-push) workflow for this run: its trigger is exactly the branch it is pushed to (#117)."""
+    template = template or LIVE_TEMPLATE
+    text = template.read_text()
     for name, value in {"__ISSUE__": issue, "__BRANCH__": branch, "__TEST__": test,
                         "__LOOKUP__": lookup, "__TOKEN__": token}.items():
         text = text.replace(name, value)
     if "__" in re.sub(r"\${{.*?}}", "", text).replace("__NAME__", ""):
-        raise Stop("pr-ios-live.yml has a placeholder the launcher does not fill")
+        raise Stop(f"{template.name} has a placeholder the launcher does not fill")
     return text
 
 
@@ -385,20 +391,22 @@ class Live:
         self.secrets.append(name)
         return name
 
-    def push(self, test, lookup, token):
+    def push(self, test, lookup, token, kind="live"):
         taken = {line.split("refs/heads/", 1)[1] for line in
-                 git("ls-remote", "origin", f"refs/heads/foto/{self.issue}-live*").splitlines()}
-        branch = live_branch(self.issue, taken)
-        path = f".github/workflows/foto-{self.issue}-live.yml"
+                 git("ls-remote", "origin", f"refs/heads/foto/{self.issue}-{kind}*").splitlines()}
+        branch = live_branch(self.issue, taken, kind)
+        path = f".github/workflows/foto-{self.issue}-{kind}.yml"
+        workflow = live_workflow(self.issue, test, branch, lookup, token,
+                                 PUSH_TEMPLATE if kind == "push" else LIVE_TEMPLATE)
         index = {**os.environ, "GIT_INDEX_FILE": str(self.work / "index")}
         git("read-tree", "HEAD", env=index)
-        blob = git("hash-object", "-w", "--stdin", input=live_workflow(self.issue, test, branch, lookup, token)).strip()
+        blob = git("hash-object", "-w", "--stdin", input=workflow).strip()
         git("update-index", "--add", "--cacheinfo", f"100644,{blob},{path}", env=index)
         tree = git("write-tree", env=index).strip()
-        sha = git("commit-tree", tree, "-p", "HEAD", "-m", f"foto({self.issue}): live run of {test}").strip()
+        sha = git("commit-tree", tree, "-p", "HEAD", "-m", f"foto({self.issue}): {kind} run of {test}").strip()
         git("push", "-q", "origin", f"{sha}:refs/heads/{branch}")
         self.branch = branch
-        return branch, sha, f"Foto {self.issue} live"
+        return branch, sha, f"Foto {self.issue} {kind}"
 
     def close(self):
         self.stopping.set()
@@ -431,26 +439,32 @@ class Live:
 
 
 def live(issue, test):
-    if not re.fullmatch(r"[a-z0-9-]+", issue) or not re.fullmatch(r"\w+(/\w+)?", test):
-        raise Stop(f"expected <issue> <TestClass>[/<testMethod>], got {issue!r} {test!r}")
+    """`test` is a test class or method against the live companion, or --push for the real-push run, which needs
+    no companion in the sandbox: a stand-in on the Mac serves the pushed thread."""
+    if not re.fullmatch(r"[a-z0-9-]+", issue) or not re.fullmatch(r"\w+(/\w+)?|--push", test):
+        raise Stop(f"expected <issue> <TestClass>[/<testMethod>] or <issue> --push, got {issue!r} {test!r}")
     repo = repository()
     if git("status", "--porcelain").strip():
         print("pr-ios-run: uncommitted changes are not in the run: it tests HEAD", file=sys.stderr, flush=True)
     run = Live(repo, issue)
     try:
-        omb = run.openmausbot()
-        server = run.server(omb)
-        port, token = run.companion(omb, server["url"])
-        lookup = run.tunnel(port, token)
-        print(f"companion: {run.address} (server data {server.get('dataDir')}, logs {run.work})", flush=True)
-        branch, sha, workflow = run.push(test, run.secret("LOOKUP", lookup), run.secret("TOKEN", token))
+        if test == "--push":
+            branch, sha, workflow = run.push("the real push", "", "", "push")
+        else:
+            omb = run.openmausbot()
+            server = run.server(omb)
+            port, token = run.companion(omb, server["url"])
+            lookup = run.tunnel(port, token)
+            print(f"companion: {run.address} (server data {server.get('dataDir')}, logs {run.work})", flush=True)
+            branch, sha, workflow = run.push(test, run.secret("LOOKUP", lookup), run.secret("TOKEN", token))
         found = wait_run(repo, branch, sha, workflow, LIVE_CAP_MINUTES)
         errors = report(repo, branch, found)
         out = Path(tempfile.mkdtemp(prefix=f"live-run-{issue}-"))
         subprocess.run(["gh", "run", "download", str(found["databaseId"]), "-R", repo, "-n", "live-run",
                         "-D", str(out)], capture_output=True, timeout=300)
-        for log in sorted(out.glob("*.txt")):
-            print(f"-- {log.name}\n{log.read_text()[-3000:]}", flush=True)
+        for log in sorted(out.glob("*.txt")) + [out / name for name in ("tap-allow.log", "companion.log")]:
+            if log.exists():
+                print(f"-- {log.name}\n{log.read_text(errors='replace')[-3000:]}", flush=True)
         print(f"artifact: {out}  run: https://github.com/{repo}/actions/runs/{found['databaseId']}", flush=True)
         return 0 if found["conclusion"] == "success" and not errors else 1
     finally:
