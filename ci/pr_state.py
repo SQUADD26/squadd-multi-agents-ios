@@ -69,7 +69,14 @@ def main(branch, head):
     os.chdir(work)
     parked = states / current
     parked.mkdir(exist_ok=True)
-    workspace.rename(parked / "src")
+    # A run cancelled after parking but before the marker leaves `current`'s state parked and an empty
+    # workspace in its place: the parked one is the real state, so what sits in the workspace goes.
+    for part, live in (("src", workspace), ("dd", derived)):
+        if (parked / part).exists() and live.exists():
+            discard(work, live, f"{current}-{part}")
+            print(f"Build state: {current}'s {part} was already parked (a cancelled run); discarding the leftover")
+    if workspace.exists():
+        workspace.rename(parked / "src")
     if derived.exists():
         derived.rename(parked / "dd")
     if (states / mine).is_dir():
@@ -95,12 +102,16 @@ def main(branch, head):
     marker.write_text(mine)
     old = sorted((p for p in states.iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime, reverse=True)[KEEP:]
     for p in old:
-        # Renamed out of the states at once, deleted in the background: a state is ~100k files (~1 s).
-        gone = work / f"pr-state-deleting-{p.name}-{os.getpid()}"
-        p.rename(gone)
-        subprocess.Popen([sys.executable, "-c", "import shutil, sys; shutil.rmtree(sys.argv[1])", str(gone)],
-                         start_new_session=True)
+        discard(work, p, p.name)
         print(f"Deleting the old build state {p.name}")
+
+
+def discard(work, path, name):
+    """Renamed out of the way at once, deleted in the background: a state is ~100k files (~1 s)."""
+    gone = work / f"pr-state-deleting-{name}-{os.getpid()}"
+    path.rename(gone)
+    subprocess.Popen([sys.executable, "-c", "import shutil, sys; shutil.rmtree(sys.argv[1])", str(gone)],
+                     start_new_session=True)
 
 
 if __name__ == "__main__":

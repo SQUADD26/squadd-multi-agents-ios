@@ -47,5 +47,23 @@ class PRStateTests(unittest.TestCase):
         self.assertEqual(sorted(p.name for p in (work / "pr-states").iterdir() if p.is_dir()), ["foto-1-a"])
 
 
+    def test_a_run_cancelled_after_parking_does_not_block_the_next_one(self):
+        work = Path(tempfile.mkdtemp())
+        workspace = work / "repo" / "repo"
+        states = work / "pr-states"
+        for part in ("a/src", "a/dd", "b/src", "b/dd"):
+            (states / part).mkdir(parents=True)
+        (states / "a" / "src" / "kept").write_text("a's checkout")
+        (states / "b" / "dd" / "built").write_text("b's build")
+        (states / "current").write_text("a")  # a was parked, then the run was cancelled before the marker
+        (workspace / "leftover").mkdir(parents=True)  # the runner recreates the workspace
+        os.environ["GITHUB_WORKSPACE"] = str(workspace)
+
+        pr_state.main("b", "0" * 40)
+
+        self.assertEqual((work / "DerivedData" / "built").read_text(), "b's build")
+        self.assertEqual((states / "a" / "src" / "kept").read_text(), "a's checkout")
+
+
 if __name__ == "__main__":
     unittest.main()
