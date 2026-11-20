@@ -224,9 +224,3 @@ extension SquaddCompanionClient {
         return request
     }
 }
-
-/// An element that decodes to nil instead of failing what holds it.
-struct SquaddLossy<Value: Decodable>: Decodable {
-    let value: Value?
-    init(from decoder: Decoder) throws { value = try? Value(from: decoder) }
-}
