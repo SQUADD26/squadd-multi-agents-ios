@@ -8,7 +8,7 @@ struct SquaddBotList: Codable, Equatable {
     /// The rooms: chats with several agents (`groups`).
     let rooms: [SquaddRoom]
 
-    private enum CodingKeys: String, CodingKey { case bots, groups }
+    private enum CodingKeys: String, CodingKey { case bots, rooms = "groups" }
 
     init(bots: [SquaddBot], rooms: [SquaddRoom] = []) {
         self.bots = bots
@@ -19,14 +19,14 @@ struct SquaddBotList: Codable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         bots = (try? container.decodeIfPresent([Lossy<SquaddBot>].self, forKey: .bots))?.compactMap(\.value) ?? []
         // A bot-to-bot channel (`dm`) is the agents' own, not a room the person opened.
-        rooms = ((try? container.decodeIfPresent([Lossy<SquaddRoom>].self, forKey: .groups))?.compactMap(\.value) ?? [])
+        rooms = ((try? container.decodeIfPresent([Lossy<SquaddRoom>].self, forKey: .rooms))?.compactMap(\.value) ?? [])
             .filter { $0.isDirect != true }
     }
 }
 
 /// A room (`WireGroup`): several agents in one chat. Each of its `tasks` is a conversation of
 /// its own, one thread the members share; `threadId` is the one open on the desktop.
-struct SquaddRoom: Decodable, Equatable, Identifiable {
+struct SquaddRoom: Codable, Equatable, Identifiable {
     let id: String
     let threadId: String?
     var name: String?
@@ -264,8 +264,10 @@ struct SquaddTask: Codable, Equatable, Identifiable {
     var isArchived: Bool { archivedAt != nil }
 
     private enum CodingKeys: String, CodingKey {
-        case threadId, title, updatedAt, createdAt, lastThreadOrderAt, unread, busy, working, pinned, archivedAt, projectId
+        case threadId, title, updatedAt, createdAt, lastThreadOrderAt, unread, busy, pinned, archivedAt, projectId
     }
+    /// A room's conversation says `working` where an agent's thread says `busy`.
+    private enum RoomKeys: String, CodingKey { case working }
 
     init(threadId: String, title: String?, updatedAt: Double? = nil, createdAt: Double? = nil, lastThreadOrderAt: Double? = nil,
          unread: Bool? = nil, busy: Bool? = nil, pinned: Bool? = nil, archivedAt: Double? = nil, projectId: String? = nil) {
@@ -289,8 +291,8 @@ struct SquaddTask: Codable, Equatable, Identifiable {
         createdAt = try? container.decodeIfPresent(Double.self, forKey: .createdAt)
         lastThreadOrderAt = try? container.decodeIfPresent(Double.self, forKey: .lastThreadOrderAt)
         unread = try? container.decodeIfPresent(Bool.self, forKey: .unread)
-        // A room's conversation says `working` where an agent's thread says `busy`.
-        busy = (try? container.decodeIfPresent(Bool.self, forKey: .busy)) ?? (try? container.decodeIfPresent(Bool.self, forKey: .working))
+        busy = (try? container.decodeIfPresent(Bool.self, forKey: .busy))
+            ?? (try? decoder.container(keyedBy: RoomKeys.self).decodeIfPresent(Bool.self, forKey: .working))
         pinned = try? container.decodeIfPresent(Bool.self, forKey: .pinned)
         archivedAt = try? container.decodeIfPresent(Double.self, forKey: .archivedAt)
         projectId = try? container.decodeIfPresent(String.self, forKey: .projectId)
