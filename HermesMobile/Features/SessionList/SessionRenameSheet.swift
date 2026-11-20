@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct SessionRenameSheet: View {
+    let title: LocalizedStringKey
+    let fieldLabel: LocalizedStringKey
     let isSaving: Bool
     /// Why the server refused the last title, shown under the field so the sheet stays open
     /// with it; a Hermes host's own message (#1048).
@@ -12,12 +14,16 @@ struct SessionRenameSheet: View {
     @FocusState private var titleIsFocused: Bool
 
     init(
+        title: LocalizedStringKey = "Rename Session",
+        fieldLabel: LocalizedStringKey = "Session title",
         initialTitle: String,
         isSaving: Bool,
         errorMessage: String? = nil,
         onCancel: @escaping () -> Void,
         onSave: @escaping (String) -> Void
     ) {
+        self.title = title
+        self.fieldLabel = fieldLabel
         self.isSaving = isSaving
         self.errorMessage = errorMessage
         self.onCancel = onCancel
@@ -29,7 +35,7 @@ struct SessionRenameSheet: View {
         NavigationStack {
             AppForm {
                 Section {
-                    TextField("Session title", text: $sessionTitle)
+                    TextField(fieldLabel, text: $sessionTitle)
                         .textInputAutocapitalization(.sentences)
                         .focused($titleIsFocused)
                         .disabled(isSaving)
@@ -41,7 +47,7 @@ struct SessionRenameSheet: View {
                 }
             }
             .themedPageBackground()
-            .navigationTitle("Rename Session")
+            .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {

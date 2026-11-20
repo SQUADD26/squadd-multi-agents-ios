@@ -49,8 +49,8 @@ extension SquaddCompanionClient {
 
     // MARK: - Plumbing
 
-    /// `pathAndQuery` is relative to the server and already escaped.
-    func call(_ method: String, _ pathAndQuery: String, body: [String: String]? = nil) async throws -> Data {
+    /// `pathAndQuery` is relative to the server and already escaped. `body` is JSON, `NSNull()` for a null.
+    func call(_ method: String, _ pathAndQuery: String, body: [String: Any]? = nil) async throws -> Data {
         guard let url = URL(string: pathAndQuery, relativeTo: server.appendingPathComponent("/")) else {
             throw SquaddError.invalidResponse
         }
@@ -59,7 +59,7 @@ extension SquaddCompanionClient {
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         if let body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try JSONEncoder().encode(body)
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
         }
         return try await Self.send(request, session: session)
     }

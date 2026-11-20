@@ -26,10 +26,38 @@ struct SquaddCompanionClient {
 
     /// The computer's agents and their task threads.
     func bots() async throws -> [SquaddBot] {
-        var request = URLRequest(url: server.appendingPathComponent("api/bots"))
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        let data = try await Self.send(request, session: session)
+        let data = try await call("GET", "api/bots")
         return try JSONDecoder().decode(SquaddBotList.self, from: data).bots
+    }
+
+    /// Opens a new thread for `botId`. `select: false` leaves the desktop on the thread it shows.
+    func createTask(botId: String, title: String? = nil) async throws -> SquaddTask {
+        var body: [String: Any] = ["select": false]
+        if let title { body["title"] = title }
+        let data = try await call("POST", "api/bots/\(botId)/tasks", body: body)
+        return try JSONDecoder().decode(SquaddTaskResponse.self, from: data).task
+    }
+
+    /// Changes a thread's settings: `title`, `pinned`, `archivedAt` (ms, or `NSNull()` to restore),
+    /// `projectId` (or `NSNull()` to take it out of its folder). Returns the thread as saved.
+    func patchTask(botId: String, threadId: String, _ changes: [String: Any]) async throws -> SquaddTask {
+        let data = try await call("PATCH", "api/bots/\(botId)/tasks/\(threadId)", body: changes)
+        return try JSONDecoder().decode(SquaddTaskResponse.self, from: data).task
+    }
+
+    func deleteTask(botId: String, threadId: String) async throws {
+        _ = try await call("DELETE", "api/bots/\(botId)/tasks/\(threadId)")
+    }
+
+    /// Message matches across every conversation this phone can see.
+    func search(_ query: String) async throws -> [SquaddSearchHit] {
+        let data = try await call("GET", "api/search?q=\(Self.segment(query))")
+        return try JSONDecoder().decode(SquaddSearchResponse.self, from: data).hits
+    }
+
+    /// A thread's visible conversation as Markdown, the desktop's own export.
+    func exportMarkdown(threadId: String) async throws -> Data {
+        try await call("GET", "api/threads/\(threadId)/export")
     }
 
     /// The computer's engines and their models, for the agent model picker.
