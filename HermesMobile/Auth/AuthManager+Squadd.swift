@@ -29,6 +29,32 @@ extension AuthManager {
         enterActiveServer(address)
     }
 
+    /// Redeems `invite` and makes its computer the active server: a new server in the list, or, for
+    /// a computer already there, its new token. That one goes with the token it replaces
+    /// (`replacesToken`), so the computer swaps this iPhone instead of counting it twice. A webui or
+    /// Hermes server at the same address is refused before the code is spent.
+    func pairSquadd(_ invite: SquaddPairingInvite, deviceName: String, session: URLSession = .shared) async throws {
+        let existing = servers.first { $0.id == invite.server.absoluteString }
+        if let existing, existing.kind != .squadd { throw SquaddAddError.alreadyConfigured }
+        let reply = try await SquaddCompanionClient.pair(
+            server: invite.server, credential: invite.credential, deviceName: deviceName, requestID: invite.requestID,
+            // No token after a revocation: the computer already dropped that device, so nothing to replace.
+            replacesToken: existing == nil ? nil : squaddToken(for: invite.server), session: session)
+        guard let existing else {
+            try addSquaddServer(address: invite.server, token: reply.token)
+            // A new server is named after its host; the computer's own name reads better.
+            if let name = (reply.serverName ?? invite.name)?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty,
+               let account = servers.first(where: { $0.id == invite.server.absoluteString }) {
+                updateServerIdentity(account, displayName: name,
+                                     initials: SessionIdentitySettings.displayInitials(displayName: name, storedInitials: "", fallbackFullName: name),
+                                     headerLogoColorHex: account.headerLogoColorHex)
+            }
+            return
+        }
+        try repairSquaddServer(invite.server, token: reply.token)
+        switchActiveServer(to: existing)
+    }
+
     /// Pairs the saved Squadd server at `server` again with a new token: the pair-again screen's way
     /// back in after the desktop revoked the old one.
     func repairSquaddServer(_ server: URL, token: String) throws {
