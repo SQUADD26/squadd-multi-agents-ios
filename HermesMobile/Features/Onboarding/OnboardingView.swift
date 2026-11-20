@@ -15,7 +15,7 @@ struct OnboardingView: View {
     private let savedServer: URL?
     @State private var isAddingServer: Bool
     @State private var isShowingSetup = false
-    @State private var isPairing = false
+    @State private var isPairing: Bool
     @State private var currentPage = 0
     @State private var shownSetupPrompt = OnboardingFlowPolicy.initialSetupPrompt
     @State private var copiedSetupPrompts: Set<OnboardingSetupPrompt> = []
@@ -24,17 +24,22 @@ struct OnboardingView: View {
     @State private var isShowingCopyReminder = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(authManager: AuthManager, savedServer: URL? = nil) {
+    /// `pairing` opens on the pairing screen, for its photo.
+    init(authManager: AuthManager, savedServer: URL? = nil, pairing: Bool = false) {
         self.authManager = authManager
         self.savedServer = savedServer
         // A known server means a sign-in again, not first-run setup.
         _isAddingServer = State(initialValue: savedServer != nil)
+        _isPairing = State(initialValue: pairing)
     }
 
     var body: some View {
         NavigationStack {
             OnboardingWelcomePage(addServer: {
-                if HermesBackends.isEnabled { isAddingServer = true } else { isPairing = true }
+                switch OnboardingFlowPolicy.welcomeDestination(backendsEnabled: HermesBackends.isEnabled) {
+                case .addServer: isAddingServer = true
+                case .pairing: isPairing = true
+                }
             }, setUp: { isShowingSetup = true })
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationDestination(isPresented: $isShowingSetup) { setupPages }
