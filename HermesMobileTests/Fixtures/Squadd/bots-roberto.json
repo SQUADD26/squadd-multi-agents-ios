@@ -8,36 +8,36 @@
    "description": "",
    "unread": false,
    "busy": false,
-   "createdAt": 1792360000000,
+   "createdAt": 1791925200000,
    "tasks": [
     {
      "threadId": "e716ead1-e0d5-545b-a3fe-3230a87cbd28",
      "title": "New thread",
-     "createdAt": 1795276000000,
-     "updatedAt": 1795538800000,
+     "createdAt": 1794841200000,
+     "updatedAt": 1795104000000,
      "unread": false
     },
     {
      "threadId": "349c167d-16e9-588c-8811-539ae9b9d173",
      "title": "Slogan per il webinar di dicembre",
-     "createdAt": 1795420000000,
-     "updatedAt": 1795596400000,
+     "createdAt": 1794985200000,
+     "updatedAt": 1795161600000,
      "unread": false,
      "titleFromFirstMessage": true
     },
     {
      "threadId": "051af905-c5af-57f9-bcc8-4d2a3c45b07b",
      "title": "Email di lancio del corso",
-     "createdAt": 1795416400000,
-     "updatedAt": 1795578400000,
+     "createdAt": 1794981600000,
+     "updatedAt": 1795143600000,
      "unread": false,
      "titleFromFirstMessage": true
     },
     {
      "threadId": "1c4a08f0-0de1-55fc-9d98-ff99440a96da",
      "title": "New thread",
-     "createdAt": 1795348000000,
-     "updatedAt": 1795348000000,
+     "createdAt": 1794913200000,
+     "updatedAt": 1794913200000,
      "unread": false
     }
    ],
@@ -52,36 +52,36 @@
    "description": "",
    "unread": false,
    "busy": false,
-   "createdAt": 1792360000000,
+   "createdAt": 1791925200000,
    "tasks": [
     {
      "threadId": "9d2d78d0-749d-55b3-8aec-8490f51e21da",
      "title": "New thread",
-     "createdAt": 1795276000000,
-     "updatedAt": 1795538800000,
+     "createdAt": 1794841200000,
+     "updatedAt": 1795104000000,
      "unread": false
     },
     {
      "threadId": "2b04aec6-9b86-5154-804d-df700f07aff3",
      "title": "Landing della masterclass",
-     "createdAt": 1795420000000,
-     "updatedAt": 1795592800000,
+     "createdAt": 1794985200000,
+     "updatedAt": 1795158000000,
      "unread": false,
      "titleFromFirstMessage": true
     },
     {
      "threadId": "ecf00f5d-e16d-55b9-99d0-d4e33fa16710",
      "title": "Velocità del sito dentalspace",
-     "createdAt": 1795416400000,
-     "updatedAt": 1795574800000,
+     "createdAt": 1794981600000,
+     "updatedAt": 1795140000000,
      "unread": false,
      "titleFromFirstMessage": true
     },
     {
      "threadId": "8a5c5bf5-c1d5-5d6e-83ae-e89969bd130a",
      "title": "New thread",
-     "createdAt": 1795348000000,
-     "updatedAt": 1795348000000,
+     "createdAt": 1794913200000,
+     "updatedAt": 1794913200000,
      "unread": false
     }
    ],
@@ -96,28 +96,28 @@
    "description": "",
    "unread": false,
    "busy": false,
-   "createdAt": 1792360000000,
+   "createdAt": 1791925200000,
    "tasks": [
     {
      "threadId": "1369b72e-d00a-516a-a696-a1827c29c7be",
      "title": "New thread",
-     "createdAt": 1795276000000,
-     "updatedAt": 1795538800000,
+     "createdAt": 1794841200000,
+     "updatedAt": 1795104000000,
      "unread": false
     },
     {
      "threadId": "dbde3bb2-a4e9-5d6b-903d-4cea49e94a4e",
      "title": "Prezzi del piano annuale",
-     "createdAt": 1795420000000,
-     "updatedAt": 1795589200000,
+     "createdAt": 1794985200000,
+     "updatedAt": 1795154400000,
      "unread": false,
      "titleFromFirstMessage": true
     },
     {
      "threadId": "c59d8b02-890d-586a-8c1b-be9d6a9d1774",
      "title": "New thread",
-     "createdAt": 1795348000000,
-     "updatedAt": 1795348000000,
+     "createdAt": 1794913200000,
+     "updatedAt": 1794913200000,
      "unread": false
     }
    ],
@@ -131,45 +131,45 @@
    "title": "Macchine, strumenti, retro",
    "description": "",
    "unread": false,
-   "busy": true,
-   "createdAt": 1792360000000,
+   "busy": false,
+   "createdAt": 1791925200000,
    "tasks": [
     {
      "threadId": "4ba9195e-961f-5d19-8de3-de8309c58a18",
      "title": "New thread",
-     "createdAt": 1795276000000,
-     "updatedAt": 1795538800000,
+     "createdAt": 1794841200000,
+     "updatedAt": 1795104000000,
      "unread": false
     },
     {
      "threadId": "296c181a-c5a6-5535-a3c5-85c21cb3de95",
      "title": "Retro della PR 122: QR solo relay",
-     "createdAt": 1795420000000,
-     "updatedAt": 1795585600000,
+     "createdAt": 1794985200000,
+     "updatedAt": 1795150800000,
      "unread": false,
      "titleFromFirstMessage": true
     },
     {
      "threadId": "aed31204-84cf-5c39-b65f-8eeaab8c6328",
      "title": "Backup della VPS squaddv2",
-     "createdAt": 1795416400000,
-     "updatedAt": 1795567600000,
+     "createdAt": 1794981600000,
+     "updatedAt": 1795132800000,
      "unread": false,
      "titleFromFirstMessage": true
     },
     {
      "threadId": "15d5a195-1956-5ab2-935e-3fe6d00c49c3",
      "title": "Limite delle 5 ore di Claude",
-     "createdAt": 1795412800000,
-     "updatedAt": 1795549600000,
+     "createdAt": 1794978000000,
+     "updatedAt": 1795114800000,
      "unread": false,
      "titleFromFirstMessage": true
     },
     {
      "threadId": "c29bfc24-4aa2-5aa9-99c2-b62b614ee3e4",
      "title": "New thread",
-     "createdAt": 1795348000000,
-     "updatedAt": 1795348000000,
+     "createdAt": 1794913200000,
+     "updatedAt": 1794913200000,
      "unread": false
     }
    ],
@@ -184,28 +184,28 @@
    "description": "",
    "unread": false,
    "busy": false,
-   "createdAt": 1792360000000,
+   "createdAt": 1791925200000,
    "tasks": [
     {
      "threadId": "a029aa86-64dd-50a2-a3e3-a59f33d1c3e9",
      "title": "New thread",
-     "createdAt": 1795276000000,
-     "updatedAt": 1795538800000,
+     "createdAt": 1794841200000,
+     "updatedAt": 1795104000000,
      "unread": false
     },
     {
      "threadId": "249e4a38-e605-56a4-a461-1436a5df45ac",
      "title": "Calendario dei post di dicembre",
-     "createdAt": 1795420000000,
-     "updatedAt": 1795582000000,
+     "createdAt": 1794985200000,
+     "updatedAt": 1795147200000,
      "unread": false,
      "titleFromFirstMessage": true
     },
     {
      "threadId": "fbef1a7c-1905-57c1-aac1-0abfa016df4f",
      "title": "New thread",
-     "createdAt": 1795348000000,
-     "updatedAt": 1795348000000,
+     "createdAt": 1794913200000,
+     "updatedAt": 1794913200000,
      "unread": false
     }
    ],
@@ -220,44 +220,44 @@
    "description": "",
    "unread": true,
    "busy": false,
-   "createdAt": 1792360000000,
+   "createdAt": 1791925200000,
    "tasks": [
     {
      "threadId": "137fa760-851b-5c44-81ee-ea7e2a792972",
      "title": "New thread",
-     "createdAt": 1795276000000,
-     "updatedAt": 1795538800000,
+     "createdAt": 1794841200000,
+     "updatedAt": 1795104000000,
      "unread": false
     },
     {
      "threadId": "f3b049fd-3459-5541-9801-a55116599b26",
      "title": "Problems to look at",
-     "createdAt": 1795420000000,
-     "updatedAt": 1795578400000,
+     "createdAt": 1794985200000,
+     "updatedAt": 1795143600000,
      "unread": true,
      "titleFromFirstMessage": true
     },
     {
      "threadId": "fe2a1428-11db-5703-8241-81f41fe70ba2",
      "title": "Ripresa automatica del lavoro di DevOps",
-     "createdAt": 1795416400000,
-     "updatedAt": 1795560400000,
+     "createdAt": 1794981600000,
+     "updatedAt": 1795125600000,
      "unread": false,
      "titleFromFirstMessage": true
     },
     {
      "threadId": "6228d765-8e6f-50dc-ae34-86c63db7b6ac",
      "title": "Riepilogo della settimana",
-     "createdAt": 1795412800000,
-     "updatedAt": 1795542400000,
+     "createdAt": 1794978000000,
+     "updatedAt": 1795107600000,
      "unread": false,
      "titleFromFirstMessage": true
     },
     {
      "threadId": "1814b5ed-f2a0-5aa4-ba6c-4b30afb896d7",
      "title": "New thread",
-     "createdAt": 1795348000000,
-     "updatedAt": 1795348000000,
+     "createdAt": 1794913200000,
+     "updatedAt": 1794913200000,
      "unread": false
     }
    ],
@@ -273,28 +273,28 @@
    "description": "",
    "unread": false,
    "busy": false,
-   "createdAt": 1792360000000,
+   "createdAt": 1791925200000,
    "tasks": [
     {
      "threadId": "7b15d924-57aa-599c-ae68-af405c5daf7a",
      "title": "New thread",
-     "createdAt": 1795276000000,
-     "updatedAt": 1795538800000,
+     "createdAt": 1794841200000,
+     "updatedAt": 1795104000000,
      "unread": false
     },
     {
      "threadId": "3d545397-ac8b-5650-8b18-0c1456b89506",
      "title": "Revisione dell'articolo sul SEO locale",
-     "createdAt": 1795420000000,
-     "updatedAt": 1795574800000,
+     "createdAt": 1794985200000,
+     "updatedAt": 1795140000000,
      "unread": false,
      "titleFromFirstMessage": true
     },
     {
      "threadId": "9d7f7da7-31e6-5a93-ad2a-6ef5b41d71d1",
      "title": "New thread",
-     "createdAt": 1795348000000,
-     "updatedAt": 1795348000000,
+     "createdAt": 1794913200000,
+     "updatedAt": 1794913200000,
      "unread": false
     }
    ],
@@ -309,28 +309,28 @@
    "description": "",
    "unread": false,
    "busy": false,
-   "createdAt": 1792360000000,
+   "createdAt": 1791925200000,
    "tasks": [
     {
      "threadId": "060bb98b-9e1a-5571-97c2-8e519aadb592",
      "title": "New thread",
-     "createdAt": 1795276000000,
-     "updatedAt": 1795538800000,
+     "createdAt": 1794841200000,
+     "updatedAt": 1795104000000,
      "unread": false
     },
     {
      "threadId": "dd782b51-20d1-527e-8ee8-263fda94cc7c",
      "title": "Elenco agenti illeggibile su iPhone",
-     "createdAt": 1795420000000,
-     "updatedAt": 1795571200000,
+     "createdAt": 1794985200000,
+     "updatedAt": 1795136400000,
      "unread": false,
      "titleFromFirstMessage": true
     },
     {
      "threadId": "d8151ad1-9711-5795-b313-fd145b12b2b8",
      "title": "New thread",
-     "createdAt": 1795348000000,
-     "updatedAt": 1795348000000,
+     "createdAt": 1794913200000,
+     "updatedAt": 1794913200000,
      "unread": false
     }
    ],
@@ -345,28 +345,28 @@
    "description": "",
    "unread": false,
    "busy": false,
-   "createdAt": 1792360000000,
+   "createdAt": 1791925200000,
    "tasks": [
     {
      "threadId": "c7d0d044-40fd-5a70-99ec-8928ba7afff3",
      "title": "New thread",
-     "createdAt": 1795276000000,
-     "updatedAt": 1795538800000,
+     "createdAt": 1794841200000,
+     "updatedAt": 1795104000000,
      "unread": false
     },
     {
      "threadId": "2a288d33-3d16-5542-aa1c-874d9e594e18",
      "title": "Concorrenti nel settore dentale",
-     "createdAt": 1795420000000,
-     "updatedAt": 1795567600000,
+     "createdAt": 1794985200000,
+     "updatedAt": 1795132800000,
      "unread": false,
      "titleFromFirstMessage": true
     },
     {
      "threadId": "36a3fbe4-3486-5b6f-af5c-7c5bbae8f2ed",
      "title": "New thread",
-     "createdAt": 1795348000000,
-     "updatedAt": 1795348000000,
+     "createdAt": 1794913200000,
+     "updatedAt": 1794913200000,
      "unread": false
     }
    ],
@@ -381,20 +381,20 @@
    "description": "",
    "unread": false,
    "busy": false,
-   "createdAt": 1792360000000,
+   "createdAt": 1791925200000,
    "tasks": [
     {
      "threadId": "32bfde21-d2dc-5f62-ae80-50ef048282ec",
      "title": "New thread",
-     "createdAt": 1795276000000,
-     "updatedAt": 1795538800000,
+     "createdAt": 1794841200000,
+     "updatedAt": 1795104000000,
      "unread": false
     },
     {
      "threadId": "83edae14-6c9a-5020-a8ae-775d16c1e33e",
      "title": "New thread",
-     "createdAt": 1795348000000,
-     "updatedAt": 1795348000000,
+     "createdAt": 1794913200000,
+     "updatedAt": 1794913200000,
      "unread": false
     }
    ],
@@ -409,28 +409,28 @@
    "description": "",
    "unread": false,
    "busy": false,
-   "createdAt": 1792360000000,
+   "createdAt": 1791925200000,
    "tasks": [
     {
      "threadId": "66c30451-d572-5502-9081-557dbf175863",
      "title": "New thread",
-     "createdAt": 1795276000000,
-     "updatedAt": 1795538800000,
+     "createdAt": 1794841200000,
+     "updatedAt": 1795104000000,
      "unread": false
     },
     {
      "threadId": "6ec4b00a-f93a-52ee-a525-a08c3f3f18b7",
      "title": "Chi sei",
-     "createdAt": 1795420000000,
-     "updatedAt": 1795560400000,
+     "createdAt": 1794985200000,
+     "updatedAt": 1795125600000,
      "unread": false,
      "titleFromFirstMessage": true
     },
     {
      "threadId": "b1a69329-7177-53a5-967c-c2f43c619dbb",
      "title": "New thread",
-     "createdAt": 1795348000000,
-     "updatedAt": 1795348000000,
+     "createdAt": 1794913200000,
+     "updatedAt": 1794913200000,
      "unread": false
     }
    ],
@@ -455,14 +455,14 @@
     {
      "threadId": "f07305d5-f285-505f-9b8a-f991b4e6616c",
      "title": "New task",
-     "createdAt": 1795492000000,
-     "updatedAt": 1795492000000
+     "createdAt": 1795057200000,
+     "updatedAt": 1795057200000
     },
     {
      "threadId": "75203471-6f49-55c7-85ac-426175e1abf3",
      "title": "Report SEO di novembre",
-     "createdAt": 1795456000000,
-     "updatedAt": 1795592800000,
+     "createdAt": 1795021200000,
+     "updatedAt": 1795158000000,
      "titleFromFirstMessage": true,
      "unread": false
     }
@@ -479,27 +479,27 @@
     "de0b7723-45aa-503b-b53d-b09dbde64427"
    ],
    "unread": false,
-   "working": true,
+   "working": false,
    "tasks": [
     {
      "threadId": "71b0b979-e1e9-5491-a79d-27dd51e6ead8",
      "title": "New task",
-     "createdAt": 1795492000000,
-     "updatedAt": 1795492000000
+     "createdAt": 1795057200000,
+     "updatedAt": 1795057200000
     },
     {
      "threadId": "1a998e1e-5325-5b92-bcee-f90355e28714",
      "title": "Scaletta del webinar del 4 dicembre",
-     "createdAt": 1795456000000,
-     "updatedAt": 1795589200000,
+     "createdAt": 1795021200000,
+     "updatedAt": 1795154400000,
      "titleFromFirstMessage": true,
      "unread": false
     },
     {
      "threadId": "5fb06633-37da-5ba5-b609-998c5deb2d61",
      "title": "Mi serve uno slogan di massima per il webinar",
-     "createdAt": 1795452400000,
-     "updatedAt": 1795585600000,
+     "createdAt": 1795017600000,
+     "updatedAt": 1795150800000,
      "titleFromFirstMessage": true,
      "unread": false
     }
@@ -521,22 +521,22 @@
     {
      "threadId": "fb9e66e2-32b5-5d6f-b509-98302ae41d31",
      "title": "New task",
-     "createdAt": 1795492000000,
-     "updatedAt": 1795492000000
+     "createdAt": 1795057200000,
+     "updatedAt": 1795057200000
     },
     {
      "threadId": "a8eb1e66-9785-581f-8cb8-bc83b79ce988",
      "title": "Chi fa cosa, chi sta in quale canale",
-     "createdAt": 1795456000000,
-     "updatedAt": 1795585600000,
+     "createdAt": 1795021200000,
+     "updatedAt": 1795150800000,
      "titleFromFirstMessage": true,
      "unread": true
     },
     {
      "threadId": "72c31e1d-c221-5cfa-a453-61f85e005591",
      "title": "Retro della PR 122 di squadd-multi-agents-ios",
-     "createdAt": 1795452400000,
-     "updatedAt": 1795582000000,
+     "createdAt": 1795017600000,
+     "updatedAt": 1795147200000,
      "titleFromFirstMessage": true,
      "unread": false
     }
@@ -558,14 +558,14 @@
     {
      "threadId": "de7882bf-78ae-5855-968d-32acadc5f45e",
      "title": "New task",
-     "createdAt": 1795492000000,
-     "updatedAt": 1795492000000
+     "createdAt": 1795057200000,
+     "updatedAt": 1795057200000
     },
     {
      "threadId": "46607034-2a8c-57a3-810d-f652aff93d52",
      "title": "Obiettivi del primo trimestre",
-     "createdAt": 1795456000000,
-     "updatedAt": 1795582000000,
+     "createdAt": 1795021200000,
+     "updatedAt": 1795147200000,
      "titleFromFirstMessage": true,
      "unread": false
     }
@@ -587,14 +587,14 @@
     {
      "threadId": "abc58ad5-4f3f-5a71-a1a9-8852f3f09ae0",
      "title": "New task",
-     "createdAt": 1795492000000,
-     "updatedAt": 1795492000000
+     "createdAt": 1795057200000,
+     "updatedAt": 1795057200000
     },
     {
      "threadId": "89e7858c-67be-5950-99c1-0a14e2f9503e",
      "title": "Campagna Black Friday",
-     "createdAt": 1795456000000,
-     "updatedAt": 1795578400000,
+     "createdAt": 1795021200000,
+     "updatedAt": 1795143600000,
      "titleFromFirstMessage": true,
      "unread": false
     }
@@ -616,14 +616,14 @@
     {
      "threadId": "806f2d97-82c5-5d50-a2ad-d775c076be5c",
      "title": "New task",
-     "createdAt": 1795492000000,
-     "updatedAt": 1795492000000
+     "createdAt": 1795057200000,
+     "updatedAt": 1795057200000
     },
     {
      "threadId": "609bcfe1-88a6-5aed-889f-7dca9b136a89",
      "title": "Benvenuti nel team",
-     "createdAt": 1795456000000,
-     "updatedAt": 1795574800000,
+     "createdAt": 1795021200000,
+     "updatedAt": 1795140000000,
      "titleFromFirstMessage": true,
      "unread": false
     }

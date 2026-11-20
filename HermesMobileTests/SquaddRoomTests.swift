@@ -292,13 +292,15 @@ class SquaddRoomPhotoTestCase: XCTestCase {
     }
 
     /// Shows `view` in the class's one window (made on the first shot) and writes `<name>.png` once it has drawn.
-    fileprivate final func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: () -> Bool) async throws {
+    fileprivate final func shoot<V: View>(_ name: String, _ view: V, dir: URL, height: CGFloat = 874,
+                                          until ready: () -> Bool) async throws {
         if window == nil {
             let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
             window = UIWindow(windowScene: scene)
             window?.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
             window?.makeKeyAndVisible()
         }
+        window?.frame = CGRect(x: 0, y: 0, width: 402, height: height)
         let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         window?.rootViewController = UIHostingController(rootView: view.modelContainer(container))
@@ -440,10 +442,11 @@ final class SquaddHomeListPhotoTests: SquaddRoomPhotoTestCase {
     func testPhotoHomeList() async throws {
         let dir = try photoDir(bots: "bots-roberto.json")
         let manager = try manager()
-        for (name, size) in [("l1-home-default", DynamicTypeSize.large), ("l2-home-ax5", .accessibility5)] {
+        // Tall enough for all eleven agents, so every name shows at each size.
+        for (name, size, height) in [("l1-home-default", DynamicTypeSize.large, 1900.0), ("l2-home-ax5", .accessibility5, 3400)] {
             Self.served = []
             try await shoot(name, SquaddServerHome(authManager: manager, server: server, pendingThread: .constant(nil))
-                .environment(\.dynamicTypeSize, size), dir: dir) { Self.served.contains("/api/bots") }
+                .environment(\.dynamicTypeSize, size), dir: dir, height: height) { Self.served.contains("/api/bots") }
         }
         Self.served = []
         try await shoot("l3-home-agent-open", SquaddServerHome(authManager: manager, server: server, pendingThread: .constant(nil),

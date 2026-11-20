@@ -413,7 +413,7 @@ struct SquaddServerHome: View {
                 SquaddListSectionTitle(title: "Channels")
                 ForEach(rooms) { room in
                     SquaddRoomRow(room: room, isExpanded: expanded.contains(room.headerRowID),
-                                  chat: room.threadID.map { roomChat(room, threadID: $0) }) {
+                                  open: room.threadID.map { id in { path = [roomChat(room, threadID: id)] } }) {
                         toggle(room.headerRowID)
                     } newThread: {
                         newThread(in: room)
@@ -425,19 +425,21 @@ struct SquaddServerHome: View {
                     }
                     .id(room.headerRowID)
                     .sessionsScreenListRow()
-                    if expanded.contains(room.headerRowID) {
+                    let isOpen = expanded.contains(room.headerRowID)
+                    if isOpen {
                         SquaddNewThreadRow { newThread(in: room) }
-                        ForEach(room.threads) { thread in
-                            NavigationLink(value: SquaddThreadChat(room: room, thread: thread, server: server, token: token)) {
-                                SessionRowView(session: thread, showsMessageCount: false, showsWorkspace: false,
-                                               isUnread: room.unreadThreadIDs.contains(thread.id))
-                            }
-                            .buttonStyle(.plain)
-                            .id(thread.id)
-                            .padding(.leading, 28)
-                            .padding(.trailing, 12)
-                            .sessionsScreenListRow()
+                    }
+                    // Closed, the channel still shows its unread conversations, as the desktop sidebar does.
+                    ForEach(isOpen ? room.threads : room.threads.filter { room.unreadThreadIDs.contains($0.id) }) { thread in
+                        NavigationLink(value: SquaddThreadChat(room: room, thread: thread, server: server, token: token)) {
+                            SessionRowView(session: thread, showsMessageCount: false, showsWorkspace: false,
+                                           isUnread: room.unreadThreadIDs.contains(thread.id))
                         }
+                        .buttonStyle(.plain)
+                        .id(thread.id)
+                        .padding(.leading, 28)
+                        .padding(.trailing, 12)
+                        .sessionsScreenListRow()
                     }
                 }
             }
@@ -452,10 +454,10 @@ struct SquaddServerHome: View {
             }
             ForEach(sections) { section in
                 SquaddAgentRow(section: section, client: client, isExpanded: expanded.contains(section.id),
-                               chat: section.threadID.map {
-                                   SquaddThreadChat(server: server, token: token, botId: section.id, threadId: $0,
-                                                    title: section.name, botName: section.name)
-                               }) {
+                               open: section.threadID.map { id in {
+                                   path = [SquaddThreadChat(server: server, token: token, botId: section.id, threadId: id,
+                                                            title: section.name, botName: section.name)]
+                               } }) {
                     toggle(section.id)
                 } edit: {
                     editingAgent = section.bot
@@ -486,6 +488,11 @@ struct SquaddServerHome: View {
                                 threadRow(thread, in: section)
                             }
                         }
+                    }
+                } else {
+                    // Closed, the agent still shows where to pick up, as the desktop sidebar does.
+                    ForEach((section.folders.flatMap(\.threads) + section.threads).filter { section.unreadThreadIDs.contains($0.id) }) { thread in
+                        threadRow(thread, in: section)
                     }
                 }
             }
@@ -876,8 +883,8 @@ private struct SquaddAgentRow: View {
     let section: SquaddAgentSection
     let client: SquaddCompanionClient?
     let isExpanded: Bool
-    /// The agent's own chat; nil opens the threads instead.
-    let chat: SquaddThreadChat?
+    /// Opens the agent's own chat; nil shows its threads instead.
+    let open: (() -> Void)?
     let toggle: () -> Void
     let edit: () -> Void
     let newThread: () -> Void
@@ -885,11 +892,8 @@ private struct SquaddAgentRow: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            if let chat {
-                NavigationLink(value: chat) { identity }.buttonStyle(.plain)
-            } else {
-                Button(action: toggle) { identity }.buttonStyle(.plain)
-            }
+            // A button, not a NavigationLink: a link in the list draws a second arrow beside the toggle.
+            Button(action: open ?? toggle) { identity }.buttonStyle(.plain)
             SquaddThreadsToggle(isExpanded: isExpanded, toggle: toggle)
         }
         .padding(.leading, 24)

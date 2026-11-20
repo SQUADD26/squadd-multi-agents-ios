@@ -5,8 +5,8 @@ import SwiftUI
 struct SquaddRoomRow: View {
     let room: SquaddRoomSection
     let isExpanded: Bool
-    /// The channel's current conversation; nil shows its conversations instead.
-    let chat: SquaddThreadChat?
+    /// Opens the channel's current conversation; nil shows its conversations instead.
+    let open: (() -> Void)?
     let toggle: () -> Void
     let newThread: () -> Void
     let rename: () -> Void
@@ -14,11 +14,7 @@ struct SquaddRoomRow: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            if let chat {
-                NavigationLink(value: chat) { identity }.buttonStyle(.plain)
-            } else {
-                Button(action: toggle) { identity }.buttonStyle(.plain)
-            }
+            Button(action: open ?? toggle) { identity }.buttonStyle(.plain)
             SquaddThreadsToggle(isExpanded: isExpanded, toggle: toggle)
         }
         .padding(.leading, 24)
