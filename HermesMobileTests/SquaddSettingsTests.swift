@@ -223,11 +223,17 @@ final class SquaddSettingsPhotoTests: XCTestCase {
         async let engines: Void = model.loadEngines()
         async let keys: Void = model.loadKeys()
         async let memory: Void = model.loadMemory()
-        _ = await (engines, keys, memory)
+        _ = await (engines, keys, memory, model.loadAgents())
+        let agent = try XCTUnwrap(model.agents.first)
+        await model.loadTools(for: agent)
 
         try await shoot("f2-engines", NavigationStack { SquaddEnginesPage(model: model) }) { model.enginesPhase == .loaded }
         try await shoot("f3-keys", NavigationStack { SquaddKeysPage(model: model) }) { model.keysPhase == .loaded }
+        try await shoot("f5-agent-tools", NavigationStack { SquaddAgentToolsPage(model: model, agent: agent) }) {
+            model.tools[agent.id]?.phase == .loaded
+        }
         try await shoot("f6-team-memory", NavigationStack { SquaddTeamMemoryPage(model: model) }) { model.memoryPhase == .loaded }
+        try await shoot("f7-memory-editor", SquaddMemoryEditor(model: model, entry: model.memory.first)) { true }
         try await shoot("f8-connected-apps", NavigationStack { SquaddConnectorsPage(client: model.client, onUnpaired: {}) }) { true }
     }
 }
