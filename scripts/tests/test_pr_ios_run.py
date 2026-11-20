@@ -230,7 +230,7 @@ class LiveTests(unittest.TestCase):
     def test_openmausbot_gets_a_worktree_with_its_own_packages_and_the_fake_engine_server(self):
         # #78: a linked node_modules missed packages, ERR_MODULE_NOT_FOUND (D-195); #94: node server/index.ts with
         # FAKE_CLAUDE_MODE ran the real engine, «Not logged in» (D-214).
-        calls, spawned = [], []
+        calls, spawned, envs = [], [], []
         run = tool.Live(REPO, "16")
         self.addCleanup(tool.shutil.rmtree, run.work, True)
 
@@ -240,6 +240,7 @@ class LiveTests(unittest.TestCase):
 
         def spawn(cmd, cwd, env, log):
             spawned.append((cmd, cwd))
+            envs.append(env)
             Path(log).write_text('{\n  "ok": true,\n  "url": "http://127.0.0.1:19001"\n}\n')
             return type("P", (), {"poll": lambda self: None})()
         with patch.object(tool, "sh", sh), patch.object(tool.Path, "exists", lambda self: True), \
@@ -252,6 +253,14 @@ class LiveTests(unittest.TestCase):
         self.assertIn((("pnpm", "install", "--frozen-lockfile", "--ignore-scripts"), omb), calls)
         self.assertEqual(spawned, [(["node", "--experimental-strip-types", "scripts/control-omb.ts", "launch"], omb)])
         self.assertEqual(info["url"], "http://127.0.0.1:19001")
+        # #129: the default 22-character reply came in one piece, XCTUnwrap(partial) failed (live run 44746035945).
+        self.assertEqual(envs[0]["FAKE_CLAUDE_STREAM_CADENCE"], "8:150")
+        self.assertGreater(len(json.loads(envs[0]["FAKE_CLAUDE_REPLIES"])[0]), 200)
+
+    def test_the_fake_engine_keeps_what_the_caller_set(self):
+        self.assertEqual(tool.engine_env({"FAKE_CLAUDE_MODE": "hang", "PATH": "/bin"}), {"FAKE_CLAUDE_MODE": "hang", "PATH": "/bin"})
+        self.assertEqual(tool.engine_env({"FAKE_CLAUDE_REPLIES": '["a"]'})["FAKE_CLAUDE_REPLIES"], '["a"]')
+        self.assertNotIn("FAKE_CLAUDE_STREAM_CADENCE", tool.engine_env({"FAKE_CLAUDE_REPLIES": '["a"]'}))
 
     def test_closing_removes_exactly_what_the_run_made(self):
         run = tool.Live(REPO, "16")
