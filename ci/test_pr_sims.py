@@ -1,7 +1,6 @@
 import os
 import sys
 import tempfile
-import time
 import unittest
 import uuid
 from pathlib import Path
@@ -9,6 +8,7 @@ from unittest import mock
 
 sys.path.insert(0, os.path.dirname(__file__))
 import pr_sims  # noqa: E402
+from test_pr_group import exits  # noqa: E402
 
 
 class PrSimsTests(unittest.TestCase):
@@ -22,9 +22,7 @@ class PrSimsTests(unittest.TestCase):
 
     def test_nothing_the_step_started_outlives_it(self):
         pid = int(self.run_step(True, str(uuid.uuid4()), "sleep 30 & echo $! > {out}")[0])
-        time.sleep(0.1)  # the kill is sent; the zombie needs its reaper (launchd) a moment
-        with self.assertRaises(ProcessLookupError):
-            os.kill(pid, 0)
+        self.assertTrue(exits(pid))
 
     def test_a_lone_run_borrows_the_shared_simulator(self):
         shared = str(uuid.uuid4())

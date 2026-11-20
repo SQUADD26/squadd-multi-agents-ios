@@ -7,16 +7,17 @@ no job going, so a lone run still splits its tests over two simulators. Used as 
     shell: python3 ci/pr_sims.py bash --noprofile --norc -eo pipefail {0}
 
 It runs the step with TWO emptied when it cannot borrow. A lock on the shared simulator, held until the step
-ends, keeps two borrowers apart. The step runs in its own process group, recorded in _work/pr-tests.pgid, so a
-cancelled job's xcodebuild dies with it or, if this wrapper is killed first, at the next job (ci/pr_state.py).
+ends, keeps two borrowers apart. The step runs in its own recorded process group (ci/pr_group.py), killed when
+the step ends, so a cancelled job's xcodebuild never outlives it.
 """
 
 import fcntl
 import os
-import signal
 import subprocess
 import sys
 from pathlib import Path
+
+import pr_group
 
 
 def other_runner_busy():
@@ -40,18 +41,7 @@ def main(cmd):
     shared = os.environ["TWO"]
     borrowed = not other_runner_busy() and borrow(shared)
     print(f"Simulators: {os.environ['ONE']}" + (f" and {shared} (shared)" if borrowed else " (the other runner has a job)"))
-    pgid_file = Path(os.environ["GITHUB_WORKSPACE"]).parents[1] / "pr-tests.pgid"
-    step = subprocess.Popen(cmd, env={**os.environ, "TWO": shared if borrowed else ""}, start_new_session=True)
-    pgid_file.write_text(str(step.pid))
-    signal.signal(signal.SIGTERM, signal.default_int_handler)  # the runner cancels with SIGINT, then SIGTERM
-    try:
-        return step.wait()
-    finally:
-        try:
-            os.killpg(step.pid, signal.SIGKILL)  # whatever the step left running: xcodebuild, grep, tee
-        except ProcessLookupError:
-            pass
-        pgid_file.unlink(missing_ok=True)
+    return pr_group.run("tests", cmd, {**os.environ, "TWO": shared if borrowed else ""}, kill_at_end=True)
 
 
 if __name__ == "__main__":

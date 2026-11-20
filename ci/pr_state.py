@@ -16,10 +16,12 @@ import ctypes
 import os
 import re
 import shutil
-import signal
 import subprocess
 import sys
+import uuid
 from pathlib import Path
+
+import pr_group
 
 KEEP = 8  # parked states; the oldest beyond this are deleted (each is up to ~2 GB once it diverges)
 
@@ -58,7 +60,7 @@ def closest(repo, head, candidates):
 
 def discard(work, path):
     """Moves `path` out of the way at once and deletes it in the background: a state is ~100k files (~1 s)."""
-    gone = work / f"pr-state-deleting-{path.name}-{os.getpid()}-{len(list(work.glob('pr-state-deleting-*')))}"
+    gone = work / f"pr-state-deleting-{path.name}-{uuid.uuid4().hex[:8]}"
     path.rename(gone)
     subprocess.Popen([sys.executable, "-c", "import shutil, sys; shutil.rmtree(sys.argv[1])", str(gone)],
                      start_new_session=True)
@@ -73,27 +75,13 @@ def move(work, src, dest):
     src.rename(dest)
 
 
-def stop_leftover_tests(work):
-    """Kills the test step of an earlier job that was cancelled and outlived it (ci/pr_sims.py records its process
-    group): it would keep writing into DerivedData and hold a simulator."""
-    pgid_file = work / "pr-tests.pgid"
-    if pgid_file.exists():
-        pgid = int(pgid_file.read_text())
-        pgid_file.unlink()
-        try:
-            os.killpg(pgid, signal.SIGKILL)
-            print(f"Stopped the tests of an earlier cancelled job (process group {pgid})")
-        except ProcessLookupError:
-            pass
-
-
 def main(branch, head):
     workspace = Path(os.environ["GITHUB_WORKSPACE"])
     work = workspace.parent.parent
     derived, states = work / "DerivedData", work / "pr-states"
     marker = states / "current"
     states.mkdir(exist_ok=True)
-    stop_leftover_tests(work)
+    pr_group.stop_leftovers(work)  # a cancelled job's xcodebuild would write into what is parked next
     current = marker.read_text().strip() if marker.exists() else "start"
     mine = re.sub(r"[^A-Za-z0-9._-]", "-", branch)
     if current == mine:
