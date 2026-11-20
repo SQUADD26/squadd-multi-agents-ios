@@ -51,10 +51,10 @@ final class SquaddRoomTests: XCTestCase {
         XCTAssertEqual(outcome, .started)
 
         SquaddChatFixture.stream(try Self.fixture("room-events-mention.sse"), finish: true)
-        await waitUntil("the turn ends on the stored reply") {
-            model.activeStreamID == nil && model.messages.last?.content == "released"
+        await waitUntil("the turn ends on the stored reply, under the member that wrote it") {
+            model.activeStreamID == nil && model.messages.last?.content == "released" && model.messages.last?.name != nil
         }
-        XCTAssertEqual(model.messages.last?.name, "Scrittura Web", "the reply says which member wrote it")
+        XCTAssertEqual(model.messages.last?.name, "Scrittura Web")
         XCTAssertEqual(model.messages.map(\.role), ["user", "assistant"])
     }
 
@@ -80,10 +80,12 @@ final class SquaddRoomTests: XCTestCase {
         XCTAssertEqual(model.messages.count, shown, "a queued send is not a sent row yet")
         XCTAssertEqual(model.queuedPromptMessages.map(\.content), ["@Ricerche e poi i prezzi"])
 
-        // The companion stores the queued send when the turn before ends: the user row the recorded
-        // busy run stored, with this send's id and words.
+        // The companion stores the queued send when the turn before ends: the recorded busy run's
+        // frames up to its stored user row and the room updates after it, with this send's id and words.
         let events = String(decoding: try Self.fixture("room-events-busy.sse"), as: UTF8.self)
-        let stored = try XCTUnwrap(events.components(separatedBy: "\n\n").first { $0.contains(#""sendId":"send-busy-"#) })
+        let frames = events.components(separatedBy: "\n\n")
+        let row = try XCTUnwrap(frames.firstIndex { $0.contains(#""sendId":"send-busy-"#) })
+        let stored = frames[...(row + 2)].joined(separator: "\n\n")
             .replacingOccurrences(of: "send-busy-000000000001", with: "send-queued-0000000001")
             .replacingOccurrences(of: "@Ricerche cerca i concorrenti", with: "@Ricerche e poi i prezzi")
         SquaddChatFixture.stream(Data((stored + "\n\n").utf8))
@@ -274,25 +276,38 @@ class SquaddRoomPhotoTestCase: XCTestCase {
         try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
     }
 
+    /// The home started on `start`, photographed once the room list has loaded.
+    fileprivate final func shootHome(_ name: String, start: SquaddHomeStart?) async throws {
+        let dir = try photoDir()
+        try await shoot(name, SquaddServerHome(authManager: try manager(), server: server, pendingThread: .constant(nil), start: start),
+                        dir: dir) { Self.served.contains("/api/bots") }
+    }
+
     nonisolated static func fixture(_ name: String) -> Data {
         try! Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .appendingPathComponent("Fixtures/Squadd/\(name)"))
     }
 }
 
-/// The home's room photos (`FOTO_DIR`) in SquaddServerHome: the room under the agents, its rename and
-/// its delete confirmation.
+/// The home's room photo (`FOTO_DIR`) in SquaddServerHome: the room under the agents. One photo per
+/// class, so each class stays under 3 s.
 final class SquaddRoomHomePhotoTests: SquaddRoomPhotoTestCase {
     func testPhotoRoomHome() async throws {
-        let dir = try photoDir()
-        let manager = try manager()
-        let steps: [(String, SquaddHomeStart?)] = [("r1-room-home", nil), ("r2-room-rename", .renameRoom),
-                                                    ("r3-room-delete-confirm", .deleteRoom)]
-        for (name, start) in steps {
-            let from = Self.served.count
-            try await shoot(name, SquaddServerHome(authManager: manager, server: server, pendingThread: .constant(nil), start: start),
-                            dir: dir) { Self.served[from...].contains("/api/bots") }
-        }
+        try await shootHome("r1-room-home", start: nil)
+    }
+}
+
+/// The room's rename alert (`FOTO_DIR`) in SquaddServerHome.
+final class SquaddRoomRenamePhotoTests: SquaddRoomPhotoTestCase {
+    func testPhotoRoomRename() async throws {
+        try await shootHome("r2-room-rename", start: .renameRoom)
+    }
+}
+
+/// The room's delete confirmation (`FOTO_DIR`) in SquaddServerHome.
+final class SquaddRoomDeletePhotoTests: SquaddRoomPhotoTestCase {
+    func testPhotoRoomDelete() async throws {
+        try await shootHome("r3-room-delete-confirm", start: .deleteRoom)
     }
 }
 
