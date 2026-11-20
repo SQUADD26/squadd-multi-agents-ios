@@ -92,7 +92,7 @@ final class SquaddNotificationsTests: XCTestCase {
                                   serverRegistry: ServerRegistry.inMemory(keychain: keychain),
                                   hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
         try manager.addSquaddServer(address: server, token: "device-token")
-        let scene = PhaseHolder()
+        let scene = PhaseHolder(), server = server
         let window = UIWindow(windowScene: try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first))
         window.overrideUserInterfaceStyle = .dark
         window.rootViewController = UIHostingController(rootView: PhaseHost(holder: scene) {
