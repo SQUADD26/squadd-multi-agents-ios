@@ -346,6 +346,7 @@ final class SquaddChatTests: XCTestCase {
         SquaddChatFixture.stream(Data(Self.frames(events, to: "interrupt").utf8))
         await waitUntil("the turn runs") { model.activeStreamID != nil }
 
+        let replyID = try XCTUnwrap(model.streamingAssistantMessageID)
         let accepted = await model.cancelActiveStream()
         XCTAssertTrue(accepted)
         XCTAssertEqual(try Self.fields(asked)["turnId"], "5f3b225a-222f-4034-aefd-73028e608bad", "Stop names the running turn")
@@ -355,6 +356,8 @@ final class SquaddChatTests: XCTestCase {
         SquaddChatFixture.stream(Data(Self.frames(events, from: "interrupt", to: "compact").utf8))
         await waitUntil("the stream ends the turn") { model.activeStreamID == nil }
         XCTAssertEqual(coordinator.latestRunEnding?.ending, .cancelled, "a stopped turn is not a failed one")
+        XCTAssertEqual(model.messages.first { $0.messageId == replyID }?.content?.isEmpty, false,
+                       "the words written before Stop stay, though the companion stores none")
     }
 
     func testCompactAsksTheCompanionAndTheMarkerShowsWhenItLands() async throws {

@@ -296,8 +296,9 @@ final class SquaddChatTurnCoordinator {
             finish(ok ? .completed : .failed)
             await reload()
         case .turnStopped(let threadId) where threadId == chat.threadId:
+            // The companion stores no stopped reply: the words already shown stay, marked stopped,
+            // as on a Hermes chat, until the transcript next reloads.
             finish(.cancelled)
-            await reload()
         case .queued(let queues):
             let mine = queues[chat.threadId] ?? []
             if mine != queued { queued = mine }
