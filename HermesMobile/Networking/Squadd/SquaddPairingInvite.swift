@@ -11,7 +11,8 @@ struct SquaddPairingInvite: Equatable, Identifiable {
     var name: String?
     /// The computer's public HPKE key for secrets (`secretKey`): a 65-byte uncompressed P-256 point. Only a QR has it.
     var secretKey: Data?
-    /// A computer reached only through Squadd Multi-Agents Relay: the QR's `e2e` descriptor, whose key is pinned.
+    /// The QR's `e2e` descriptor, whose key is pinned: the only route of a relay-only computer, and the way back
+    /// to any other computer when none of its addresses answers.
     var e2e: SquaddE2E.Descriptor?
     /// Sent as `pairRequestId` on every try of this invite: a retry after a lost reply gets the same
     /// device back instead of `pairing_not_open`, as the code works once. Random, so knowing the code
@@ -34,10 +35,10 @@ struct SquaddPairingInvite: Equatable, Identifiable {
         func value(_ key: String) -> String? {
             items.first { $0.name == key }?.value?.trimmingCharacters(in: .whitespaces)
         }
-        // Only a relay-only computer's descriptor is used: elsewhere the address still pairs as before.
-        let relay = Self.isRelayOnly(url) ? Self.relayDescriptor(value("e2e")) : nil
-        if Self.isRelayOnly(url), relay == nil { return nil }
-        guard let server = relay.map({ SquaddRelay.identity(hostId: $0.hostId!) }) ?? value("address").flatMap(Self.server(fromLinkAddress:)),
+        let relay = Self.relayDescriptor(value("e2e"))
+        let relayOnly = Self.isRelayOnly(url)
+        if relayOnly, relay == nil { return nil }
+        guard let server = relayOnly ? relay.map({ SquaddRelay.identity(hostId: $0.hostId!) }) : value("address").flatMap(Self.server(fromLinkAddress:)),
               let token = value("token").flatMap(Self.credential) ?? value("code").flatMap(Self.pairingCode)
         else { return nil }
         let name = value("name")
@@ -83,7 +84,7 @@ struct SquaddPairingInvite: Equatable, Identifiable {
         return .failure(isRelayOnly(url) ? .relayOnly : .notAPairingCode)
     }
 
-    /// The descriptor of a relay-only link, when it names a relay this phone can dial; a malformed one refuses the link.
+    /// The link's descriptor when it names a relay this phone can dial; a malformed one refuses a relay-only link.
     private static func relayDescriptor(_ text: String?) -> SquaddE2E.Descriptor? {
         guard let text, case .ok(let descriptor) = SquaddE2E.Descriptor.parse(text),
               descriptor.hostId != nil, !descriptor.relays.isEmpty, !descriptor.localOnly else { return nil }

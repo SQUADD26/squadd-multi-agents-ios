@@ -167,6 +167,15 @@ final class SquaddE2ETests: XCTestCase {
         XCTAssertEqual(SquaddPairingInvite.scanned("openmausbot://pair?address=relay-only.invalid%3A443&token=\(token)"), .failure(.relayOnly))
     }
 
+    /// A LAN QR with the relay's descriptor pairs at its address and keeps the key for away from home.
+    func testLANQRKeepsTheRelayKeyForLater() throws {
+        let descriptor = (dict("V7")["valid"] as! [[String: Any]]).first { $0["name"] as? String == "relay" }!["value"] as! String
+        let link = "openmausbot://pair?address=192.168.1.10%3A8810&token=omb_pair_" + String(repeating: "A", count: 43) + "&e2e=\(descriptor)"
+        let invite = try SquaddPairingInvite.scanned(link).get()
+        XCTAssertEqual(invite.server, URL(string: "http://192.168.1.10:8810"))
+        XCTAssertEqual(invite.e2e?.relays, ["relay1.openmausbot.com", "relay2.openmausbot.com"])
+    }
+
     private func phoneHandshake(_ session: [String: Any]) throws -> SquaddE2E.PhoneHandshake {
         let psk = SquaddE2E.psk(credential: token(session["psk"] as! String), keyId: SquaddE2E.keyId(hex(dict("V1")["transportPublic"])))
         return try SquaddE2E.PhoneHandshake(
