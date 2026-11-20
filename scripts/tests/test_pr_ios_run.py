@@ -232,6 +232,7 @@ class LiveTests(unittest.TestCase):
         # FAKE_CLAUDE_MODE ran the real engine, «Not logged in» (D-214).
         calls, spawned = [], []
         run = tool.Live(REPO, "16")
+        self.addCleanup(tool.shutil.rmtree, run.work, True)
 
         def sh(*cmd, cwd=None, **_):
             calls.append((cmd, cwd))

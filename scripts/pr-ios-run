@@ -39,6 +39,7 @@ import json
 import os
 import re
 import secrets
+import shutil
 import signal
 import socket
 import subprocess
@@ -308,7 +309,7 @@ class Live:
         return info
 
     def companion(self, omb, server_url):
-        port, control, token = free_port(), free_port(), secrets.token_hex(16)
+        port, control, token = free_port(), free_port(), secrets.token_urlsafe(32)  # control.ts takes 43 base64url characters
         home = self.work / "home"
         home.mkdir()
         env = {**os.environ, "HOME": str(home), "OMB_PORT": server_url.rsplit(":", 1)[1].strip("/"),
@@ -402,6 +403,7 @@ class Live:
             subprocess.run(["gh", "gist", "delete", self.gist, "--yes"], **quiet)
         if self.omb:
             subprocess.run(["git", "-C", str(self.omb[0]), "worktree", "remove", "--force", str(self.omb[1])], **quiet)
+        shutil.rmtree(self.work, ignore_errors=True)
 
 
 def live(issue, test):
