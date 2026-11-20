@@ -63,6 +63,9 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         }
         let model = try XCTUnwrap(loaded, "the thread loaded")
         note("transcript: \(model.messages.count) rows, error: \(model.errorMessage ?? "none")")
+        let firstPage = model.messages.count
+        let pagedBack = await model.loadOlderMessages()
+        note("older page: \(firstPage) rows, more before: \(pagedBack), after scrolling up: \(model.messages.count) rows")
         try await readyPhoto(of: window).write(to: folder.appendingPathComponent("7-squadd-chat-open.png"))
 
         let prompt = "Ciao dal simulatore iPhone: rispondimi parola per parola"
