@@ -141,12 +141,10 @@ private final class Recorder: @unchecked Sendable {
 final class SquaddAgentPhotoTests: XCTestCase {
     private let server = URL(string: "http://mac-studio.tailnet.test:8810")!
     private var window: UIWindow?
-    // Replies served so far, counted on the fixture's thread: a shot waits for the reply its screen shows.
-    nonisolated(unsafe) private static var botsServed = 0
+    // Avatars served so far, counted on the fixture's thread: the edit shot waits for the agent's picture.
     nonisolated(unsafe) private static var avatarsServed = 0
 
     override func tearDown() {
-        URLProtocol.unregisterClass(SquaddHTTPFixture.self)
         SquaddHTTPFixture.handler = nil
         window?.isHidden = true
         super.tearDown()
@@ -156,36 +154,21 @@ final class SquaddAgentPhotoTests: XCTestCase {
         let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
         try XCTSkipIf(path == nil, "Only for photo runs")
         let dir = URL(fileURLWithPath: path!)
-        Self.start = ContinuousClock.now
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         var profileReply = (200, Self.fixture("bot-profile.json"))
-        (Self.botsServed, Self.avatarsServed) = (0, 0)
+        Self.avatarsServed = 0
         SquaddHTTPFixture.handler = { request in
             let path = request.url?.path ?? ""
-            if path == "/api/bots" { Self.botsServed += 1 }
             if path.hasPrefix("/api/attachments/") { Self.avatarsServed += 1 }
             switch (request.httpMethod ?? "GET", path) {
-            case ("GET", "/api/bots"): return (200, Self.fixture("bots.json"))
             case ("GET", "/api/instances"): return (200, Self.fixture("instances.json"))
             case ("GET", let path) where path.hasPrefix("/api/attachments/"): return (200, Self.fixture("avatar.png"))
-            case ("POST", "/api/bots"): return (201, Self.fixture("bot-create.json"))
             case ("PATCH", let path) where path.hasSuffix("/profile"): return profileReply
             case ("PATCH", let path) where path.hasSuffix("/model"): return (400, Self.fixture("bot-model-invalid.json"))
             default: return (404, Data())
             }
         }
         let client = client()
-
-        // 0. The home: New Agent above the agents; tapping an agent's name opens its editor.
-        URLProtocol.registerClass(SquaddHTTPFixture.self) // the home reads through URLSession.shared
-        let keychain = InMemoryKeychainStore()
-        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(),
-                                  serverRegistry: ServerRegistry.inMemory(keychain: keychain),
-                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
-        try manager.addSquaddServer(address: server, token: "device-token")
-        try await shoot("0-home", SquaddRoute(authManager: manager, server: server) { EmptyView() }, dir: dir) {
-            Self.botsServed > 0
-        }
 
         // a. A new agent: name, title, description and a model from the computer's engines.
         let new = SquaddAgentEditor(client: client)
@@ -231,16 +214,8 @@ final class SquaddAgentPhotoTests: XCTestCase {
 
     /// Writes `<name>.png` of what the window shows once it has drawn.
     private func shoot(_ name: String, dir: URL, until ready: () -> Bool = { true }) async throws {
-        let t0 = ContinuousClock.now
-        var firstReady: Duration?
-        let d = try await readyPhoto(of: XCTUnwrap(window), until: { let r = ready(); if r, firstReady == nil { firstReady = ContinuousClock.now - t0 }; return r })
-        let t1 = ContinuousClock.now - t0
-        try d.write(to: dir.appendingPathComponent("\(name).png"))
-        Self.times += "\(name) ready \(firstReady.map { "\($0)" } ?? "-") photo \(t1) written \(ContinuousClock.now - t0) since start \(ContinuousClock.now - Self.start)\n"
-        try Self.times.write(to: dir.appendingPathComponent("tempi.txt"), atomically: true, encoding: .utf8)
+        try await readyPhoto(of: XCTUnwrap(window), until: ready).write(to: dir.appendingPathComponent("\(name).png"))
     }
-    static var times = ""
-    static var start = ContinuousClock.now
 
     private nonisolated static func fixture(_ name: String) -> Data {
         try! Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
