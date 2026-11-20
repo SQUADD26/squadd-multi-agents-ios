@@ -137,13 +137,15 @@ private final class Recorder: @unchecked Sendable {
 
 /// Photographs the agent screens into `FOTO_DIR` (passed as `TEST_RUNNER_FOTO_DIR`) for the PR's
 /// evidence, with the companion played back from the recorded answers. Skipped everywhere else.
+/// Split in three classes so PR iOS runs them on both simulators at once; each class keeps one window.
 @MainActor
-final class SquaddAgentPhotoTests: XCTestCase {
-    private let server = URL(string: "http://mac-studio.tailnet.test:8810")!
+class SquaddAgentPhotoTestCase: XCTestCase {
+    let server = URL(string: "http://mac-studio.tailnet.test:8810")!
     private var window: UIWindow?
     // Replies served so far, counted on the fixture's thread: a shot waits for the reply its screen shows.
-    nonisolated(unsafe) private static var botsServed = 0
-    nonisolated(unsafe) private static var avatarsServed = 0
+    nonisolated(unsafe) static var botsServed = 0
+    nonisolated(unsafe) static var avatarsServed = 0
+    nonisolated(unsafe) static var profileReply = (200, Data())
 
     override func tearDown() {
         URLProtocol.unregisterClass(SquaddHTTPFixture.self)
@@ -152,12 +154,13 @@ final class SquaddAgentPhotoTests: XCTestCase {
         super.tearDown()
     }
 
-    func testPhotoAgentScreens() async throws {
+    /// The photo folder, with the companion's recorded answers in place; skips outside photo runs.
+    func photoDir() throws -> URL {
         let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
         try XCTSkipIf(path == nil, "Only for photo runs")
         let dir = URL(fileURLWithPath: path!)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        var profileReply = (200, Self.fixture("bot-profile.json"))
+        Self.profileReply = (200, Self.fixture("bot-profile.json"))
         (Self.botsServed, Self.avatarsServed) = (0, 0)
         SquaddHTTPFixture.handler = { request in
             let path = request.url?.path ?? ""
@@ -168,37 +171,69 @@ final class SquaddAgentPhotoTests: XCTestCase {
             case ("GET", "/api/instances"): return (200, Self.fixture("instances.json"))
             case ("GET", let path) where path.hasPrefix("/api/attachments/"): return (200, Self.fixture("avatar.png"))
             case ("POST", "/api/bots"): return (201, Self.fixture("bot-create.json"))
-            case ("PATCH", let path) where path.hasSuffix("/profile"): return profileReply
+            case ("PATCH", let path) where path.hasSuffix("/profile"): return Self.profileReply
             case ("PATCH", let path) where path.hasSuffix("/model"): return (400, Self.fixture("bot-model-invalid.json"))
             default: return (404, Data())
             }
         }
-        let client = client()
+        return dir
+    }
 
-        // 0. The home: New Agent above the agents; tapping an agent's name opens its editor.
-        URLProtocol.registerClass(SquaddHTTPFixture.self) // the home reads through URLSession.shared
-        let keychain = InMemoryKeychainStore()
-        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(),
-                                  serverRegistry: ServerRegistry.inMemory(keychain: keychain),
-                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
-        try manager.addSquaddServer(address: server, token: "device-token")
-        try await shoot("0-home", SquaddRoute(authManager: manager, server: server) { EmptyView() }, dir: dir) {
-            Self.botsServed > 0
+    func client() -> SquaddCompanionClient {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [SquaddHTTPFixture.self]
+        return SquaddCompanionClient(server: server, token: "device-token", session: URLSession(configuration: configuration))
+    }
+
+    func picker(_ editor: SquaddAgentEditor) -> some View {
+        ModelPickerSheet(configuration: .squaddAgent, modelGroups: editor.modelGroups,
+                         selectedModelID: editor.model?.model, selectedModelProviderID: editor.model?.instanceId,
+                         isSelected: { $0.id == editor.model?.model && $0.providerID == editor.model?.instanceId },
+                         loadStatus: editor.modelsStatus, errorMessage: editor.modelError, onSelect: { _ in })
+    }
+
+    /// Shows `view` in the class's one window (made on the first shot) and photographs it.
+    fileprivate final func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: () -> Bool) async throws {
+        if window == nil {
+            let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+            window = UIWindow(windowScene: scene)
+            window?.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+            window?.makeKeyAndVisible()
         }
+        let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
+                                           configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        window?.rootViewController = UIHostingController(rootView: view.modelContainer(container))
+        try await shoot(name, dir: dir, until: ready)
+    }
+
+    /// Writes `<name>.png` of what the window shows now, once it has drawn.
+    fileprivate final func shoot(_ name: String, dir: URL, until ready: () -> Bool) async throws {
+        let window = try XCTUnwrap(window)
+        try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
+    }
+
+    nonisolated static func fixture(_ name: String) -> Data {
+        try! Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/Squadd/\(name)"))
+    }
+}
+
+/// The agent editor's photos (`FOTO_DIR`): SquaddAgentEditorView new, made, changed and refused.
+final class SquaddAgentPhotoTests: SquaddAgentPhotoTestCase {
+    func testPhotoAgentScreens() async throws {
+        let dir = try photoDir()
+        let client = client()
 
         // a. A new agent: name, title, description and a model from the computer's engines.
         let new = SquaddAgentEditor(client: client)
         await new.loadModels()
         new.draft = .init(name: "Ricerca", title: "Analista", description: "Cerca e riassume", instructions: "Rispondi breve.")
         if let opus = new.modelGroups.first?.allModels.first(where: { $0.id == "claude-opus-5-5" }) { await new.selectModel(opus) }
-        try await shoot("a-new-agent", SquaddAgentEditorView(editor: new), dir: dir)
+        try await shoot("a-new-agent", SquaddAgentEditorView(editor: new), dir: dir) { true }
 
         // a2. Once made, the same sheet shows the agent with its avatar section.
         await new.save()
-        try await shoot("a2-created", SquaddAgentEditorView(editor: new), dir: dir)
-
-        // b. The model picker: only the engines the computer can run, no typed model.
-        try await shoot("b-model-picker", picker(new), dir: dir)
+        try await shoot("a2-created", dir: dir) { true }
 
         // c. An existing agent with the avatar the computer drew.
         let drawn = try JSONDecoder().decode(SquaddBotEnvelope.self, from: Self.fixture("bot-avatar.json")).bot
@@ -208,46 +243,49 @@ final class SquaddAgentPhotoTests: XCTestCase {
             Self.avatarsServed > 0
         }
 
-        // d. A name the computer refuses: the old name is back, with the computer's reason.
-        profileReply = (400, Self.fixture("bot-profile-invalid.json"))
+        // d. On the same screen, a name the computer refuses: the old name is back, with the computer's reason.
+        Self.profileReply = (400, Self.fixture("bot-profile-invalid.json"))
         edit.draft.name = String(repeating: "n", count: 101)
         await edit.save()
-        try await shoot("d-refused-name", SquaddAgentEditorView(editor: edit), dir: dir)
+        try await shoot("d-refused-name", dir: dir) { true }
+    }
+}
+
+/// The model picker's photos (`FOTO_DIR`) for a SquaddAgentEditor: the engines, and a refused model.
+final class SquaddAgentPickerPhotoTests: SquaddAgentPhotoTestCase {
+    func testPhotoModelPicker() async throws {
+        let dir = try photoDir()
+        let client = client()
+
+        // b. The model picker of the agent just made: only the engines the computer can run, no typed model.
+        let new = SquaddAgentEditor(client: client)
+        await new.loadModels()
+        new.draft = .init(name: "Ricerca", title: "Analista", description: "Cerca e riassume", instructions: "Rispondi breve.")
+        if let opus = new.modelGroups.first?.allModels.first(where: { $0.id == "claude-opus-5-5" }) { await new.selectModel(opus) }
+        await new.save()
+        try await shoot("b-model-picker", picker(new), dir: dir) { true }
 
         // e. A model the engine no longer offers: the agent keeps its model, with the reason.
+        let drawn = try JSONDecoder().decode(SquaddBotEnvelope.self, from: Self.fixture("bot-avatar.json")).bot
+        let edit = SquaddAgentEditor(client: client, bot: drawn)
+        await edit.loadModels()
         await edit.selectModel(ModelCatalogOption(id: "gpt-x", displayName: "GPT X", providerID: "chatgpt"))
-        try await shoot("e-refused-model", picker(edit), dir: dir)
+        try await shoot("e-refused-model", picker(edit), dir: dir) { true }
     }
+}
 
-    private func picker(_ editor: SquaddAgentEditor) -> some View {
-        ModelPickerSheet(configuration: .squaddAgent, modelGroups: editor.modelGroups,
-                         selectedModelID: editor.model?.model, selectedModelProviderID: editor.model?.instanceId,
-                         isSelected: { $0.id == editor.model?.model && $0.providerID == editor.model?.instanceId },
-                         loadStatus: editor.modelsStatus, errorMessage: editor.modelError, onSelect: { _ in })
-    }
-
-    private func client() -> SquaddCompanionClient {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.protocolClasses = [SquaddHTTPFixture.self]
-        return SquaddCompanionClient(server: server, token: "device-token", session: URLSession(configuration: configuration))
-    }
-
-    /// Hosts `view` in a window of the app's scene and writes `<name>.png` once it has drawn.
-    private func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: () -> Bool = { true }) async throws {
-        let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
-                                           configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        window?.isHidden = true
-        let window = UIWindow(windowScene: scene)
-        window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
-        window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
-        window.makeKeyAndVisible()
-        self.window = window
-        try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
-    }
-
-    private nonisolated static func fixture(_ name: String) -> Data {
-        try! Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .appendingPathComponent("Fixtures/Squadd/\(name)"))
+/// The home's photo (`FOTO_DIR`) in SquaddServerHome: New Agent above the agents; tapping a name opens the editor.
+final class SquaddAgentHomePhotoTests: SquaddAgentPhotoTestCase {
+    func testPhotoHome() async throws {
+        let dir = try photoDir()
+        URLProtocol.registerClass(SquaddHTTPFixture.self) // the home reads through URLSession.shared
+        let keychain = InMemoryKeychainStore()
+        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(),
+                                  serverRegistry: ServerRegistry.inMemory(keychain: keychain),
+                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
+        try manager.addSquaddServer(address: server, token: "device-token")
+        try await shoot("0-home", SquaddRoute(authManager: manager, server: server) { EmptyView() }, dir: dir) {
+            Self.botsServed > 0
+        }
     }
 }
