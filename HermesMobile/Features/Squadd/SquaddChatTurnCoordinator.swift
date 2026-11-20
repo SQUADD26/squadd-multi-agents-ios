@@ -108,6 +108,9 @@ final class SquaddChatTurnCoordinator {
     @ObservationIgnored private var shownRows: [ChatMessage] = []
     /// On-screen row id → its stored message id, for the actions a row offers.
     @ObservationIgnored private var storedIDs: [String: String] = [:]
+    /// The stored text messages of the version on screen, which a fork can start from, and the newest.
+    @ObservationIgnored private var forkableIDs: Set<String> = []
+    @ObservationIgnored private var newestForkableID: String?
     /// The server's offline cache (#34): every read of the newest page is kept there, and shown
     /// when the first read fails. Set by the chat's first call that carries it.
     @ObservationIgnored var cache: ModelContext?
@@ -283,9 +286,16 @@ final class SquaddChatTurnCoordinator {
             .mapValues { $0.sorted { ($0.at ?? 0) < ($1.at ?? 0) }.map(\.id) }
         var marks: [String: SquaddRowMarks] = [:]
         storedIDs = [:]
+        forkableIDs = []
+        newestForkableID = nil
         for message in all where path?.contains(message.id) ?? true {
             let rowID = rowIDs[message.id] ?? message.id
             storedIDs[rowID] = message.id
+            // The companion forks from a typed message or a reply (`forkHistory` in `store-forks.ts`).
+            if message.kind == "text", message.role == "user" || message.role == "bot" {
+                forkableIDs.insert(message.id)
+                newestForkableID = message.id
+            }
             var mark = SquaddRowMarks()
             if message.isTypedUserText, let ids = versions[message.parentId ?? ""], ids.count > 1,
                let index = ids.firstIndex(of: message.id) {
@@ -303,6 +313,20 @@ final class SquaddChatTurnCoordinator {
 
     /// The stored message behind an on-screen row, for the actions it offers.
     func storedID(ofRow rowID: String) -> String? { storedIDs[rowID] }
+
+    // MARK: Fork (#20)
+
+    /// Whether Fork From Here starts a thread from row `rowID`.
+    func canFork(row rowID: String) -> Bool { storedIDs[rowID].map(forkableIDs.contains) ?? false }
+
+    /// A new thread holding this one up to row `rowID`, or up to its newest message when nil (`/branch`).
+    func fork(fromRow rowID: String?) async throws -> SquaddThreadChat {
+        guard let messageID = rowID.map({ storedIDs[$0] }) ?? newestForkableID, forkableIDs.contains(messageID) else {
+            throw SquaddError.status(404)
+        }
+        let task = try await client.fork(threadId: chat.threadId, through: messageID, botId: chat.botId)
+        return SquaddThreadChat(server: chat.server, token: chat.token, botId: chat.botId, threadId: task.threadId, title: task.title)
+    }
 
     // MARK: Versions and reactions (#19)
 

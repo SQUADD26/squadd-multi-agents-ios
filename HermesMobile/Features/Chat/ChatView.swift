@@ -382,6 +382,7 @@ struct ChatView: View {
     @State private var pushedSession: SessionSummary?
     /// A new Hermes chat in another Profile, pushed on top so Back returns here (#1015).
     @State private var pushedHermesSession: HermesSessionChat?
+    @State private var pushedSquaddThread: SquaddThreadChat?
     /// The Sessions list `/sessions` or `/resume` pushed when no list is under this chat (#1053).
     @State private var pushedHermesSessionList: HermesSessionListEntry?
     /// Set when this webui chat is a fork; draws the "Forked from" row. A Hermes chat's is
@@ -1368,6 +1369,7 @@ struct ChatView: View {
                     .modifier(SessionScreenModifier(chat: chat))
                     .id(chat.id)
             }
+            .navigationDestination(item: $pushedSquaddThread) { ChatView(squaddThread: $0).id($0.id) }
             .navigationDestination(item: $pushedHermesSessionList) { entry in
                 HermesSessionListView(entry: entry).id(entry.id)
             }
@@ -3167,6 +3169,13 @@ struct ChatView: View {
             }
         }
 
+        // A Squadd thread runs `/branch` and `/fork` itself (#20); any other `/` text goes to the agent.
+        if isSquaddThread, submittedContent.quotes.isEmpty, let result = await viewModel.runSquaddSlashCommand(submittedDraft) {
+            handleSlashExecutionResult(result, parsedCommand: nil, submittedDraft: submittedDraft,
+                                       submittedDraftRevision: submittedDraftRevision)
+            return
+        }
+
         // A Hermes chat runs `/` text through its own commands and its host's (#1036); a name
         // neither knows is sent as typed.
         if isHermesSession, submittedContent.quotes.isEmpty,
@@ -3426,6 +3435,14 @@ struct ChatView: View {
             }
         case .openedSession(let session):
             pushedSession = session
+            if consumesDraft {
+                reconcileConsumedDraft(
+                    ComposerDraftContent(text: submittedDraft, quotes: submittedQuotes),
+                    submittedDraftRevision: submittedDraftRevision
+                )
+            }
+        case .openedSquaddThread(let chat):
+            pushedSquaddThread = chat
             if consumesDraft {
                 reconcileConsumedDraft(
                     ComposerDraftContent(text: submittedDraft, quotes: submittedQuotes),
@@ -3805,6 +3822,10 @@ struct ChatView: View {
     private func forkFromMessage(_ context: MessageActionContext) async {
         if isHermesSession {
             if let branch = await viewModel.forkHermesSession(from: context) { pushedHermesSession = branch }
+            return
+        }
+        if isSquaddThread {
+            if let fork = await viewModel.forkSquaddThread(from: context) { pushedSquaddThread = fork }
             return
         }
         let session = await viewModel.forkFromMessage(context, modelContext: modelContext)
@@ -4855,7 +4876,7 @@ private enum PastedFileError: LocalizedError {
 private extension SlashCommandExecutionResult {
     var isSuccessfulSubmission: Bool {
         switch self {
-        case .executed, .openedSession, .openedHermesSession, .replacedHermesSession, .openedHermesSessionList:
+        case .executed, .openedSession, .openedHermesSession, .replacedHermesSession, .openedHermesSessionList, .openedSquaddThread:
             true
         case .sendAsMessage, .unsupported, .needsSubArg, .notDelivered, .prefill:
             false

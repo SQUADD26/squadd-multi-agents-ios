@@ -2558,9 +2558,10 @@ final class ChatViewModel {
             offersHistoryActions: hermesTurn.map { $0.policy.offersHistoryActions && hermesRewindableMessageIDs.contains(message.id) }
                 ?? squaddTurn.map { message.role == "user" && $0.storedID(ofRow: message.id) != nil }
                 ?? true,
-            // A Hermes branch counts to a row the host saved (#1051). A Bot Chat offers neither (#1145).
+            // A Hermes branch counts to a row the host saved (#1051); a Squadd fork to a stored text row (#20).
             offersFork: hermesTurn.map { $0.policy.offersHistoryActions && message.rowID != nil }
-                ?? (squaddTurn == nil)
+                ?? squaddTurn.map { $0.canFork(row: message.id) }
+                ?? true
         )
     }
 
@@ -6178,6 +6179,47 @@ final class ChatViewModel {
             messageActionErrorMessage = error.localizedDescription
             return nil
         }
+    }
+
+    // MARK: Squadd forks (#20)
+
+    /// Fork From Here (`context`) or `/branch` (nil) in a Squadd thread: a new thread of the agent
+    /// up to that message, to open on top of this chat. Nil after saying why in the menu's error.
+    func forkSquaddThread(from context: MessageActionContext?) async -> SquaddThreadChat? {
+        guard let squaddTurn else { return nil }
+        if let refusal = squaddForkRefusal { messageActionErrorMessage = refusal; return nil }
+        isForkingMessage = true
+        messageActionErrorMessage = nil
+        defer { isForkingMessage = false }
+        do {
+            return try await squaddTurn.fork(fromRow: context?.messageID)
+        } catch {
+            messageActionErrorMessage = SquaddChatTurnCoordinator.failureMessage(error)
+            return nil
+        }
+    }
+
+    /// `/branch` and `/fork` in a Squadd thread, the commands Hermes chats have (#20); nil for any
+    /// other text, which goes to the agent as typed.
+    func runSquaddSlashCommand(_ draft: String) async -> SlashCommandExecutionResult? {
+        guard let squaddTurn, let parsed = SlashCommandExecutor.parse(draft),
+              SquaddSlashCommands.forkNames.contains(parsed.name.lowercased()) else { return nil }
+        if let refusal = squaddForkRefusal { return notDelivered(refusal) }
+        isForkingMessage = true
+        sendErrorMessage = nil
+        defer { isForkingMessage = false }
+        do {
+            return .openedSquaddThread(try await squaddTurn.fork(fromRow: nil))
+        } catch {
+            return notDelivered(SquaddChatTurnCoordinator.failureMessage(error))
+        }
+    }
+
+    /// Why a fork can't start now: the companion forks only a thread at rest.
+    private var squaddForkRefusal: String? {
+        if isViewingCachedData { return String(localized: "Reconnect to the server to fork a conversation.") }
+        if activeStreamID != nil { return String(localized: "Wait for the current response to finish before forking.") }
+        return nil
     }
 
     // MARK: Hermes branches (#1051)
