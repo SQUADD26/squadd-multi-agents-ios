@@ -232,21 +232,21 @@ final class SquaddChatTests: XCTestCase {
     func testSlashPanelOffersTheDesktopsCommandsAndTheThreadsEnabledSkills() async throws {
         let (commands, skills, query) = try await slashCatalog(bots: "slash-bots.json", config: "slash-config.json")
 
-        XCTAssertEqual(commands, ["goal", "learn", "setup", "burst"])
+        XCTAssertEqual(commands, ["goal", "learn", "setup", "burst", "branch", "fork"])
         XCTAssertEqual(skills, ["meeting-notes", "weekly-report"], "neither a turned-off skill nor one named like a built-in")
         XCTAssertEqual(query, "threadId=\(threadId)", "the skills this thread's turn sees")
     }
 
-    func testAnAgentWithNoEngineIsOfferedOnlyTheGoal() async throws {
+    func testAnAgentWithNoEngineIsOfferedOnlyTheGoalAndFork() async throws {
         let (commands, _, _) = try await slashCatalog(bots: "slash-bots-no-engine.json", config: "slash-config.json")
 
-        XCTAssertEqual(commands, ["goal"])
+        XCTAssertEqual(commands, ["goal", "branch", "fork"])
     }
 
     func testLearnLeavesThePanelWhenTheComputerTurnsSkillDraftingOff() async throws {
         let (commands, _, _) = try await slashCatalog(bots: "slash-bots.json", config: "slash-config-no-learn.json")
 
-        XCTAssertEqual(commands, ["goal", "setup", "burst"])
+        XCTAssertEqual(commands, ["goal", "setup", "burst", "branch", "fork"])
     }
 
     func testGoalGoesWithoutItsPrefixInGoalModeAndOtherCommandsAsTyped() async throws {

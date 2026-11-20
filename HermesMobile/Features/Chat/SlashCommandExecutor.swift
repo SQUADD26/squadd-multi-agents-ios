@@ -17,6 +17,8 @@ enum SlashCommandExecutionResult: Equatable {
     /// `/sessions` or `/resume` in a Hermes chat: its Profile's Sessions list, searching the
     /// entry's query (#1053).
     case openedHermesSessionList(HermesSessionListEntry)
+    /// `/branch` or `/fork` in a Squadd thread: the new thread, opened on top (#20).
+    case openedSquaddThread(SquaddThreadChat)
     /// The host's `prefill`: this text replaces the draft (#1036).
     case prefill(String)
     case sendAsMessage
