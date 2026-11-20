@@ -59,7 +59,7 @@ final class SquaddChatTurnCoordinator {
 
     @ObservationIgnored private weak var delegate: (any SquaddChatTurnDelegate)?
     @ObservationIgnored private let client: SquaddCompanionClient
-    @ObservationIgnored private let retryDelay: @Sendable (Int) async throws -> Void
+    @ObservationIgnored private let reconnectDelay: ChatStreamReconnectDelay
     @ObservationIgnored private var stream: Task<Void, Never>?
     /// The last frame id seen: a reconnect resumes after it.
     @ObservationIgnored private var cursor: String?
@@ -81,17 +81,18 @@ final class SquaddChatTurnCoordinator {
     @ObservationIgnored private var streamingItemID: String?
     /// Whether the open connection asked to resume after `cursor`.
     @ObservationIgnored private var isResuming = false
+    /// The running reply began before this chat saw it (opened mid-turn, or frames lost on a
+    /// reconnect): it shows as working, and its stored row comes when the turn ends.
+    @ObservationIgnored private var joinedMidReply = false
     /// A send's id, which makes a retry land once; tests pass the recorded one.
     @ObservationIgnored var makeSendID: () -> String = { UUID().uuidString }
 
-    /// `retryDelay` waits before reconnect `attempt` (1, 2, …); tests pass their own.
+    /// `reconnectDelay` waits the shared backoff's steps between reconnects; tests pass their own.
     init(_ chat: SquaddThreadChat, session: URLSession = .shared,
-         retryDelay: @escaping @Sendable (Int) async throws -> Void = { attempt in
-             try await Task.sleep(for: .seconds(min(1 << min(attempt - 1, 4), 15)))
-         }) {
+         reconnectDelay: @escaping ChatStreamReconnectDelay = ChatStreamReconnectBackoff.standardDelay) {
         self.chat = chat
         client = SquaddCompanionClient(server: chat.server, token: chat.token, session: session)
-        self.retryDelay = retryDelay
+        self.reconnectDelay = reconnectDelay
     }
 
     /// Reads the transcript and opens the event stream, unless it is already open.
@@ -204,6 +205,17 @@ final class SquaddChatTurnCoordinator {
         }
     }
 
+    /// Whether a frame id (`<stream id>:<seq>`) is one already seen: same stream, seq not past
+    /// the cursor's. A restarted companion has a new stream id, so its frames are never repeats.
+    static func isRepeat(_ id: String, after cursor: String?) -> Bool {
+        func split(_ value: String) -> (String, Int)? {
+            guard let colon = value.lastIndex(of: ":"), let seq = Int(value[value.index(after: colon)...]) else { return nil }
+            return (String(value[..<colon]), seq)
+        }
+        guard let cursor, let (stream, seq) = split(id), let (seen, last) = split(cursor) else { return false }
+        return stream == seen && seq <= last
+    }
+
     static func failureMessage(_ error: Error) -> String {
         switch error {
         case SquaddError.unpaired:
@@ -227,7 +239,10 @@ final class SquaddChatTurnCoordinator {
                 for try await (id, frame) in client.events(since: cursor) {
                     attempt = 0
                     isReconnecting = false
-                    if let id { cursor = id }
+                    if let id {
+                        if Self.isRepeat(id, after: cursor) { continue }
+                        cursor = id
+                    }
                     await apply(frame)
                 }
             } catch SquaddError.unpaired {
@@ -235,25 +250,30 @@ final class SquaddChatTurnCoordinator {
                 return
             } catch {}
             guard !Task.isCancelled else { return }
+            let delays = ChatStreamReconnectBackoff.delays
             attempt += 1
             isReconnecting = true
-            do { try await retryDelay(attempt) } catch { return }
+            do { try await reconnectDelay(delays[min(attempt, delays.count) - 1]) } catch { return }
         }
     }
 
     private func apply(_ frame: SquaddFrame) async {
         switch frame {
         case .hello(let cursor, let resumed):
-            self.cursor = cursor
+            // Resumed, the replay after our cursor follows (and is at most the hello's cursor).
+            if !resumed { self.cursor = cursor }
             // A reconnect whose frames were lost: what they carried is in the stored transcript.
             if !resumed, isResuming, hasLoaded {
-                if activeStreamID != nil { finish(.failed) }
+                // The turn may still run or may have ended unseen: close it quietly, and a reply
+                // that goes on rejoins as working.
+                finish(nil)
                 await reload()
             }
         case .turnStarted(let threadId) where threadId == chat.threadId:
             beginTurn()
         case .replyDelta(let threadId, let itemId, let text) where threadId == chat.threadId:
-            if activeStreamID == nil { beginTurn() }
+            if activeStreamID == nil { beginTurn(); joinedMidReply = true }
+            guard !joinedMidReply else { return }
             streamingItemID = itemId ?? streamingItemID
             delegate?.streamCoordinatorAppendToken(text)
         case .message(let threadId, let message) where threadId == chat.threadId:
@@ -281,6 +301,7 @@ final class SquaddChatTurnCoordinator {
         latestRunEnding = nil
         successfulResponseCompletion = nil
         streamingItemID = nil
+        joinedMidReply = false
         activeRunStartedAt = Date()
         activeStreamID = "squadd:\(chat.threadId):\(UUID().uuidString)"
         delegate?.hermesTurnDidStart(prompt: nil)
@@ -288,10 +309,10 @@ final class SquaddChatTurnCoordinator {
     }
 
     /// Ends the running turn the way the webui path ends a stream, so the chat records the
-    /// same outcome, haptic and alert.
-    private func finish(_ ending: TranscriptTurnRunOutcome.Ending) {
+    /// same outcome, haptic and alert. A nil ending records none.
+    private func finish(_ ending: TranscriptTurnRunOutcome.Ending?) {
         guard let streamID = activeStreamID else { return }
-        latestRunEnding = ChatRunEnding(startedAt: activeRunStartedAt ?? Date(), endedAt: Date(), ending: ending)
+        latestRunEnding = ending.map { ChatRunEnding(startedAt: activeRunStartedAt ?? Date(), endedAt: Date(), ending: $0) }
         if ending == .completed {
             successfulResponseCompletion = .init(streamID: streamID, needsTranscriptRefresh: false)
             delegate?.streamCoordinatorApplyDone(DoneStreamEvent())
@@ -299,6 +320,7 @@ final class SquaddChatTurnCoordinator {
         activeStreamID = nil
         activeRunStartedAt = nil
         streamingItemID = nil
+        joinedMidReply = false
         delegate?.streamCoordinatorStreamingAssistantMessageID = nil
         if ending == .completed { delegate?.streamCoordinatorDidCompleteCurrentResponse(needsTranscriptRefresh: false) }
         delegate?.streamCoordinatorFlushPinnedLocalNoticesToTranscript()
@@ -330,8 +352,10 @@ extension SquaddChatTurnCoordinator: ChatTurnCoordinating {
 
     func reconnectIfNeeded(modelContext: ModelContext?) async { await activate() }
 
+    /// A connection on the interface that went away can hang without an error, so an open
+    /// stream reopens at once and resumes after the last frame seen.
     func networkPathDidChange(modelContext: ModelContext?) async {
-        guard isReconnecting else { return }
+        guard stream != nil else { return }
         stop()
         await activate()
     }
