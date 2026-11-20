@@ -193,7 +193,7 @@ class SquaddAgentPhotoTestCase: XCTestCase {
     }
 
     /// Shows `view` in the class's one window (made on the first shot) and photographs it.
-    func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: () -> Bool = { true }) async throws {
+    final func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: () -> Bool = { true }) async throws {
         if window == nil {
             let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
             window = UIWindow(windowScene: scene)
@@ -207,7 +207,7 @@ class SquaddAgentPhotoTestCase: XCTestCase {
     }
 
     /// Writes `<name>.png` of what the window shows now, once it has drawn.
-    func shoot(_ name: String, dir: URL, until ready: () -> Bool = { true }) async throws {
+    final func shoot(_ name: String, dir: URL, until ready: () -> Bool = { true }) async throws {
         let window = try XCTUnwrap(window)
         try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
     }
