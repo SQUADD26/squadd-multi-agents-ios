@@ -86,6 +86,12 @@ final class SquaddThreadLinkTests: XCTestCase {
         XCTAssertEqual(webui, [])
     }
 
+    func testTheAppOpensThreadLinks() {
+        let types = Bundle.main.infoDictionary?["CFBundleURLTypes"] as? [[String: Any]] ?? []
+        let schemes = types.flatMap { $0["CFBundleURLSchemes"] as? [String] ?? [] }
+        XCTAssertTrue(schemes.contains(SquaddThreadLink.scheme), "iOS launches the app for openmausbot:// links")
+    }
+
     // MARK: - Helpers
 
     private func account(_ url: URL, kind: ServerKind = .squadd) -> ServerAccount {
@@ -107,8 +113,8 @@ final class SquaddThreadLinkTests: XCTestCase {
 
 /// Photographs a thread link opening in the real `ContentView`, through the same deep-link path
 /// Siri and Shortcuts take, with the companion played back from the recordings: a link to a thread
-/// on the inactive computer, one to a deleted thread, and one to a computer never paired. Skipped
-/// unless `FOTO_DIR` is set (`TEST_RUNNER_FOTO_DIR`).
+/// on the inactive computer, one to a deleted thread, and one to a computer never paired (photos
+/// only when `FOTO_DIR` is set, `TEST_RUNNER_FOTO_DIR`); and a link queued before the app appears.
 @MainActor
 final class SquaddThreadLinkPhotoTests: XCTestCase {
     private let studio = URL(string: "http://mac-studio.tailnet.test:8810")!
@@ -129,21 +135,7 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         try XCTSkipIf(path == nil, "Only for photo runs")
         let dir = URL(fileURLWithPath: path!)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let bots = try Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .appendingPathComponent("Fixtures/Squadd/bots.json"))
-        SquaddHTTPFixture.handler = { request in
-            guard request.url?.path == "/api/bots" else { return (404, Data()) }
-            Self.served.append(request.value(forHTTPHeaderField: "Authorization") ?? "")
-            return (200, bots)
-        }
-        URLProtocol.registerClass(SquaddHTTPFixture.self)
-        let keychain = InMemoryKeychainStore()
-        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(),
-                                  serverRegistry: ServerRegistry.inMemory(keychain: keychain),
-                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
-        try manager.addSquaddServer(address: studio, token: "token-studio")
-        try manager.addSquaddServer(address: laptop, token: "token-laptop")
-        XCTAssertEqual(manager.state, .loggedIn(server: laptop))
+        let manager = try twoPairedComputers()
         var router = try host(manager)
 
         // a. A link to Pesto's "hi" thread on the Mac Studio, with the MacBook active: the app
@@ -169,10 +161,48 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         XCTAssertEqual(manager.state, .loggedIn(server: studio), "a link to an unpaired computer switches nothing")
     }
 
+    /// Cold launch: Siri, a Shortcut or iOS opening an `openmausbot://` link queue it before the
+    /// app's view exists; the view drains it as it appears and opens the computer the link names.
+    func testALinkQueuedBeforeTheAppAppearsOpensOnItsComputer() async throws {
+        let manager = try twoPairedComputers()
+        let router = AppIntentRouter()
+        router.requestDeepLink(SquaddThreadLink(threadID: "e0196fb1-7f3b-44b7-93a0-e7b1e93f7af1", server: studio).url)
+        let switched = expectation(description: "switched to the Mac Studio")
+        switched.assertForOverFulfill = false
+        func observe() {
+            withObservationTracking {
+                if manager.state == .loggedIn(server: studio) { switched.fulfill() }
+            } onChange: { DispatchQueue.main.async { MainActor.assumeIsolated { observe() } } }
+        }
+        observe()
+        _ = try host(manager, router: router)
+        await fulfillment(of: [switched], timeout: 5)
+        XCTAssertNil(router.pendingDeepLink, "the link is opened once")
+    }
+
+    /// The MacBook active and the Mac Studio paired too, both answering with the recorded agents.
+    private func twoPairedComputers() throws -> AuthManager {
+        let bots = try Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/Squadd/bots.json"))
+        SquaddHTTPFixture.handler = { request in
+            guard request.url?.path == "/api/bots" else { return (404, Data()) }
+            Self.served.append(request.value(forHTTPHeaderField: "Authorization") ?? "")
+            return (200, bots)
+        }
+        URLProtocol.registerClass(SquaddHTTPFixture.self)
+        let keychain = InMemoryKeychainStore()
+        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(),
+                                  serverRegistry: ServerRegistry.inMemory(keychain: keychain),
+                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
+        try manager.addSquaddServer(address: studio, token: "token-studio")
+        try manager.addSquaddServer(address: laptop, token: "token-laptop")
+        XCTAssertEqual(manager.state, .loggedIn(server: laptop))
+        return manager
+    }
+
     /// Shows a fresh `ContentView` and returns the router it drains: the test host app's own
     /// ContentView drains `AppIntentRouter.shared`, so each window gets its own.
-    private func host(_ manager: AuthManager) throws -> AppIntentRouter {
-        let router = AppIntentRouter()
+    private func host(_ manager: AuthManager, router: AppIntentRouter = AppIntentRouter()) throws -> AppIntentRouter {
         let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
