@@ -160,12 +160,12 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         // b. A thread deleted on the computer. Each alert gets a fresh app window.
         router = try host(manager)
         router.requestDeepLink(SquaddThreadLink(threadID: "deleted-thread", server: studio).url)
-        try await shoot("f2-thread-not-found", dir: dir) { true }
+        try await shoot("f2-thread-not-found", dir: dir) { self.window?.rootViewController?.presentedViewController != nil }
 
         // c. A computer this iPhone never paired.
         router = try host(manager)
         router.requestDeepLink(SquaddThreadLink(threadID: "t", server: URL(string: "http://other.tailnet.test:8810")!).url)
-        try await shoot("f3-computer-not-paired", dir: dir) { true }
+        try await shoot("f3-computer-not-paired", dir: dir) { self.window?.rootViewController?.presentedViewController != nil }
         XCTAssertEqual(manager.state, .loggedIn(server: studio), "a link to an unpaired computer switches nothing")
     }
 
@@ -186,20 +186,9 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         return router
     }
 
-    /// Waits for `ready` and the frames after it, then writes `<name>.png`.
-    private func shoot(_ name: String, dir: URL, until ready: @escaping @MainActor () -> Bool) async throws {
-        let landed = expectation(description: "\(name) landed")
-        func check(_ remaining: Int) {
-            if ready() || remaining == 0 { landed.fulfill(); return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { MainActor.assumeIsolated { check(remaining - 1) } }
-        }
-        check(100)
-        await fulfillment(of: [landed], timeout: 10)
-        try await Task.sleep(for: .seconds(1.5)) // test-wait: lets the scroll and the alert draw; a photo for review, never an assertion
+    /// Writes `<name>.png` once `ready` holds and the screen has settled (`readyPhoto`).
+    private func shoot(_ name: String, dir: URL, until ready: () -> Bool) async throws {
         let window = try XCTUnwrap(window)
-        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
-            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-        }
-        try XCTUnwrap(image.pngData()).write(to: dir.appendingPathComponent("\(name).png"))
+        try await readyPhoto(of: window, until: ready, limit: .seconds(5)).write(to: dir.appendingPathComponent("\(name).png"))
     }
 }

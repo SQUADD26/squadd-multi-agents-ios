@@ -15,6 +15,9 @@ struct SquaddServerSections: View {
             link(String(localized: "API Keys"), systemImage: "key") { SquaddKeysPage(model: $0) }
             link(String(localized: "Agents' Tools"), systemImage: "wrench.and.screwdriver") { SquaddAgentsToolsPage(model: $0) }
             link(String(localized: "Team Memory"), systemImage: "brain") { SquaddTeamMemoryPage(model: $0) }
+            link(String(localized: "Connected Apps"), systemImage: "app.connected.to.app.below.fill") { [weak authManager, server] model in
+                SquaddConnectorsPage(client: model.client, onUnpaired: { authManager?.squaddUnpaired(server: server) })
+            }
         } header: {
             Text("Computer")
         } appFooter: {
