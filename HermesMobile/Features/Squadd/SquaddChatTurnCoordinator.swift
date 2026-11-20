@@ -108,14 +108,16 @@ final class SquaddChatTurnCoordinator {
         await reload()
     }
 
-    /// Sends a typed message; `followUp` says how it meets a running turn. Returns whether the
-    /// companion queued it, so it shows in `queued` instead of the transcript. Throws when the
-    /// companion didn't take it, so the chat puts it back.
+    /// Sends a typed message, `/goal rest` as a goal the desktop's way; `followUp` says how it meets
+    /// a running turn. Returns whether the companion queued it, so it shows in `queued` instead of
+    /// the transcript. Throws when the companion didn't take it, so the chat puts it back.
     func send(_ text: String, sendId: String, localRowID: String, followUp: SquaddFollowUp? = nil) async throws -> Bool {
+        let outgoing = SquaddSlashCommands.outgoing(text)
         ownSendIDs.insert(sendId)
         let receipt: SquaddSendReceipt
         do {
-            receipt = try await client.send(text, botId: chat.botId, threadId: chat.threadId, sendId: sendId, followUp: followUp)
+            receipt = try await client.send(outgoing.text, botId: chat.botId, threadId: chat.threadId,
+                                            sendId: sendId, mode: outgoing.mode, followUp: followUp)
             if let stored = receipt.message?.id { rowIDs[stored] = localRowID; shownIDs.insert(stored) }
         } catch {
             ownSendIDs.remove(sendId)
@@ -143,6 +145,19 @@ final class SquaddChatTurnCoordinator {
     /// The marker row comes as a stored message, which reloads the transcript.
     func compact() async throws {
         try await client.compact(botId: chat.botId, threadId: chat.threadId)
+    }
+
+    /// What this thread's `/` panel offers: the built-ins the agent's engine and the computer allow,
+    /// and the agent's skills as this thread sees them.
+    func slashCatalog() async throws -> (scope: SlashCommandScope, skills: [SkillSlashSuggestion]) {
+        async let skills = client.skills(botId: chat.botId, threadId: chat.threadId)
+        async let bots = client.bots()
+        async let instances = client.instances()
+        async let authorsSkills = client.authorsSkills()
+        let engine = try await bots.first { $0.id == chat.botId }?.modelSelection?.instanceId
+        let runsAgents = try await instances.contains { $0.instanceId == engine && $0.runsAgents }
+        return (SquaddSlashCommands.scope(runsAgents: runsAgents, authorsSkills: try await authorsSkills),
+                SquaddSlashCommands.skills(try await skills))
     }
 
     func stop() {
