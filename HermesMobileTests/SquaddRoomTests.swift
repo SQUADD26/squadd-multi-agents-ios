@@ -437,20 +437,25 @@ final class SquaddHomeListTests: XCTestCase {
 }
 
 /// The home with Roberto's agents and channels (`FOTO_DIR`): Channels, then Direct Messages, at the default
-/// text size and at the largest accessibility size, where no name breaks inside a word.
-final class SquaddHomeListPhotoTests: SquaddRoomPhotoTestCase {
-    func testPhotoHomeList() async throws {
+/// text size and at the largest accessibility size, where no name breaks inside a word. One photo per class,
+/// so each stays under 3 s; the window is tall enough for all eleven agents.
+class SquaddHomeListPhotoTestCase: SquaddRoomPhotoTestCase {
+    fileprivate final func shootList(_ name: String, size: DynamicTypeSize = .large, height: CGFloat,
+                                     start: SquaddHomeStart? = nil) async throws {
         let dir = try photoDir(bots: "bots-roberto.json")
-        let manager = try manager()
-        // Tall enough for all eleven agents, so every name shows at each size.
-        for (name, size, height) in [("l1-home-default", DynamicTypeSize.large, 1900.0), ("l2-home-ax5", .accessibility5, 3400)] {
-            Self.served = []
-            try await shoot(name, SquaddServerHome(authManager: manager, server: server, pendingThread: .constant(nil))
-                .environment(\.dynamicTypeSize, size), dir: dir, height: height) { Self.served.contains("/api/bots") }
-        }
-        Self.served = []
-        try await shoot("l3-home-agent-open", SquaddServerHome(authManager: manager, server: server, pendingThread: .constant(nil),
-                                                               start: .showArchived),
-                        dir: dir) { Self.served.contains("/api/bots") }
+        try await shoot(name, SquaddServerHome(authManager: try manager(), server: server, pendingThread: .constant(nil), start: start)
+            .environment(\.dynamicTypeSize, size), dir: dir, height: height) { Self.served.contains("/api/bots") }
     }
+}
+
+final class SquaddHomeListDefaultPhotoTests: SquaddHomeListPhotoTestCase {
+    func testPhotoHomeListDefault() async throws { try await shootList("l1-home-default", height: 1900) }
+}
+
+final class SquaddHomeListLargestTextPhotoTests: SquaddHomeListPhotoTestCase {
+    func testPhotoHomeListLargestText() async throws { try await shootList("l2-home-ax5", size: .accessibility5, height: 3400) }
+}
+
+final class SquaddHomeListOpenAgentPhotoTests: SquaddHomeListPhotoTestCase {
+    func testPhotoHomeListOpenAgent() async throws { try await shootList("l3-home-agent-open", height: 1900, start: .showArchived) }
 }
