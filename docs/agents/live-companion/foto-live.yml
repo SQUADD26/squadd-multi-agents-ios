@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   live:
-    runs-on: [squadd-multi-ios-shared]
+    runs-on: [squadd-multi-ios-senza-pr]
     timeout-minutes: 25
     env:
       HEAD_SHA: ${{ github.sha }}

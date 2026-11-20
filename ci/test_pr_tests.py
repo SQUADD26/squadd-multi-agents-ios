@@ -34,6 +34,14 @@ class SelectTests(unittest.TestCase):
             ["ChatViewModelMoreTests", "ChatViewModelTests", "EditorPhotoTests", "LocalizationCatalogTests", "OtherTests"],
         )
 
+    def test_red_branch_picks_only_the_touched_test_classes_without_photos(self):
+        changed = [
+            "HermesMobileTests/EditorTests.swift",
+            "HermesMobile/Features/Chat/ChatViewModel.swift",
+            "HermesMobile/Resources/Localizable.xcstrings",
+        ]
+        self.assertEqual(select(changed, self.tests, red=True), ["EditorTests"])
+
     def test_untested_change_selects_nothing(self):
         self.assertEqual(select(["docs/readme.md", "HermesMobile/Unrelated.swift"], self.tests), [])
 
