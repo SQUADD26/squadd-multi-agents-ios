@@ -51,7 +51,8 @@ extension SquaddPairingPhotoTests {
         note("QR link -> paired; token in the Keychain; active server «\(manager.activeServer?.displayName ?? "-")»")
         var authenticated = URLRequest(url: server.appendingPathComponent("api/bots"))
         authenticated.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        let status = try XCTUnwrap(try await URLSession.shared.data(for: authenticated).1 as? HTTPURLResponse).statusCode
+        let response = try await URLSession.shared.data(for: authenticated).1
+        let status = try XCTUnwrap(response as? HTTPURLResponse).statusCode
         XCTAssertNotEqual(status, 401, "the computer knows the new token")
         note("GET /api/bots with the token -> \(status) (not 401: the computer knows this iPhone)")
         let paired = try await deviceCount()
