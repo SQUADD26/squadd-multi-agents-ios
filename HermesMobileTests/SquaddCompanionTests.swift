@@ -373,7 +373,7 @@ final class SquaddScreenPhotoTests: XCTestCase {
         ]
         for (name, start, awaited) in steps {
             let from = served.count
-            try await shoot(name, SquaddServerHome(authManager: manager, server: studio, start: start), dir: dir) {
+            try await shoot(name, SquaddServerHome(authManager: manager, server: studio, pendingThread: .constant(nil), start: start), dir: dir) {
                 served[from...].contains(awaited)
             }
         }
@@ -381,7 +381,7 @@ final class SquaddScreenPhotoTests: XCTestCase {
 
         // The share sheet draws in another process, so the photo shows only its dimming.
         let from = served.count
-        try await shoot("f7-export-share", SquaddServerHome(authManager: manager, server: studio, start: .act(.export, threadTitle: "ciao zucchero")),
+        try await shoot("f7-export-share", SquaddServerHome(authManager: manager, server: studio, pendingThread: .constant(nil), start: .act(.export, threadTitle: "ciao zucchero")),
                         dir: dir) { served[from...].contains("GET /api/threads/efb8fa96-47ef-4968-bb13-ce9aacada117/export") }
         XCTAssertTrue(Self.shows(UIActivityViewController.self, from: window?.rootViewController), "export opens the share sheet")
     }
