@@ -247,7 +247,26 @@ final class SquaddAgentPhotoTests: XCTestCase {
         window.makeKeyAndVisible()
         self.window = window
         Self.times += "\(name) setup \(ContinuousClock.now - t0)\n"
-        try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
+        try await probe(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
+    }
+
+    private func probe(of window: UIWindow, until ready: () -> Bool = { true }, limit: Duration = .seconds(3)) async throws -> Data {
+        let renderer = UIGraphicsImageRenderer(bounds: window.bounds)
+        var r = Duration.zero
+        let frame = { () -> UIImage in let t = ContinuousClock.now; defer { r += ContinuousClock.now - t }; return renderer.image { _ in window.drawHierarchy(in: window.bounds, afterScreenUpdates: true) } }
+        let pixels = { (image: UIImage) in image.cgImage?.dataProvider?.data as Data? }
+        var last = frame(), same = 0, log = ""
+        let end = ContinuousClock.now + limit
+        while same < 3, ContinuousClock.now < end {
+            try await Task.sleep(for: .milliseconds(100))
+            let now = frame()
+            let eq = pixels(now) == pixels(last)
+            log += ready() ? (eq ? "=" : "x") : "w"
+            same = ready() && eq ? same + 1 : 0
+            last = now
+        }
+        Self.times += "  frames \(log) render \(r)\n"
+        return try XCTUnwrap(last.pngData())
     }
 
     private nonisolated static func fixture(_ name: String) -> Data {
