@@ -12,6 +12,8 @@ struct ContentView: View {
     @State private var didCheckInitialPendingShare = false
     @State private var intentRouter = AppIntentRouter.shared
     @AppStorage(BotModeGate.isEnabledKey) private var isBotModeEnabled = false
+    /// An `openmausbot://pair` link the computer handed over (#8), paired in its own sheet.
+    @State private var squaddInvite: SquaddPairingInvite?
 
     init(authManager: AuthManager, intentRouter: AppIntentRouter = .shared) {
         _authManager = Bindable(authManager)
@@ -27,6 +29,7 @@ struct ContentView: View {
             } message: {
                 Text("Pair this iPhone with the computer that has this thread, then open the link again.")
             }
+            .sheet(item: $squaddInvite) { SquaddAddServerSheet(authManager: authManager, invite: $0) }
             .task {
                 guard !didCheckInitialPendingShare else { return }
                 didCheckInitialPendingShare = true
@@ -166,6 +169,10 @@ struct ContentView: View {
     }
 
     private func handleOpenURL(_ url: URL) {
+        if let invite = SquaddPairingInvite(url: url) {
+            squaddInvite = invite
+            return
+        }
         Task { await AgentLiveActivityManager.shared.dismissFinishedActivity(from: url) }
         pendingLinks.webuiPush = nil
         pendingLinks.hermesSession = nil
