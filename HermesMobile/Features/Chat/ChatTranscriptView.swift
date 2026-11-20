@@ -1044,14 +1044,13 @@ private struct ChatQueuedPromptRow: View {
             MessageBubbleView(message: message, transcriptMediaCacheNamespace: "", isQueued: true)
                 .accessibilityElement(children: .combine)
                 .accessibilityValue(Text("Queued"))
-            HStack(spacing: 10) {
-                if let onRemove {
-                    Button("Remove", action: onRemove)
-                        .font(AppFont.caption(weight: .semibold))
-                        .chatMinimumHitTarget(horizontalPadding: 12, verticalPadding: 14, in: Rectangle())
-                }
-                ChatMessageMetaRow(isUserMessage: true, timeText: String(localized: "Queued"),
-                                   onCopy: { onCopy(message.content ?? "") })
+            ChatMessageMetaRow(isUserMessage: true, timeText: String(localized: "Queued"),
+                               onCopy: { onCopy(message.content ?? "") })
+            if let onRemove {
+                Button("Remove", action: onRemove)
+                    .font(AppFont.caption(weight: .semibold))
+                    .chatMinimumHitTarget(horizontalPadding: 12, verticalPadding: 14, in: Rectangle())
+                    .padding(.horizontal, 2)
             }
         }
     }
