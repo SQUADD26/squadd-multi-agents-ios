@@ -12,21 +12,21 @@ func squaddPair(_ invite: SquaddPairingInvite, authManager: AuthManager) async t
 func squaddPairingFailure(_ error: Error) -> String {
     switch error {
     case SquaddError.pairing("pairing_not_open"):
-        return String(localized: "No pairing is open on the computer. Codes last two minutes and work once: start pairing again in Remote access on the computer.")
+        return String(localized: "This code has expired or was already used. Create a new one on the computer and scan it again.")
     case SquaddError.pairing("pairing_code_wrong"):
-        return String(localized: "That code isn’t right, or the computer now shows a newer one. Use the code on the computer’s screen.")
+        return String(localized: "That code isn’t right, or it has expired. Create a new one on the computer and try again.")
     case SquaddError.pairing("pairing_too_many"):
-        return String(localized: "Too many wrong codes. Start pairing again in Remote access on the computer.")
+        return String(localized: "Too many wrong codes. Create a new one on the computer and try again.")
     case SquaddError.pairing("pairing_device_limit"):
         return String(localized: "This computer already has 20 paired devices. Remove an old phone in Remote access on the computer, then pair again.")
     case SquaddError.pairing, SquaddError.unpaired, SquaddError.status(400), SquaddError.status(403), SquaddError.status(404):
-        return String(localized: "The computer refused the code. Codes last two minutes and work once.")
+        return String(localized: "The computer refused the code. Codes work once and only for a few minutes: create a new one on the computer.")
     case AuthManager.SquaddAddError.alreadyConfigured:
         return String(localized: "This server is already configured.")
     case AuthManager.SquaddAddError.keychain:
         return String(localized: "Could not save sign-in details on this iPhone.")
     default:
-        return String(localized: "Could not reach the computer at this address.")
+        return String(localized: "Could not reach the computer at this address. If it works only on its own Wi-Fi, connect this iPhone to that Wi-Fi.")
     }
 }
 
@@ -51,7 +51,8 @@ struct SquaddPairAgainView: View {
                 }
                 Section {
                     TextField("Pairing code", text: $code)
-                        .keyboardType(.numberPad)
+                        .textInputAutocapitalization(.characters)
+                        .autocorrectionDisabled()
                         .textContentType(.oneTimeCode)
                     Button("Pair") { pair() }
                         .disabled(code.isEmpty || isPairing)
