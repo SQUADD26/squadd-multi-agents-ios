@@ -97,6 +97,32 @@ final class SquaddRouteTests: XCTestCase {
         XCTAssertEqual(finder.route?.kind, .bonjour)
     }
 
+    /// A computer paired on its LAN with a relay key: the LAN while it answers, the relay away from home, the LAN again back home.
+    func testTheRelayCarriesAComputerOnlyWhenNoAddressAnswers() async throws {
+        let vectors = try Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/Squadd/e2e/v1.json"))
+        let valid = try XCTUnwrap(((try JSONSerialization.jsonObject(with: vectors) as? [String: Any])?["V7"] as? [String: Any])?["valid"] as? [[String: Any]])
+        let value = try XCTUnwrap(valid.first { $0["name"] as? String == "relay" }?["value"] as? String)
+        guard case .ok(let descriptor) = SquaddE2E.Descriptor.parse(value) else { return XCTFail("the relay descriptor parses") }
+        var book = SquaddRouteBook(name: "Mac di prova",
+                                   endpoints: try JSONDecoder().decode(SquaddPairResponse.self, from: SquaddPairingTests.fixture("pair-routes.json")).endpoints)
+        book.e2e = descriptor
+        let health = try SquaddPairingTests.fixture("health.json")
+        var answering: String? = "10.0.7.2"
+        SquaddHTTPFixture.handler = { request in
+            request.url?.host == answering && request.url?.path == "/api/health" ? (200, health) : (404, Data())
+        }
+        let finder = SquaddRouteFinder(server: pairedAt, book: book, relayCredential: "omb_dev", session: session)
+        defer { SquaddRelay.shared.close(server: pairedAt) }
+        await finder.find()
+        XCTAssertEqual(finder.route?.kind, .lan, "at home the LAN wins over the relay")
+        answering = nil
+        await finder.find()
+        XCTAssertEqual(finder.route?.kind, .relay, "away from home the relay carries it")
+        answering = "10.0.7.2"
+        await finder.find()
+        XCTAssertEqual(SquaddRoutes.shared.route(for: pairedAt)?.kind, .lan, "back home the LAN wins again")
+    }
+
     func testBonjourResolvesTheComputerAdvertisedUnderItsName() async throws {
         // Two computers on this Wi-Fi, advertised as the companion does: `_openmausbot._tcp`, `name=` in the TXT record.
         let other = try await advertise(name: "Altro Mac")

@@ -36,8 +36,10 @@ extension AuthManager {
     func pairSquadd(_ invite: SquaddPairingInvite, deviceName: String, session: URLSession = .shared) async throws {
         let existing = servers.first { $0.id == invite.server.absoluteString }
         if let existing, existing.kind != .squadd { throw SquaddAddError.alreadyConfigured }
-        if let relay = invite.e2e {
-            try await SquaddRelay.shared.open(server: invite.server, descriptor: relay, credential: invite.credential)
+        // Only a relay-only computer pairs through the relay; any other pairs at its address and keeps the key for later.
+        let tunnel = SquaddRelay.isRelayIdentity(invite.server) ? invite.e2e : nil
+        if let tunnel {
+            try await SquaddRelay.shared.open(server: invite.server, descriptor: tunnel, credential: invite.credential)
             do { try await SquaddRelay.shared.connect(server: invite.server) } catch {
                 SquaddRelay.shared.close(server: invite.server)
                 throw error
@@ -50,12 +52,12 @@ extension AuthManager {
                 // No token after a revocation: the computer already dropped that device, so nothing to replace.
                 replacesToken: existing == nil ? nil : squaddToken(for: invite.server), session: session)
         } catch {
-            if invite.e2e != nil { SquaddRelay.shared.close(server: invite.server) }
+            if tunnel != nil { SquaddRelay.shared.close(server: invite.server) }
             throw error
         }
         // From now on the tunnel speaks with this device's own keys.
-        if invite.e2e != nil { SquaddRelay.shared.close(server: invite.server) }
-        var book = SquaddRouteBook(name: reply.serverName ?? invite.name, endpoints: invite.e2e == nil ? reply.endpoints : [])
+        if tunnel != nil { SquaddRelay.shared.close(server: invite.server) }
+        var book = SquaddRouteBook(name: reply.serverName ?? invite.name, endpoints: tunnel == nil ? reply.endpoints : [])
         book.e2e = invite.e2e
         guard let existing else {
             try addSquaddServer(address: invite.server, token: reply.token)
