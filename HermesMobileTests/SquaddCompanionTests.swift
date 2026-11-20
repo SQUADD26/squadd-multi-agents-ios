@@ -298,6 +298,30 @@ final class SquaddCompanionTests: XCTestCase {
         XCTAssertEqual(try sections(model), before)
     }
 
+    func testOfflineHomeShowsItsServersCachedThreadsAndFoldersUntilTheComputerAnswers() async throws {
+        let cache = try ModelContext(ModelContainer(for: CachedSession.self, CachedMessage.self,
+                                                    configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+        var online = true
+        SquaddHTTPFixture.handler = { _ in online ? (200, try! Self.fixture("bots-organized.json")) : (0, Data()) }
+        let live = SquaddAgentListModel(client: client(token: "t"), cache: cache, onUnpaired: {})
+        await live.load()
+        let shown = try sections(live)
+
+        online = false
+        let offline = SquaddAgentListModel(client: client(token: "t"), cache: cache, onUnpaired: {})
+        await offline.load()
+        XCTAssertEqual(try sections(offline), shown, "the same threads, folders and order without the computer")
+        XCTAssertTrue(offline.isShowingCache, "marked offline")
+
+        let elsewhere = SquaddAgentListModel(client: client(token: "t", server: otherServer), cache: cache, onUnpaired: {})
+        await elsewhere.load()
+        XCTAssertEqual(elsewhere.phase, .failed, "another server never shows this server's threads")
+
+        online = true
+        await offline.load()
+        XCTAssertFalse(offline.isShowingCache, "the computer's answer replaces the copy")
+    }
+
     private func sections(_ model: SquaddAgentListModel) throws -> [SquaddAgentSection] {
         guard case .loaded(let sections) = model.phase else { XCTFail("not loaded"); return [] }
         return sections
@@ -311,10 +335,10 @@ final class SquaddCompanionTests: XCTestCase {
                     hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
     }
 
-    private func client(token: String) -> SquaddCompanionClient {
+    private func client(token: String, server: URL? = nil) -> SquaddCompanionClient {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [SquaddHTTPFixture.self]
-        return SquaddCompanionClient(server: server, token: token, session: URLSession(configuration: configuration))
+        return SquaddCompanionClient(server: server ?? self.server, token: token, session: URLSession(configuration: configuration))
     }
 
     /// The JSON body `URLProtocol` hands over as a stream.
@@ -345,6 +369,8 @@ final class SquaddHTTPFixture: URLProtocol {
     override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
     override func startLoading() {
         guard let (status, data) = Self.handler?(request) else { return }
+        // Status 0 plays a phone with no network.
+        if status == 0 { client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet)); return }
         let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
         client?.urlProtocol(self, didLoad: data)

@@ -1,3 +1,4 @@
+import SwiftData
 import XCTest
 @testable import HermesMobile
 
@@ -175,14 +176,53 @@ final class SquaddChatTests: XCTestCase {
         XCTAssertEqual(reopened?.text, "half a thought")
     }
 
+    func testOfflineThreadShowsItsServersCachedTranscriptAndRefreshesWhenTheNetworkReturns() async throws {
+        let cache = try ModelContext(ModelContainer(for: CachedSession.self, CachedMessage.self,
+                                                    configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+        let threadId = threadId
+        var online = true
+        SquaddChatFixture.handler = { request in
+            guard online else { return .offline }
+            return request.url?.path == "/api/threads/\(threadId)/messages" ? .reply(200, try! Self.fixture("thread-after.json")) : .hold
+        }
+        let (live, liveTurn) = makeChat()
+        await live.loadMessages(modelContext: cache)
+        liveTurn.stop()
+        let saved = live.messages.map(\.messageId)
+        XCTAssertFalse(saved.isEmpty)
+
+        online = false
+        let retrying = expectation(description: "the stream waits to reconnect")
+        let (offline, _) = makeChat(retrying: retrying)
+        await offline.loadMessages(modelContext: cache)
+        XCTAssertEqual(offline.messages.map(\.messageId), saved, "the last read shows without the computer")
+        XCTAssertTrue(offline.showsOfflineCache, "marked offline")
+        XCTAssertNil(offline.errorMessage)
+
+        let (elsewhere, _) = makeChat(server: URL(string: "http://192.0.2.11:8810")!)
+        await elsewhere.loadMessages(modelContext: cache)
+        XCTAssertTrue(elsewhere.messages.isEmpty, "another server never shows this server's thread")
+        XCTAssertNotNil(elsewhere.errorMessage)
+
+        await fulfillment(of: [retrying], timeout: 5)
+        online = true
+        await offline.networkPathDidChange(modelContext: cache)
+        XCTAssertFalse(offline.showsOfflineCache, "the network came back: the computer's transcript replaces the copy")
+        XCTAssertEqual(offline.messages.map(\.messageId), saved)
+    }
+
     // MARK: - Helpers
 
-    private func makeChat() -> (ChatViewModel, SquaddChatTurnCoordinator) {
+    private func makeChat(server: URL? = nil, retrying: XCTestExpectation? = nil) -> (ChatViewModel, SquaddChatTurnCoordinator) {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [SquaddChatFixture.self]
+        let server = server ?? self.server
         let chat = SquaddThreadChat(server: server, token: "device-token", botId: botId, threadId: threadId, title: "Prova")
         let coordinator = SquaddChatTurnCoordinator(chat, session: URLSession(configuration: configuration),
-                                                    retryDelay: { _ in try await Task.sleep(for: .seconds(3600)) })
+                                                    retryDelay: { _ in
+                                                        retrying?.fulfill()
+                                                        try await Task.sleep(for: .seconds(3600))
+                                                    })
         addTeardownBlock { coordinator.stop() }
         let model = ChatViewModel(session: SessionSummary(sessionId: threadId, title: "Prova"), server: server,
                                   streamingRevealTick: {}, backend: .squadd(coordinator))
@@ -211,7 +251,7 @@ final class SquaddChatTests: XCTestCase {
 /// A companion that answers at once, or holds a request until the test answers it or streams
 /// into it, the way `/api/events` stays open.
 final class SquaddChatFixture: URLProtocol {
-    enum Answer { case reply(Int, Data), hold }
+    enum Answer { case reply(Int, Data), hold, offline }
 
     nonisolated(unsafe) static var handler: ((URLRequest) -> Answer)?
     nonisolated(unsafe) private static var held: [SquaddChatFixture] = []
@@ -250,6 +290,8 @@ final class SquaddChatFixture: URLProtocol {
             respond(status: status)
             client?.urlProtocol(self, didLoad: data)
             client?.urlProtocolDidFinishLoading(self)
+        case .offline:
+            client?.urlProtocol(self, didFailWithError: URLError(.notConnectedToInternet))
         case .hold:
             if request.url?.path == "/api/events" { respond(status: 200) }
             Self.lock.withLock { Self.held.append(self) }

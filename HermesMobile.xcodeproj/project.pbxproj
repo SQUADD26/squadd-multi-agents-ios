@@ -392,6 +392,7 @@
 		1A2B3C4D5E6F7000000000ED /* CachedMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7000000000EF /* CachedMessage.swift */; };
 		1A2B3C4D5E6F7000000000F1 /* CacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7000000000F3 /* CacheStore.swift */; };
 		E1054000000000000000A001 /* CacheStore+Hermes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1054000000000000000A002 /* CacheStore+Hermes.swift */; };
+		E0034000000000000000A001 /* CacheStore+Squadd.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0034000000000000000A002 /* CacheStore+Squadd.swift */; };
 		1A2B3C4D5E6F7000000000F2 /* CacheStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7000000000F4 /* CacheStoreTests.swift */; };
 		C28702000000000000000001 /* ChatDraftStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C28702000000000000000002 /* ChatDraftStore.swift */; };
 		C28702000000000000000003 /* ChatDraftStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C28702000000000000000004 /* ChatDraftStoreTests.swift */; };
@@ -1193,6 +1194,7 @@
 		1A2B3C4D5E6F7000000000EF /* CachedMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedMessage.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F7000000000F3 /* CacheStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheStore.swift; sourceTree = "<group>"; };
 		E1054000000000000000A002 /* CacheStore+Hermes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CacheStore+Hermes.swift"; sourceTree = "<group>"; };
+		E0034000000000000000A002 /* CacheStore+Squadd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CacheStore+Squadd.swift"; sourceTree = "<group>"; };
 		1A2B3C4D5E6F7000000000F4 /* CacheStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheStoreTests.swift; sourceTree = "<group>"; };
 		C28702000000000000000002 /* ChatDraftStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatDraftStore.swift; sourceTree = "<group>"; };
 		C28702000000000000000004 /* ChatDraftStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatDraftStoreTests.swift; sourceTree = "<group>"; };
@@ -2452,6 +2454,7 @@
 				C28702000000000000000006 /* ChatDraftAttachmentStore.swift */,
 				1A2B3C4D5E6F7000000000F3 /* CacheStore.swift */,
 				E1054000000000000000A002 /* CacheStore+Hermes.swift */,
+				E0034000000000000000A002 /* CacheStore+Squadd.swift */,
 				1A2B3C4D5E6F7000000000EE /* CachedSession.swift */,
 				1A2B3C4D5E6F7000000000EF /* CachedMessage.swift */,
 			);
@@ -3123,6 +3126,7 @@
 				1A2B3C4D5E6F7000000000ED /* CachedMessage.swift in Sources */,
 				1A2B3C4D5E6F7000000000F1 /* CacheStore.swift in Sources */,
 				E1054000000000000000A001 /* CacheStore+Hermes.swift in Sources */,
+				E0034000000000000000A001 /* CacheStore+Squadd.swift in Sources */,
 				C28702000000000000000001 /* ChatDraftStore.swift in Sources */,
 				C28702000000000000000005 /* ChatDraftAttachmentStore.swift in Sources */,
 				1A2B3C4D5E6F7000000000F5 /* SettingsView.swift in Sources */,

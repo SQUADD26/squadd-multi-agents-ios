@@ -39,6 +39,7 @@ struct SquaddServerHome: View {
     @State private var linkedRow: String?
     @State private var isLinkedThreadMissing = false
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.modelContext) private var modelContext
     /// Made once in `.task`, not in `init`, so a pass of the parent reads no Keychain.
     @State private var model: SquaddAgentListModel?
     @State private var client: SquaddCompanionClient?
@@ -77,6 +78,11 @@ struct SquaddServerHome: View {
                         SquaddSearchResults(hits: hits, query: searchText)
                     } else {
                         routeRow
+                        if model?.isShowingCache == true {
+                            OfflineCacheBanner()
+                                .padding(.top, 8)
+                                .sessionsScreenListRow()
+                        }
                         rows
                     }
                 }
@@ -106,7 +112,7 @@ struct SquaddServerHome: View {
                 let client = SquaddCompanionClient(server: server, token: token)
                 self.client = client
                 model = SquaddAgentListModel(
-                    client: client,
+                    client: client, cache: modelContext,
                     onUnpaired: { [weak authManager, server] in authManager?.squaddUnpaired(server: server) }
                 )
             }

@@ -3,7 +3,7 @@ import Foundation
 /// `GET /api/bots` on a Squadd companion: the computer's agents, each with its own thread and
 /// the threads of its tasks. Everything but the ids is optional and an agent or task that fails
 /// to decode is skipped, so a companion that adds, drops or retypes a field never breaks the list.
-struct SquaddBotList: Decodable, Equatable {
+struct SquaddBotList: Codable, Equatable {
     let bots: [SquaddBot]
 
     private enum CodingKeys: String, CodingKey { case bots }
@@ -17,7 +17,7 @@ struct SquaddBotList: Decodable, Equatable {
 }
 
 /// One agent. `threadId` is its own chat; `tasks` are the other threads it works in.
-struct SquaddBot: Decodable, Equatable, Identifiable {
+struct SquaddBot: Codable, Equatable, Identifiable {
     let id: String
     let name: String?
     let title: String?
@@ -168,7 +168,7 @@ extension SquaddBot {
 
 /// One of an agent's folders: a name, maybe an emoji, and the threads whose `projectId` is its id.
 /// Organizing only; a folder never owns settings or a working directory.
-struct SquaddProject: Decodable, Equatable, Identifiable {
+struct SquaddProject: Codable, Equatable, Identifiable {
     let id: String
     let name: String
     let emoji: String?
@@ -187,7 +187,7 @@ struct SquaddProjectResponse: Decodable {
 
 /// One task thread of an agent. The desktop lists an agent's threads pinned first, then by
 /// `lastThreadOrderAt` (else `createdAt`), newest first, and hides the archived ones.
-struct SquaddTask: Decodable, Equatable, Identifiable {
+struct SquaddTask: Codable, Equatable, Identifiable {
     let threadId: String
     var title: String?
     /// Milliseconds since 1970, like every companion time.
