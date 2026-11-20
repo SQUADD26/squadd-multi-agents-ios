@@ -152,3 +152,4 @@ final class ScreenPhotoTests: XCTestCase {
         try await shoot("2-session-list-card-slot", List { SessionListCardSlot(hasSharedImport: false) })
     }
 }
+

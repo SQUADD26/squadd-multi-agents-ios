@@ -218,3 +218,4 @@ final class SquaddRoutePhotoTests: XCTestCase {
         try log.joined(separator: "\n").write(to: dir.appendingPathComponent("route-live-log.txt"), atomically: true, encoding: .utf8)
     }
 }
+

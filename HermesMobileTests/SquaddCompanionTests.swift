@@ -435,3 +435,4 @@ final class SquaddScreenPhotoTests: XCTestCase {
     func capability() -> AppLockCapability { AppLockCapability(method: .faceID, hasPasscode: true) }
     func authenticate(reason: String) async -> Bool { false }
 }
+

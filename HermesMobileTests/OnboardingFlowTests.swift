@@ -207,3 +207,4 @@ final class SquaddOnboardingPhotoTests: XCTestCase {
         try await readyPhoto(of: window).write(to: dir.appendingPathComponent("\(name).png"))
     }
 }
+

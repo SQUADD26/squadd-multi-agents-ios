@@ -251,3 +251,4 @@ final class SquaddAgentPhotoTests: XCTestCase {
             .appendingPathComponent("Fixtures/Squadd/\(name)"))
     }
 }
+

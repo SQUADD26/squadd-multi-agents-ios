@@ -223,3 +223,4 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         try await readyPhoto(of: window, until: ready, limit: .seconds(5)).write(to: dir.appendingPathComponent("\(name).png"))
     }
 }
+

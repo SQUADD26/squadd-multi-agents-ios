@@ -61,3 +61,4 @@ func readyPhoto(of window: UIWindow, until ready: () -> Bool = { true }, limit: 
     }
     return try XCTUnwrap(last.pngData())
 }
+
