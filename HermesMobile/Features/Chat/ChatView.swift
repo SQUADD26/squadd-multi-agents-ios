@@ -817,7 +817,7 @@ struct ChatView: View {
                 persistDraftEdit(text)
             },
             recallLastSentText: { viewModel.lastSentText },
-            onPasteLargeText: isHermesSession ? { text in
+            onPasteLargeText: isHermesSession || isSquaddThread ? { text in
                 viewModel.stagePastedText(text)
             } : nil,
             onOpenFileReference: { path in
