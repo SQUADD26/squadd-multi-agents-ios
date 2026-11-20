@@ -45,19 +45,24 @@ final class BrandPhotoTests: XCTestCase {
 /// apart, at most `limit` seconds (a never-ending animation gets its photo at the limit). A screen
 /// still loading can sit still too, so a shot that waits on a reply passes `ready`. Waits with
 /// `Task.sleep`, which lets the screen's own async work run. Photos only, never an assertion.
+/// The frames it compares are drawn at 1x, about a sixth of the cost; the photo at the screen's scale.
 @MainActor
 func readyPhoto(of window: UIWindow, until ready: () -> Bool = { true }, limit: Duration = .seconds(3)) async throws -> Data {
-    let renderer = UIGraphicsImageRenderer(bounds: window.bounds)
-    let frame = { renderer.image { _ in window.drawHierarchy(in: window.bounds, afterScreenUpdates: true) } }
+    let small = UIGraphicsImageRendererFormat.preferred()
+    small.scale = 1
+    let draw = { (renderer: UIGraphicsImageRenderer) in
+        renderer.image { _ in window.drawHierarchy(in: window.bounds, afterScreenUpdates: true) }
+    }
+    let preview = UIGraphicsImageRenderer(bounds: window.bounds, format: small)
     let pixels = { (image: UIImage) in image.cgImage?.dataProvider?.data as Data? }
-    var last = frame(), same = 0
+    var last = draw(preview), same = 0
     let end = ContinuousClock.now + limit
     while same < 3, ContinuousClock.now < end {
         // test-wait: a photo, not a check; lets the next frame draw before comparing it with the last one
         try await Task.sleep(for: .milliseconds(100))
-        let now = frame()
+        let now = draw(preview)
         same = ready() && pixels(now) == pixels(last) ? same + 1 : 0
         last = now
     }
-    return try XCTUnwrap(last.pngData())
+    return try XCTUnwrap(draw(UIGraphicsImageRenderer(bounds: window.bounds)).pngData())
 }
