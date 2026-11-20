@@ -20,6 +20,19 @@ tap goes through `SquaddPush.openTapped` to the `SquaddThreadLink` of the
 computer that sent it, carrying the `kind` for the card. A real push in the
 simulator, for a photo: last section.
 
+Live Activities (#31) are `LiveActivityAttributes` with content state
+`{name: "BotActivity", props}`, the names the computer's pushes address. While
+the app runs, the open agent chat's stream starts, updates and ends its
+agent's activity (`SquaddLiveActivities`). Its push token, and the
+push-to-start token, go to each computer with push on through
+`PUT /api/push/activity`, which replaces the whole registration; with nothing
+left to register, and on push off, it is `DELETE`d. Once the app's stream
+closes, the computer updates and ends the listed activities through the relay,
+and starts one with the push-to-start token when an agent starts needing the
+person. A pushed link (`openmausbot://chat/<thread>`) names no computer: the tap
+adds the one the activity started on, else opens on the active Squadd server.
+Remote updates are only provable on a physical iPhone.
+
 ## Components
 
 - **Plugin.** `hermex-push` runs on the user's Hermes host (installed from
