@@ -14,6 +14,8 @@ struct SquaddMessage: Decodable, Equatable {
     let itemId: String?
     /// The client's own id for a send, echoed on the stored user row.
     let sendId: String?
+    /// A bot row's author: in a room, the member that wrote it.
+    let from: Author?
     /// The message this one follows; nil at the thread's root. An edit is a second user row
     /// under the same parent: the versions of that message.
     let parentId: String?
@@ -25,6 +27,11 @@ struct SquaddMessage: Decodable, Equatable {
     /// files ride in `text` as tags (`SquaddAttachmentTags`).
     let attachments: [Attachment]
 
+    struct Author: Decodable, Equatable {
+        let botId: String?
+        let name: String?
+    }
+
     /// One of `WireMessage.attachments`: `kind` is `image`, `file` or `audio`.
     struct Attachment: Decodable, Equatable {
         let kind: String?
@@ -34,11 +41,11 @@ struct SquaddMessage: Decodable, Equatable {
         let bytes: Int?
     }
 
-    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, parentId, reactions, reaction, attachments }
+    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, from, parentId, reactions, reaction, attachments }
 
     init(id: String, role: String?, kind: String? = "text", text: String?, at: Double? = nil,
-         itemId: String? = nil, sendId: String? = nil, parentId: String? = nil, reactions: [SquaddReaction] = [],
-         reaction: String? = nil, attachments: [Attachment] = []) {
+         itemId: String? = nil, sendId: String? = nil, from: Author? = nil, parentId: String? = nil,
+         reactions: [SquaddReaction] = [], reaction: String? = nil, attachments: [Attachment] = []) {
         self.id = id
         self.role = role
         self.kind = kind
@@ -46,6 +53,7 @@ struct SquaddMessage: Decodable, Equatable {
         self.at = at
         self.itemId = itemId
         self.sendId = sendId
+        self.from = from
         self.parentId = parentId
         self.reactions = reactions
         self.reaction = reaction
@@ -61,6 +69,7 @@ struct SquaddMessage: Decodable, Equatable {
         at = try? container.decodeIfPresent(Double.self, forKey: .at)
         itemId = try? container.decodeIfPresent(String.self, forKey: .itemId)
         sendId = try? container.decodeIfPresent(String.self, forKey: .sendId)
+        from = try? container.decodeIfPresent(Author.self, forKey: .from)
         parentId = try? container.decodeIfPresent(String.self, forKey: .parentId)
         reactions = (try? container.decodeIfPresent([SquaddLossy<SquaddReaction>].self, forKey: .reactions))?
             .compactMap(\.value) ?? []
@@ -76,15 +85,21 @@ struct SquaddMessage: Decodable, Equatable {
     /// turn digests, screens, compaction markers and the other cards their own tickets bring.
     /// `options` (a question card) shows its words until the card has its own view.
     /// A row's files show as its attachments, the tags they rode in taken out of its words.
-    var chatMessage: ChatMessage? {
+    var chatMessage: ChatMessage? { chatMessage(namesAuthor: false) }
+
+    /// `namesAuthor`: a room's reply carries the member that wrote it as its `name`, which the
+    /// bubble shows over it.
+    func chatMessage(namesAuthor: Bool) -> ChatMessage? {
         guard kind == nil || kind == "text" || kind == "options", reaction == nil else { return nil }
         let parsed = SquaddAttachmentTags.parse(text ?? "")
         let files = parsed.files.map { MessageAttachment(name: $0.name, path: $0.path, isImage: $0.isImage) }
             + attachments.map { MessageAttachment(name: $0.name, path: $0.path, mime: $0.mime, size: $0.bytes,
                                                   isImage: $0.kind == "image") }
         guard !parsed.text.isEmpty || !files.isEmpty else { return nil }
-        return ChatMessage(role: role == "bot" ? "assistant" : "user", content: parsed.text,
-                           timestamp: at.map { $0 / 1000 }, messageId: id, attachments: files.isEmpty ? nil : files)
+        let isBot = role == "bot"
+        return ChatMessage(role: isBot ? "assistant" : "user", content: parsed.text,
+                           timestamp: at.map { $0 / 1000 }, messageId: id, name: namesAuthor && isBot ? from?.name : nil,
+                           attachments: files.isEmpty ? nil : files)
     }
 }
 
@@ -115,11 +130,13 @@ struct SquaddMessagePage: Decodable, Equatable {
     }
 }
 
-/// `POST /api/bots/:id/messages`'s 202 (and an edit's): the stored user row, or a queue slot when the bot was busy.
+/// `POST /api/bots/:id/messages`'s 202 (and an edit's): the stored user row, or a queue slot when the
+/// bot was busy. A room's send (`POST /api/groups/:id/messages`) answers the same way.
 struct SquaddSendReceipt: Decodable {
     let threadId: String?
     let message: SquaddMessage?
     let queued: Bool?
+    let queueId: String?
 }
 
 /// The frames of `/api/events` the chat acts on (`ServerFrame` in `wire.ts`). Every other kind,
@@ -380,6 +397,44 @@ extension SquaddCompanionClient {
             default: throw SquaddError.status(http.statusCode)
             }
         }
+    }
+}
+
+// MARK: - Listen (#25)
+
+extension SquaddCompanionClient {
+    private struct Prepared: Decodable {
+        let ready: Bool
+        let utterances: [String]
+    }
+
+    /// A reply read aloud in the computer's own voice, one clip per utterance, each with a file
+    /// name its type opens by: `POST /api/tts/prepare` cleans the text (secrets redacted, markdown
+    /// dropped) and splits it into utterances of 500 characters at most, `POST /api/tts/speak`
+    /// voices each. Nil when the computer has no voice set up.
+    func speech(for text: String) async throws -> [(data: Data, filename: String)]? {
+        var prepare = authorized("api/tts/prepare")
+        prepare.httpMethod = "POST"
+        prepare.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        prepare.httpBody = try JSONEncoder().encode(["text": text])
+        let prepared = try JSONDecoder().decode(Prepared.self, from: await Self.send(prepare, session: session))
+        guard prepared.ready, !prepared.utterances.isEmpty else { return nil }
+        var clips: [(data: Data, filename: String)] = []
+        for utterance in prepared.utterances {
+            try Task.checkCancellation()
+            var speak = authorized("api/tts/speak")
+            speak.httpMethod = "POST"
+            speak.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            speak.setValue(nil, forHTTPHeaderField: "Origin")
+            speak.httpBody = try JSONEncoder().encode(["text": utterance])
+            let (data, response) = try await session.data(for: speak)
+            guard let http = response as? HTTPURLResponse else { throw SquaddError.invalidResponse }
+            guard http.statusCode != 401 else { throw SquaddError.unpaired }
+            guard http.statusCode == 200 else { throw SquaddError.status(http.statusCode) }
+            let mp3 = http.value(forHTTPHeaderField: "Content-Type")?.hasPrefix("audio/mp") == true
+            clips.append((data, "clip\(clips.count).\(mp3 ? "mp3" : "wav")"))
+        }
+        return clips
     }
 }
 

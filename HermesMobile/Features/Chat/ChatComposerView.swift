@@ -247,6 +247,8 @@ struct MessageComposerView: View {
     /// The Send While Responding default: what a tap on Send does mid-run, and
     /// the glyph and VoiceOver label that say so.
     let streamingSendBehavior: StreamingSendBehavior
+    /// False where mid-run Send can only queue (a Squadd room, #21): no Steer or Stop-and-send card.
+    var offersSendChoices = true
     /// Sends the draft. Mid-run it carries the behavior Send shows (tap and
     /// Command-Return) or one picked for this message from the send-choice card
     /// or a VoiceOver action; the default does not change. Nil while idle.
@@ -346,6 +348,9 @@ struct MessageComposerView: View {
     /// A Hermes session's dictation transcriber: the host's speech-to-text for the chat's
     /// Profile (#1071). Nil sends dictation to the webui's `/api/transcribe` through `apiClient`.
     var hermesTranscriber: ComposerTranscriber?
+    /// A Squadd thread (#25): dictation stays on the phone, since the computer's speech-to-text
+    /// isn't reachable through the companion.
+    var dictatesOnDevice = false
 
     @State private var textFieldHeight: CGFloat = 0
     @State private var textInputHeight: CGFloat = 22
@@ -1690,8 +1695,9 @@ struct MessageComposerView: View {
             isWaitingForStream: isWaitingForStream,
             hasText: !trimmedDraftMessage.isEmpty,
             hasQuotes: !quotes.isEmpty,
-            defaultBehavior: streamingSendBehavior,
-            stagedFilesDropSteer: uploadsAttachmentsOnSend && !pendingAttachments.isEmpty
+            defaultBehavior: offersSendChoices ? streamingSendBehavior : .queue,
+            stagedFilesDropSteer: uploadsAttachmentsOnSend && !pendingAttachments.isEmpty,
+            offersChoices: offersSendChoices
         )
     }
 
@@ -1809,8 +1815,11 @@ struct MessageComposerView: View {
     private func toggleVoiceInput() {
         // A recording from `+` leaves the mic free to tap; dictation must not start over it.
         guard !voiceNoteRecorder.isRecording else { return }
-        voiceInput.transcribe = hermesTranscriber ?? apiClient?.dictationTranscriber
-        voiceInput.providerPreference = ComposerSTTProviderPreference.storedValue(sttProviderPreferenceRawValue)
+        (voiceInput.transcribe, voiceInput.providerPreference) = ComposerSTTProviderPolicy.dictation(
+            onDeviceOnly: dictatesOnDevice,
+            transcriber: hermesTranscriber ?? apiClient?.dictationTranscriber,
+            stored: ComposerSTTProviderPreference.storedValue(sttProviderPreferenceRawValue)
+        )
         // Resign now, not on the next update: a live composition or a pending
         // autocorrection commits as the editor lets go, and dictation's baseline
         // has to include that edit.
