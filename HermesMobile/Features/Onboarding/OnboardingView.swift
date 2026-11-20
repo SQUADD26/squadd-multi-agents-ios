@@ -5,7 +5,7 @@ import SwiftUI
 /// prompt and private-network pages behind "I don't have one yet". Given a saved server, the
 /// sheet opens at once with its address filled in. Without the Hermes backends (the Squadd build)
 /// the page asks to install Squadd Multi-Agents on the computer, and its button opens the pairing
-/// screen (`SquaddPairView`); pairing leaves onboarding for the computer's home.
+/// screen (`SquaddPairView`). Once paired, the root opens the computer instead (`openedServer`).
 struct OnboardingView: View {
     /// Height of the fade the bottom bar paints over the pager. Pages that end in a control
     /// pad their scroll content past it so the control can scroll clear of the fade.
@@ -15,7 +15,7 @@ struct OnboardingView: View {
     private let savedServer: URL?
     @State private var isAddingServer: Bool
     @State private var isShowingSetup = false
-    @State private var isPairing: Bool
+    @State private var isPairing = false
     @State private var currentPage = 0
     @State private var shownSetupPrompt = OnboardingFlowPolicy.initialSetupPrompt
     @State private var copiedSetupPrompts: Set<OnboardingSetupPrompt> = []
@@ -24,13 +24,11 @@ struct OnboardingView: View {
     @State private var isShowingCopyReminder = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// `pairing` opens on the Squadd pairing screen, for its photo.
-    init(authManager: AuthManager, savedServer: URL? = nil, pairing: Bool = false) {
+    init(authManager: AuthManager, savedServer: URL? = nil) {
         self.authManager = authManager
         self.savedServer = savedServer
         // A known server means a sign-in again, not first-run setup.
         _isAddingServer = State(initialValue: savedServer != nil)
-        _isPairing = State(initialValue: pairing)
     }
 
     var body: some View {

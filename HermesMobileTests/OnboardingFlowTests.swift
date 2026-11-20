@@ -161,8 +161,8 @@ final class OnboardingFlowTests: XCTestCase {
     }
 }
 
-/// The Squadd build's first launch (#10): install on the computer, then the pairing screen in the
-/// same stack. Photos only, from pr-ios.yml's FOTO_DIR.
+/// The Squadd build's first launch (#10): install on the computer, then its button opens the
+/// pairing screen in the same stack. Runs only for photos, from pr-ios.yml's FOTO_DIR.
 @MainActor
 final class SquaddOnboardingPhotoTests: XCTestCase {
     private var window: UIWindow?
@@ -187,7 +187,26 @@ final class SquaddOnboardingPhotoTests: XCTestCase {
         try await shoot("10-a-install", OnboardingView(authManager: manager), dir: dir)
         try await shoot("10-b-install-largest-text", OnboardingView(authManager: manager)
             .environment(\.dynamicTypeSize, .accessibility3), dir: dir)
-        try await shoot("10-c-scan", OnboardingView(authManager: manager, pairing: true), dir: dir)
+
+        // The button a person taps, reached the way VoiceOver reaches it.
+        let window = try XCTUnwrap(window)
+        _ = try await readyPhoto(of: window) { Self.element(labeled: "Scan the QR Code", in: window) != nil }
+        XCTAssertTrue(try XCTUnwrap(Self.element(labeled: "Scan the QR Code", in: window)).accessibilityActivate())
+        let scan = try await readyPhoto(of: window) { Self.element(labeled: "Pair with Your Computer", in: window) != nil }
+        XCTAssertNotNil(Self.element(labeled: "Pair with Your Computer", in: window), "the button opens the pairing screen")
+        try scan.write(to: dir.appendingPathComponent("10-c-scan.png"))
+    }
+
+    /// The first accessibility element under `root` whose label is `label`.
+    private static func element(labeled label: String, in root: NSObject) -> NSObject? {
+        if root.accessibilityLabel == label { return root }
+        let children = (root as? UIView)?.subviews ?? []
+        let elements = (root.accessibilityElements as? [NSObject])
+            ?? (0..<max(root.accessibilityElementCount(), 0)).compactMap { root.accessibilityElement(at: $0) as? NSObject }
+        for child in elements + children {
+            if let found = element(labeled: label, in: child) { return found }
+        }
+        return nil
     }
 
     private func shoot(_ name: String, _ view: some View, dir: URL) async throws {

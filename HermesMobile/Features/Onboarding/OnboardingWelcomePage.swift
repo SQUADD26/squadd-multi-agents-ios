@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Onboarding's one page (#1540): "Add your server" opens the Add Server sheet, and "I don't
+/// Onboarding's first page (#1540): "Add your server" opens the Add Server sheet, and "I don't
 /// have one yet" the setup pages. The Squadd build asks to install Squadd Multi-Agents on the
 /// computer, and its button opens the pairing screen.
 struct OnboardingWelcomePage: View {
@@ -129,7 +129,7 @@ struct OnboardingWelcomePage: View {
     /// Install on the computer, then scan the QR code it shows: the second step is the button.
     @ViewBuilder private var squaddCopy: some View {
         Text("Install Squadd Multi-Agents on your computer.")
-            .font(title)
+            .font(AppFont.title(weight: .bold))
             .foregroundStyle(.white)
             .fixedSize(horizontal: false, vertical: true)
             .accessibilityAddTraits(.isHeader)
