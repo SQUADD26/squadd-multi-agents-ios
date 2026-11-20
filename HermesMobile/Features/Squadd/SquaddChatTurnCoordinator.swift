@@ -151,16 +151,19 @@ final class SquaddChatTurnCoordinator {
 
     /// Reads the page before the oldest row shown and puts it in front. Returns whether rows came.
     func loadOlder() async -> Bool {
-        guard hasOlder, let before = oldestID else { return false }
         do {
-            let page = try await client.messages(threadId: chat.threadId, before: before)
-            guard oldestID == before else { return false }
-            let rows = page.messages.compactMap(\.chatMessage)
-            olderRows = rows + olderRows
-            oldestID = page.messages.first?.id ?? before
-            hasOlder = page.hasMore && !page.messages.isEmpty
-            delegate?.squaddPrependOlder(rows, hasOlder: hasOlder)
-            return !rows.isEmpty
+            // A page of only hidden rows (digests, tools) shows nothing, so read on to one that does.
+            while hasOlder, let before = oldestID {
+                let page = try await client.messages(threadId: chat.threadId, before: before)
+                guard oldestID == before else { return false }
+                let rows = page.messages.compactMap(\.chatMessage)
+                olderRows = rows + olderRows
+                oldestID = page.messages.first?.id ?? before
+                hasOlder = page.hasMore && !page.messages.isEmpty
+                delegate?.squaddPrependOlder(rows, hasOlder: hasOlder)
+                if !rows.isEmpty { return true }
+            }
+            return false
         } catch is CancellationError {
             return false
         } catch {

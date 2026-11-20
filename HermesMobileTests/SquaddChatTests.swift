@@ -121,16 +121,19 @@ final class SquaddChatTests: XCTestCase {
     }
 
     func testOlderPagesComeInFrontWithTheCursorOfTheOldestRow() async throws {
-        func page(_ ids: [String], hasMore: Bool) -> Data {
-            let rows = ids.map { #"{"id":"\#($0)","role":"user","kind":"text","text":"row \#($0)","at":1}"# }
+        func page(_ ids: [String], kind: String = "text", hasMore: Bool) -> Data {
+            let rows = ids.map { #"{"id":"\#($0)","role":"user","kind":"\#(kind)","text":"row \#($0)","at":1}"# }
             return Data(#"{"messages":[\#(rows.joined(separator: ","))],"hasMore":\#(hasMore)}"#.utf8)
         }
         let threadId = threadId
-        var older: URLRequest?
+        var cursors: [String] = []
         SquaddChatFixture.handler = { request in
             guard request.url?.path == "/api/threads/\(threadId)/messages" else { return .hold }
-            guard request.url?.query == nil else { older = request; return .reply(200, page(["m1", "m2"], hasMore: false)) }
-            return .reply(200, page(["m3", "m4"], hasMore: true))
+            switch request.url?.query {
+            case nil: return .reply(200, page(["m3", "m4"], hasMore: true))
+            case "before=m3": cursors.append("m3"); return .reply(200, page(["t1"], kind: "tool", hasMore: true))
+            default: cursors.append(request.url?.query ?? ""); return .reply(200, page(["m1", "m2"], hasMore: false))
+            }
         }
         let (model, _) = makeChat()
 
@@ -139,7 +142,7 @@ final class SquaddChatTests: XCTestCase {
         let loaded = await model.loadOlderMessages()
 
         XCTAssertTrue(loaded)
-        XCTAssertEqual(older?.url?.query, "before=m3")
+        XCTAssertEqual(cursors, ["m3", "before=t1"], "a page of only hidden rows reads on to the next one")
         XCTAssertEqual(model.messages.map(\.messageId), ["m1", "m2", "m3", "m4"])
         XCTAssertFalse(model.hasOlderMessages)
     }
