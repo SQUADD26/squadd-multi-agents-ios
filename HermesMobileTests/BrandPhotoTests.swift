@@ -55,13 +55,13 @@ func readyPhoto(of window: UIWindow, until ready: () -> Bool = { true }, limit: 
     }
     let preview = UIGraphicsImageRenderer(bounds: window.bounds, format: small)
     let pixels = { (image: UIImage) in image.cgImage?.dataProvider?.data as Data? }
-    var last = draw(preview), still = false
+    var last = draw(preview), same = 0
     let end = ContinuousClock.now + limit
-    while !still, ContinuousClock.now < end {
+    while same < 3, ContinuousClock.now < end {
         // test-wait: a photo, not a check; two display frames for the next one to draw before comparing
         try await Task.sleep(for: .milliseconds(33))
         let now = draw(preview)
-        still = ready() && pixels(now) == pixels(last)
+        same = ready() && pixels(now) == pixels(last) ? same + 1 : 0
         last = now
     }
     return try XCTUnwrap(draw(UIGraphicsImageRenderer(bounds: window.bounds)).pngData())
