@@ -642,10 +642,11 @@ struct ChatView: View {
             isSending: viewModel.isStartingChat || viewModel.isSendingVoiceNote || viewModel.isHermesSubmissionUncertain
                 || viewModel.isUndoingExchange || viewModel.hermesRequests?.answeringRequestID != nil
                 || viewModel.isCachedCopyProvisional
-                // Squadd has no Stop yet (its own ticket): Send stays held until the turn ends.
-                || isSquaddThread && viewModel.activeStreamID != nil,
+                // An agent's Squadd thread has no Stop yet (its own ticket): Send stays held until the
+                // turn ends. A room has Stop, and queues what is sent meanwhile (#21).
+                || isSquaddThread && !viewModel.isSquaddRoom && viewModel.activeStreamID != nil,
             isCompressingSession: viewModel.isCompressingSession,
-            isWaitingForStream: viewModel.activeStreamID != nil && !isSquaddThread,
+            isWaitingForStream: viewModel.activeStreamID != nil && (!isSquaddThread || viewModel.isSquaddRoom),
             isCancellingStream: viewModel.isCancellingStream,
             // Offline the draft stays editable and Send waits for the reconnect (#1375); a Hermes
             // chat's plain-text Send waits as the transcript's waiting bubble (#1407).
@@ -697,7 +698,7 @@ struct ChatView: View {
             server: server,
             searchFilePaths: viewModel.offersFilePathSearch ? { await viewModel.searchFilePaths($0) } : nil,
             chipFilePaths: viewModel.fileChipPaths,
-            botMentions: viewModel.hermesBotChat?.mentions,
+            botMentions: viewModel.hermesBotChat?.mentions ?? viewModel.squaddRoomMentions,
             mentionAvatars: viewModel.hermesBotChat?.settings.avatars ?? [:],
             filePathSearch: viewModel.filePathSearch,
             uploadAttachmentErrorMessage: viewModel.uploadAttachmentErrorMessage,
@@ -707,6 +708,7 @@ struct ChatView: View {
                 }
             },
             streamingSendBehavior: StreamingSendBehavior.storedValue(streamingSendBehaviorRawValue),
+            offersSendChoices: !viewModel.isSquaddRoom,
             onSend: { behavior in
                 Task { await sendDraftMessage(behavior: behavior) }
             },
@@ -2611,6 +2613,7 @@ struct ChatView: View {
                 UIPasteboard.general.string = text
                 ChatHaptics.copied(isEnabled: isHapticsEnabled)
             },
+            onRemoveQueuedPrompt: viewModel.isSquaddRoom ? { row in Task { await viewModel.cancelSquaddQueuedPrompt(row) } } : nil,
             waitingSend: viewModel.waitingSendMessage,
             onCancelWaitingSend: viewModel.cancelWaitingSend,
             continuity: continuity,
