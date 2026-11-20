@@ -1,16 +1,25 @@
 import SwiftUI
 import UIKit
 
-/// Redeems a pairing code shown on the computer for this iPhone's device token.
+/// Redeems `invite` with this iPhone's name and saves its computer (`AuthManager.pairSquadd`).
 @MainActor
-private func squaddPair(server: URL, code: String) async throws -> String {
-    let code = code.trimmingCharacters(in: .whitespacesAndNewlines)
-    return try await SquaddCompanionClient.pair(server: server, code: code, deviceName: UIDevice.current.name).token
+func squaddPair(_ invite: SquaddPairingInvite, authManager: AuthManager) async throws {
+    try await authManager.pairSquadd(invite, deviceName: UIDevice.current.name)
 }
 
-private func squaddPairingFailure(_ error: Error) -> String {
+/// What a failed pairing tells the person, in the words of what to do next. The companion's refusals
+/// are `companion/src/devices.ts`'s: an expired or used code finds no pairing open.
+func squaddPairingFailure(_ error: Error) -> String {
     switch error {
-    case SquaddError.unpaired, SquaddError.status(400), SquaddError.status(403), SquaddError.status(404):
+    case SquaddError.pairing("pairing_not_open"):
+        return String(localized: "No pairing is open on the computer. Codes last two minutes and work once: start pairing again in Remote access on the computer.")
+    case SquaddError.pairing("pairing_code_wrong"):
+        return String(localized: "That code isn’t right, or the computer now shows a newer one. Use the code on the computer’s screen.")
+    case SquaddError.pairing("pairing_too_many"):
+        return String(localized: "Too many wrong codes. Start pairing again in Remote access on the computer.")
+    case SquaddError.pairing("pairing_device_limit"):
+        return String(localized: "This computer already has 20 paired devices. Remove an old phone in Remote access on the computer, then pair again.")
+    case SquaddError.pairing, SquaddError.unpaired, SquaddError.status(400), SquaddError.status(403), SquaddError.status(404):
         return String(localized: "The computer refused the code. Codes last two minutes and work once.")
     case AuthManager.SquaddAddError.alreadyConfigured:
         return String(localized: "This server is already configured.")
@@ -76,7 +85,7 @@ struct SquaddPairAgainView: View {
         Task {
             defer { isPairing = false }
             do {
-                try authManager.repairSquaddServer(server, token: try await squaddPair(server: server, code: code))
+                try await squaddPair(SquaddPairingInvite(server: server, credential: SquaddPairingInvite.pairingCode(code) ?? code), authManager: authManager)
             } catch {
                 errorMessage = squaddPairingFailure(error)
             }
@@ -123,8 +132,11 @@ struct SquaddDebugAddServerView: View {
                 let server = try AuthManager.normalizedServerURL(from: address)
                 // Digits are a pairing code to redeem; anything else is a device token `POST /api/pair` already returned.
                 let entry = code.trimmingCharacters(in: .whitespacesAndNewlines)
-                let isCode = !entry.isEmpty && entry.allSatisfy(\.isNumber)
-                try authManager.addSquaddServer(address: server, token: isCode ? try await squaddPair(server: server, code: entry) : entry)
+                if let digits = SquaddPairingInvite.pairingCode(entry) {
+                    try await squaddPair(SquaddPairingInvite(server: server, credential: digits), authManager: authManager)
+                } else {
+                    try authManager.addSquaddServer(address: server, token: entry)
+                }
                 dismiss()
             } catch {
                 errorMessage = squaddPairingFailure(error)
@@ -133,22 +145,8 @@ struct SquaddDebugAddServerView: View {
     }
 }
 
-/// Debug only: what the Squadd home's Add Server opens, so a second companion can be added.
-struct SquaddAddServerSheet: View {
-    @Bindable var authManager: AuthManager
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        NavigationStack {
-            SquaddDebugAddServerView(authManager: authManager)
-                .toolbar {
-                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                }
-        }
-    }
-}
-
-/// Debug only: a corner button on first launch that opens `SquaddDebugAddServerView`.
+/// Debug only: a corner button on first launch that opens the pairing screen, until onboarding (#10)
+/// leads there.
 struct SquaddDebugAddServerButton: View {
     @Bindable var authManager: AuthManager
     @State private var isPresented = false
@@ -157,16 +155,24 @@ struct SquaddDebugAddServerButton: View {
         Button { isPresented = true } label: { Text(verbatim: "Squadd (Debug)") }
             .buttonStyle(.bordered)
             .padding()
-            .sheet(isPresented: $isPresented) {
-                NavigationStack { SquaddDebugAddServerView(authManager: authManager) }
-            }
+            .sheet(isPresented: $isPresented) { SquaddAddServerSheet(authManager: authManager) }
     }
 }
-#else
-/// Release: the Squadd home's Add Server is the app's usual one.
+#endif
+
+/// The Squadd home's Add Server, the debug first-launch button and an `openmausbot://pair` link:
+/// the pairing screen, which pairs `invite` at once when there is one.
 struct SquaddAddServerSheet: View {
     @Bindable var authManager: AuthManager
+    var invite: SquaddPairingInvite?
+    @Environment(\.dismiss) private var dismiss
 
-    var body: some View { AddServerView(authManager: authManager) }
+    var body: some View {
+        NavigationStack {
+            SquaddPairView(authManager: authManager, invite: invite, onPaired: { dismiss() })
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                }
+        }
+    }
 }
-#endif
