@@ -71,7 +71,8 @@ struct SquaddAgentSection: Identifiable, Equatable {
 /// companion refuses; creating a thread waits for the companion's answer.
 ///
 /// What the home shows is saved in the server's offline cache (#34); a load that fails before
-/// anything showed puts the saved copy on screen, marked offline, until a load succeeds.
+/// anything showed puts the saved copy on screen, marked offline, and reads again on the chat
+/// stream's backoff until the computer answers.
 @MainActor @Observable
 final class SquaddAgentListModel {
     enum Phase: Equatable {
@@ -89,12 +90,18 @@ final class SquaddAgentListModel {
     @ObservationIgnored private let client: SquaddCompanionClient
     @ObservationIgnored private let onUnpaired: () -> Void
     @ObservationIgnored private let cache: ModelContext?
+    @ObservationIgnored private let retryDelay: ChatStreamReconnectDelay
+    /// Reads again while the cached copy shows; ends with the first answer.
+    @ObservationIgnored private(set) var retrying: Task<Void, Never>?
 
     /// `onUnpaired` runs when the companion refused the token. `cache` keeps the home under
-    /// `client.server`; nil keeps nothing.
-    init(client: SquaddCompanionClient, cache: ModelContext? = nil, onUnpaired: @escaping () -> Void) {
+    /// `client.server`; nil keeps nothing. `retryDelay` waits between reads of an offline home.
+    init(client: SquaddCompanionClient, cache: ModelContext? = nil,
+         retryDelay: @escaping ChatStreamReconnectDelay = ChatStreamReconnectBackoff.standardDelay,
+         onUnpaired: @escaping () -> Void) {
         self.client = client
         self.cache = cache
+        self.retryDelay = retryDelay
         self.onUnpaired = onUnpaired
     }
 
@@ -111,9 +118,24 @@ final class SquaddAgentListModel {
                 bots = cached
                 isShowingCache = true
                 publish()
+                retryWhileOffline()
                 return
             }
             phase = .failed
+        }
+    }
+
+    private func retryWhileOffline() {
+        guard retrying == nil else { return }
+        retrying = Task { [weak self, retryDelay] in
+            let delays = ChatStreamReconnectBackoff.delays
+            var attempt = 0
+            while self?.isShowingCache == true {
+                attempt += 1
+                do { try await retryDelay(delays[min(attempt, delays.count) - 1]) } catch { break }
+                await self?.load()
+            }
+            self?.retrying = nil
         }
     }
 

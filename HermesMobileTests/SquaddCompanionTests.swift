@@ -298,28 +298,33 @@ final class SquaddCompanionTests: XCTestCase {
         XCTAssertEqual(try sections(model), before)
     }
 
-    func testOfflineHomeShowsItsServersCachedThreadsAndFoldersUntilTheComputerAnswers() async throws {
+    func testOfflineHomeShowsItsServersCachedThreadsAndFoldersAndRefreshesByItself() async throws {
         let cache = try ModelContext(ModelContainer(for: CachedSession.self, CachedMessage.self,
                                                     configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
-        var online = true
-        SquaddHTTPFixture.handler = { _ in online ? (200, try! Self.fixture("bots-organized.json")) : (0, Data()) }
+        let network = NetworkSwitch()
+        SquaddHTTPFixture.handler = { _ in network.isOn ? (200, try! Self.fixture("bots-organized.json")) : (0, Data()) }
         let live = SquaddAgentListModel(client: client(token: "t"), cache: cache, onUnpaired: {})
         await live.load()
         let shown = try sections(live)
 
-        online = false
-        let offline = SquaddAgentListModel(client: client(token: "t"), cache: cache, onUnpaired: {})
-        await offline.load()
-        XCTAssertEqual(try sections(offline), shown, "the same threads, folders and order without the computer")
-        XCTAssertTrue(offline.isShowingCache, "marked offline")
-
+        network.isOn = false
         let elsewhere = SquaddAgentListModel(client: client(token: "t", server: otherServer), cache: cache, onUnpaired: {})
         await elsewhere.load()
         XCTAssertEqual(elsewhere.phase, .failed, "another server never shows this server's threads")
 
-        online = true
+        // The network comes back while the home waits to read again.
+        let (comesBack, bringBack) = AsyncStream<Void>.makeStream()
+        let offline = SquaddAgentListModel(client: client(token: "t"), cache: cache, retryDelay: { _ in
+            for await _ in comesBack { break }
+            network.isOn = true
+        }, onUnpaired: {})
         await offline.load()
-        XCTAssertFalse(offline.isShowingCache, "the computer's answer replaces the copy")
+        XCTAssertEqual(try sections(offline), shown, "the same threads, folders and order without the computer")
+        XCTAssertTrue(offline.isShowingCache, "marked offline")
+
+        bringBack.yield()
+        await offline.retrying?.value
+        XCTAssertFalse(offline.isShowingCache, "the home reads the computer again by itself")
     }
 
     private func sections(_ model: SquaddAgentListModel) throws -> [SquaddAgentSection] {
@@ -359,6 +364,11 @@ final class SquaddCompanionTests: XCTestCase {
         try Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .appendingPathComponent("Fixtures/Squadd/\(name)"))
     }
+}
+
+/// Whether the fixture's phone has a network; the offline tests turn it off and back on.
+final class NetworkSwitch: @unchecked Sendable {
+    var isOn = true
 }
 
 /// Answers every request with `handler`'s status and body.
@@ -512,7 +522,8 @@ final class SquaddScreenPhotoTests: XCTestCase {
         XCTAssertTrue(shared, "export opens the share sheet")
     }
 
-    /// #34: no network, and the home shows the threads and folders it saved, marked offline.
+    /// #34: no network, and the home shows the threads and folders it saved, marked offline; then
+    /// the network is back and the same home reads the computer by itself, with no gesture.
     func testPhotoSquaddOffline() async throws {
         let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
         try XCTSkipIf(path == nil, "Only for photo runs")
@@ -522,10 +533,15 @@ final class SquaddScreenPhotoTests: XCTestCase {
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let saved = try JSONDecoder().decode(SquaddBotList.self, from: Self.fixture("bots-organized.json")).bots
         try CacheStore.cacheSquaddBots(saved, serverURL: studio, in: container.mainContext)
-        var tried = 0
+        var tried = 0, answered = 0
+        let network = NetworkSwitch()
+        network.isOn = false
+        let organized = try Self.fixture("bots-organized.json")
         SquaddHTTPFixture.handler = { request in
-            if request.url?.path == "/api/bots" { tried += 1 }
-            return (0, Data())
+            guard request.url?.path == "/api/bots" else { return (network.isOn ? 404 : 0, Data()) }
+            guard network.isOn else { tried += 1; return (0, Data()) }
+            answered += 1
+            return (200, organized)
         }
         URLProtocol.registerClass(SquaddHTTPFixture.self)
         let keychain = InMemoryKeychainStore()
@@ -534,6 +550,11 @@ final class SquaddScreenPhotoTests: XCTestCase {
                                   hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
         try add(studio, name: "Mac Studio", initials: "MS", color: "#2E7D32", token: "token-a", to: manager)
         try await shoot("h1-offline-home", home(manager, studio), dir: dir, cache: container) { tried > 0 }
+        network.isOn = true
+        let window = try XCTUnwrap(window)
+        try await readyPhoto(of: window, until: { answered > 0 }, limit: .seconds(4))
+            .write(to: dir.appendingPathComponent("h2-home-back-online.png"))
+        XCTAssertGreaterThan(answered, 0, "the offline home read the computer again by itself")
     }
 
     private static func shows<T: UIViewController>(_ type: T.Type, from controller: UIViewController?) -> Bool {
