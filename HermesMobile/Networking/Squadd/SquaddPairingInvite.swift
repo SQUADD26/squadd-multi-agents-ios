@@ -11,6 +11,8 @@ struct SquaddPairingInvite: Equatable, Identifiable {
     var name: String?
     /// The computer's public HPKE key for secrets (`secretKey`): a 65-byte uncompressed P-256 point. Only a QR has it.
     var secretKey: Data?
+    /// A computer reached only through Squadd Multi-Agents Relay: the QR's `e2e` descriptor, whose key is pinned.
+    var e2e: SquaddE2E.Descriptor?
     /// Sent as `pairRequestId` on every try of this invite: a retry after a lost reply gets the same
     /// device back instead of `pairing_not_open`, as the code works once. Random, so knowing the code
     /// is not enough to replay someone else's pairing.
@@ -27,16 +29,19 @@ struct SquaddPairingInvite: Equatable, Identifiable {
             self.init(server: page.server, credential: page.code)
             return
         }
-        guard !Self.isRelayOnly(url), url.scheme?.lowercased() == "openmausbot", url.host?.lowercased() == "pair",
+        guard url.scheme?.lowercased() == "openmausbot", url.host?.lowercased() == "pair",
               let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems else { return nil }
         func value(_ key: String) -> String? {
             items.first { $0.name == key }?.value?.trimmingCharacters(in: .whitespaces)
         }
-        guard let server = value("address").flatMap(Self.server(fromLinkAddress:)),
+        // Only a relay-only computer's descriptor is used: elsewhere the address still pairs as before.
+        let relay = Self.isRelayOnly(url) ? Self.relayDescriptor(value("e2e")) : nil
+        guard let server = relay.map({ SquaddRelay.identity(hostId: $0.hostId!) }) ?? value("address").flatMap(Self.server(fromLinkAddress:)),
               let token = value("token").flatMap(Self.credential) ?? value("code").flatMap(Self.pairingCode)
         else { return nil }
         let name = value("name")
         self.init(server: server, credential: token, name: name?.isEmpty == false ? name : nil)
+        e2e = relay
         // A malformed key leaves only the secret card without it, as the rest of the link still pairs.
         secretKey = value("secretKey").flatMap { $0.count == 87 ? Data(base64URL: $0) : nil }
             .flatMap { $0.count == 65 && $0.first == 0x04 ? $0 : nil }
@@ -66,17 +71,26 @@ struct SquaddPairingInvite: Equatable, Identifiable {
         self.name = name
     }
 
-    enum ScanRefusal: Error, Equatable { case relayOnly, notAPairingCode }
+    enum ScanRefusal: Error, Equatable { case relayOnly, updateApp, notAPairingCode }
 
     /// What the scanner does with a QR code's text: pair, or say why not.
     static func scanned(_ text: String) -> Result<SquaddPairingInvite, ScanRefusal> {
         guard let url = URL(string: text.trimmingCharacters(in: .whitespacesAndNewlines)) else { return .failure(.notAPairingCode) }
-        if isRelayOnly(url) { return .failure(.relayOnly) }
-        return SquaddPairingInvite(url: url).map { .success($0) } ?? .failure(.notAPairingCode)
+        if let invite = SquaddPairingInvite(url: url) { return .success(invite) }
+        let e2e = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "e2e" }?.value
+        if e2e.map(SquaddE2E.Descriptor.parse) == .update { return .failure(.updateApp) }
+        return .failure(isRelayOnly(url) ? .relayOnly : .notAPairingCode)
+    }
+
+    /// The descriptor of a relay-only link, when it names a relay this phone can dial; a malformed one refuses the link.
+    private static func relayDescriptor(_ text: String?) -> SquaddE2E.Descriptor? {
+        guard let text, case .ok(let descriptor) = SquaddE2E.Descriptor.parse(text),
+              descriptor.hostId != nil, !descriptor.relays.isEmpty, !descriptor.localOnly else { return nil }
+        return descriptor
     }
 
     /// A link from a computer reachable only through Squadd Multi-Agents Relay: its address is
-    /// `relay-only.invalid` (`openmausbot/server/phone-relay.ts`), and this app has no relay route yet (#9).
+    /// `relay-only.invalid` (`openmausbot/server/phone-relay.ts`).
     static func isRelayOnly(_ url: URL) -> Bool {
         URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems?
             .first { $0.name == "address" }?.value?.lowercased().hasPrefix("relay-only.invalid") == true

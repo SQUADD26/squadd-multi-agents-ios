@@ -5,7 +5,9 @@ import UIKit
 func squaddScanRefusal(_ refusal: SquaddPairingInvite.ScanRefusal) -> String {
     switch refusal {
     case .relayOnly:
-        return String(localized: "This computer can be reached only through Squadd Multi-Agents Relay, which this app can’t use yet. Give the computer an HTTPS address, then create a new code.")
+        return String(localized: "This QR code has no way through Squadd Multi-Agents Relay. Sign the computer in to the relay, then create a new code.")
+    case .updateApp:
+        return String(localized: "Update the Squadd Multi-Agents app to pair with this computer.")
     case .notAPairingCode:
         return String(localized: "That QR code isn’t a Squadd Multi-Agents pairing code.")
     }
@@ -33,6 +35,12 @@ func squaddPairingFailure(_ error: Error) -> String {
         return String(localized: "This computer already has 20 paired devices. Remove an old phone in Remote access on the computer, then pair again.")
     case SquaddError.pairing, SquaddError.unpaired, SquaddError.status(400), SquaddError.status(403), SquaddError.status(404):
         return String(localized: "The computer refused the code. Codes work once and only for a few minutes: create a new one on the computer.")
+    case SquaddE2ETunnel.Failure.offline:
+        return String(localized: "Your computer is asleep or offline.")
+    case SquaddE2ETunnel.Failure.relayUnreachable:
+        return String(localized: "Can’t reach Squadd Multi-Agents Relay right now. Try again in a moment.")
+    case SquaddE2ETunnel.Failure.unverified:
+        return String(localized: "Couldn’t verify your computer. Pair again from your computer’s Settings.")
     case AuthManager.SquaddAddError.alreadyConfigured:
         return String(localized: "This server is already configured.")
     case AuthManager.SquaddAddError.keychain:

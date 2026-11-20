@@ -36,11 +36,27 @@ extension AuthManager {
     func pairSquadd(_ invite: SquaddPairingInvite, deviceName: String, session: URLSession = .shared) async throws {
         let existing = servers.first { $0.id == invite.server.absoluteString }
         if let existing, existing.kind != .squadd { throw SquaddAddError.alreadyConfigured }
-        let reply = try await SquaddCompanionClient.pair(
-            server: invite.server, credential: invite.credential, deviceName: deviceName, requestID: invite.requestID,
-            // No token after a revocation: the computer already dropped that device, so nothing to replace.
-            replacesToken: existing == nil ? nil : squaddToken(for: invite.server), session: session)
-        let book = SquaddRouteBook(name: reply.serverName ?? invite.name, endpoints: reply.endpoints)
+        if let relay = invite.e2e {
+            try await SquaddRelay.shared.open(server: invite.server, descriptor: relay, credential: invite.credential)
+            do { try await SquaddRelay.shared.connect(server: invite.server) } catch {
+                SquaddRelay.shared.close(server: invite.server)
+                throw error
+            }
+        }
+        let reply: SquaddPairResponse
+        do {
+            reply = try await SquaddCompanionClient.pair(
+                server: invite.server, credential: invite.credential, deviceName: deviceName, requestID: invite.requestID,
+                // No token after a revocation: the computer already dropped that device, so nothing to replace.
+                replacesToken: existing == nil ? nil : squaddToken(for: invite.server), session: session)
+        } catch {
+            if invite.e2e != nil { SquaddRelay.shared.close(server: invite.server) }
+            throw error
+        }
+        // From now on the tunnel speaks with this device's own keys.
+        if invite.e2e != nil { SquaddRelay.shared.close(server: invite.server) }
+        var book = SquaddRouteBook(name: reply.serverName ?? invite.name, endpoints: invite.e2e == nil ? reply.endpoints : [])
+        book.e2e = invite.e2e
         guard let existing else {
             try addSquaddServer(address: invite.server, token: reply.token)
             saveSquaddRoutes(book, for: invite.server)
@@ -118,6 +134,7 @@ extension AuthManager {
         try? keychain.delete(.squaddDeviceToken, scope: server.absoluteString)
         try? keychain.delete(.squaddRoutes, scope: server.absoluteString)
         try? keychain.delete(.squaddSecretPairing, scope: server.absoluteString)
+        SquaddRelay.shared.close(server: server)
         SquaddRoutes.shared.set(nil, for: server)
     }
 }

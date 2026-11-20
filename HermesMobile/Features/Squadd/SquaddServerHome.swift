@@ -162,7 +162,8 @@ struct SquaddServerHome: View {
                     onUnpaired: { [weak authManager, server] in authManager?.squaddUnpaired(server: server) }
                 )
             }
-            let finder = finder ?? SquaddRouteFinder(server: server, book: authManager.squaddRoutes(for: server))
+            let finder = finder ?? SquaddRouteFinder(server: server, book: authManager.squaddRoutes(for: server),
+                                                       relayCredential: authManager.squaddToken(for: server))
             self.finder = finder
             let model = model
             // The agents load over the route just found, then follow it while the home is on screen.
@@ -310,6 +311,7 @@ struct SquaddServerHome: View {
                 case .connected(.hosted): Text("Connected over the internet")
                 case .connected(.tailnet): Text("Connected through Tailscale")
                 case .connected(.lan), .connected(.bonjour): Text("Connected on this Wi-Fi")
+                case .connected(.relay): Text("Connected through Squadd Multi-Agents Relay, end to end encrypted")
                 case .finding: Text("Finding the computer…")
                 case .unreachable: Text("Can't reach the computer.")
                 }
@@ -364,6 +366,7 @@ struct SquaddServerHome: View {
         case .hosted: "globe"
         case .tailnet: "point.3.connected.trianglepath.dotted"
         case .lan, .bonjour: "wifi"
+        case .relay: "lock.shield"
         }
     }
 

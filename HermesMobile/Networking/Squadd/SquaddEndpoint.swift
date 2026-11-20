@@ -6,7 +6,8 @@ import Network
 /// addresses, then its Bonjour host name.
 struct SquaddEndpoint: Codable, Equatable, Hashable, Sendable {
     enum Kind: String, Codable, Sendable {
-        case hosted, tailnet, lan, bonjour
+        /// This app's own listener for a `SquaddE2ETunnel` through Squadd Multi-Agents Relay; never saved.
+        case hosted, tailnet, lan, bonjour, relay
     }
 
     let url: URL
@@ -48,6 +49,8 @@ struct SquaddEndpoint: Codable, Equatable, Hashable, Sendable {
 struct SquaddRouteBook: Codable, Equatable {
     var name: String?
     var endpoints: [SquaddEndpoint]
+    /// A computer reached only through Squadd Multi-Agents Relay: the key its QR pinned and its relay identity.
+    var e2e: SquaddE2E.Descriptor?
 
     /// Every route worth a try, best first: the saved ones, the computer found by Bonjour, and the
     /// address it was paired at, which may be none of them (a typed address).

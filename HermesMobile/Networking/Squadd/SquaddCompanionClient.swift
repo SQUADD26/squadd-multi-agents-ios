@@ -163,7 +163,8 @@ struct SquaddCompanionClient {
     /// for that computer, makes the computer replace this iPhone instead of adding a second one.
     static func pair(server: URL, credential: String, deviceName: String, requestID: String,
                      replacesToken: String? = nil, session: URLSession = .shared) async throws -> SquaddPairResponse {
-        var request = URLRequest(url: server.appendingPathComponent("api/pair"))
+        var request = URLRequest(url: (SquaddRoutes.shared.route(for: server)?.url ?? server).appendingPathComponent("api/pair"))
+        request.setValue(SquaddRelay.shared.loopbackSecret(for: request.url), forHTTPHeaderField: SquaddE2ETunnel.loopbackHeader)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         var body = ["credential": credential, "deviceName": deviceName, "pairRequestId": requestID]

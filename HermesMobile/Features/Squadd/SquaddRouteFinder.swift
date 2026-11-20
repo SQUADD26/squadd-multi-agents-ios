@@ -24,10 +24,12 @@ final class SquaddRouteFinder {
     @ObservationIgnored private let session: URLSession
     @ObservationIgnored private var found: [SquaddEndpoint] = []
     @ObservationIgnored private var walk = 0
+    @ObservationIgnored private let relayCredential: String?
 
-    init(server: URL, book: SquaddRouteBook, session: URLSession = .shared) {
+    init(server: URL, book: SquaddRouteBook, relayCredential: String? = nil, session: URLSession = .shared) {
         self.server = server
         self.book = book
+        self.relayCredential = relayCredential
         self.session = session
     }
 
@@ -61,7 +63,11 @@ final class SquaddRouteFinder {
         walk += 1
         let mine = walk
         isSearching = true
-        let picked = await SquaddRoutes.pick(book.candidates(server: server, found: found), session: session)
+        let picked = if let relay = book.e2e, let relayCredential {
+            try? await SquaddRelay.shared.open(server: server, descriptor: relay, credential: relayCredential)
+        } else {
+            await SquaddRoutes.pick(book.candidates(server: server, found: found), session: session)
+        }
         // A newer walk (a second network change) owns the result.
         guard mine == walk, !Task.isCancelled else { return false }
         let moved = picked != route
