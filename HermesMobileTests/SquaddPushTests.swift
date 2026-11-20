@@ -240,22 +240,11 @@ final class SquaddPushPhotoTests: XCTestCase {
         XCTAssertEqual(manager.state, .loggedIn(server: sender))
     }
 
-    /// Readies the simulator for the recorded push the photo job sends with `simctl push`: notification permission
-    /// (the job taps Allow on the system alert) and the sender paired in the app's own Keychain, so the tap opens its
+    /// Readies the simulator for the recorded push `scripts/pr-ios-run live <issue> --push` sends with `simctl push`:
+    /// notification permission (`ci/foto/tap_allow.py` taps Allow on the system alert) and the sender paired in the app's own Keychain, so the tap opens its
     /// thread. Skipped unless `PUSH_REAL` is set (`TEST_RUNNER_PUSH_REAL`).
     func testPrepareTheSimulatorForARealPush() async throws {
         try XCTSkipIf(ProcessInfo.processInfo.environment["PUSH_REAL"] == nil, "Only for the push photo job")
-        let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
-        XCTAssertTrue(granted)
-        let manager = AuthManager()
-        do { try manager.addSquaddServer(address: sender, token: "token-sender") } catch AuthManager.SquaddAddError.alreadyConfigured {}
-        XCTAssertTrue(manager.servers.contains { $0.id == sender.absoluteString && $0.kind == .squadd })
-    }
-
-    /// The real-push run's first step (`scripts/pr-ios-run live <issue> --push`): notification permission, tapped on
-    /// the system alert by `ci/foto/tap_allow.py`, and the sender paired in the app's own Keychain for the tap to open.
-    func testPrepareTheSimulatorForARealPush() async throws {
-        try XCTSkipIf(ProcessInfo.processInfo.environment["PUSH_REAL"] == nil, "Only for the real-push run")
         let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
         XCTAssertTrue(granted)
         let manager = AuthManager()
