@@ -57,8 +57,9 @@ final class SquaddVersionsTests: XCTestCase {
         XCTAssertNotNil(fields["sendId"] as? String)
 
         SquaddChatFixture.stream(try Self.fixture("squadd-v-edit-events.sse"), finish: true)
+        // Idle and two versions already hold before the turn starts: wait for the turn's end.
         await waitUntil("the reply to the new version is in") {
-            model.activeStreamID == nil && squadd.marks.values.contains { $0.versions != nil }
+            squadd.latestRunEnding != nil && model.activeStreamID == nil && squadd.marks.values.contains { $0.versions != nil }
         }
         // The new version keeps the row it showed on at once, as a send's prompt does.
         let newVersion = try XCTUnwrap(model.messages.first { $0.content == "Scrivi quattro parole" })
