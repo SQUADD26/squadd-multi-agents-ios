@@ -850,6 +850,7 @@ struct SquaddListSectionTitle<Action: View>: View {
         .padding(.leading, 24)
         .padding(.trailing, 14)
         .padding(.top, 16)
+        .sessionsScreenListRow()
     }
 }
 
