@@ -964,7 +964,7 @@ final class ChatViewModel {
             client: resolvedClient,
             draftAttachmentStore: draftAttachmentStore,
             draftStore: draftStore,
-            uploadsOnSend: hermesTurn != nil
+            uploadsOnSend: hermesTurn != nil || squaddTurn != nil
         )
         self.btwStreamClient = btwStreamClient ?? SSEClient()
         self.liveActivityManager = resolvedLiveActivityManager
@@ -1986,17 +1986,21 @@ final class ChatViewModel {
     /// A sent attachment's thumbnail bytes: a Hermes session downloads from its host
     /// (#1030), a webui chat through the server's file API. Nil when it can't load.
     func attachmentImageData(path: String) async -> Data? {
-        guard let hermesTurn else { return await attachmentCoordinator.attachmentImageData(path: path) }
-        guard let data = try? await hermesTurn.attachmentData(path: path) else { return nil }
+        let read: () async throws -> Data
+        if let hermesTurn { read = { try await hermesTurn.attachmentData(path: path) } }
+        else if let squaddTurn { read = { try await squaddTurn.attachmentData(path: path) } }
+        else { return await attachmentCoordinator.attachmentImageData(path: path) }
+        guard let data = try? await read() else { return nil }
         return await ImagePreviewDownsampler.previewDataAsync(
             from: data,
             maxPixelSize: ImagePreviewDownsampler.attachmentMaxPixelSize
         ) ?? data
     }
 
-    /// A Hermes session's sent file in full, for its preview (#1030). Throws `.stale` on a
-    /// webui chat, which previews through `ChatAttachmentPreviewView` instead.
+    /// A Hermes session's or a Squadd thread's sent file in full, for its preview (#1030, #23).
+    /// Throws `.stale` on a webui chat, which previews through `ChatAttachmentPreviewView` instead.
     func hermesAttachmentData(path: String) async throws -> Data {
+        if let squaddTurn { return try await squaddTurn.attachmentData(path: path) }
         guard let hermesTurn else { throw BotFailure.stale }
         return try await hermesTurn.attachmentData(path: path)
     }
@@ -2049,6 +2053,7 @@ final class ChatViewModel {
     /// Nil when it can't load, including on a detached Hermes chat, which the player avoids by
     /// waiting on `attachmentLoadKey`.
     func attachmentRawData(path: String) async -> Data? {
+        if let squaddTurn { return try? await squaddTurn.attachmentData(path: path) }
         guard let hermesTurn else { return await attachmentCoordinator.attachmentRawData(path: path) }
         return try? await hermesTurn.attachmentData(path: path)
     }
@@ -2109,6 +2114,7 @@ final class ChatViewModel {
     /// `prepareInitialMessageLoad` already sent instead of sending another.
     func loadMessages(modelContext: ModelContext? = nil, usesInitialPrefetch: Bool = false) async {
         if let squaddTurn {
+            if let modelContext { squaddTurn.cache = modelContext }
             isLoading = messages.isEmpty
             defer { isLoading = false }
             await squaddTurn.activate()
@@ -3765,6 +3771,7 @@ final class ChatViewModel {
     /// returns nothing. Returns true only if the chat send started.
     @discardableResult
     func sendVoiceNote(audioData: Data, filename: String, modelContext: ModelContext? = nil) async -> Bool {
+        if let squaddTurn { return await sendSquaddVoiceNote(audioData, filename: filename, to: squaddTurn) }
         // Voice notes ride on webui transcription, which a Hermes host does not offer.
         guard hermesTurn == nil else { return false }
         // Reentrancy guard: bail if a voice note OR a regular chat send is already
@@ -9977,6 +9984,13 @@ extension ChatViewModel: SquaddChatTurnDelegate {
         transcriptRevision &+= 1
         hasOlderMessages = hasOlder
         streamingAssistantMessageID = nil
+        isViewingCachedData = false
+    }
+
+    func squaddShowCached(_ messages: [ChatMessage]) {
+        squaddReplaceTranscript(messages, hasOlder: false)
+        isViewingCachedData = true
+        errorMessage = nil
     }
 
     func squaddPrependOlder(_ messages: [ChatMessage], hasOlder: Bool) {
@@ -9995,16 +10009,29 @@ extension ChatViewModel: SquaddChatTurnDelegate {
         errorMessage = failure
     }
 
-    /// Shows the prompt at once and sends it. A prompt the companion didn't take leaves the
-    /// transcript and goes back to the composer (`.kept`) with the reason.
-    fileprivate func submitSquaddPrompt(_ draft: String, to squadd: SquaddChatTurnCoordinator) async -> ChatSendOutcome {
-        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return .kept }
-        // Files to a Squadd agent are their own ticket: refuse rather than drop them.
-        guard pendingAttachments.isEmpty else {
-            sendErrorMessage = String(localized: "Agents on the computer can't receive files yet. Remove them to send.")
-            return .kept
+    /// A Squadd voice note (#23): the recording as WAV, the audio the computer stores and plays,
+    /// staged like any file and sent on its own. One the companion didn't take stays staged, so Send
+    /// retries it.
+    fileprivate func sendSquaddVoiceNote(_ recording: Data, filename: String, to squadd: SquaddChatTurnCoordinator) async -> Bool {
+        guard !isSendingVoiceNote, !isStartingChat, !recording.isEmpty else { return false }
+        isSendingVoiceNote = true
+        defer { isSendingVoiceNote = false }
+        guard let wav = try? await Task.detached(operation: { try ComposerVoiceNoteRecorder.wav(from: recording, filename: filename) }).value else {
+            setUploadAttachmentError(String(localized: "Couldn't prepare that voice note. Try recording again."))
+            return false
         }
+        guard let staged = await attachmentCoordinator.uploadAttachment(data: wav.data, filename: wav.name) else { return false }
+        return await submitSquaddPrompt("", to: squadd, files: [staged]) == .started
+    }
+
+    /// Shows the prompt at once, uploads the staged files and sends it (#23). A prompt the companion
+    /// didn't take leaves the transcript and goes back to the composer (`.kept`) with the reason; its
+    /// files stay staged, so Send again retries them, and an upload already stored lands once.
+    fileprivate func submitSquaddPrompt(_ draft: String, to squadd: SquaddChatTurnCoordinator,
+                                        files: [PendingAttachment]? = nil) async -> ChatSendOutcome {
+        let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        let files = files ?? attachmentCoordinator.pendingAttachments
+        guard !text.isEmpty || !files.isEmpty, !isStartingChat else { return .kept }
         // The companion refuses an empty goal; say so instead of a server error.
         if SquaddSlashCommands.outgoing(text) == (text: "", mode: "goal") {
             sendErrorMessage = String(localized: "Write the goal after /goal.")
@@ -10013,17 +10040,32 @@ extension ChatViewModel: SquaddChatTurnDelegate {
         let sendId = squadd.makeSendID()
         let rowID = "local-\(sendId)"
         sendErrorMessage = nil
-        messages.append(ChatMessage(role: "user", content: text, timestamp: Date().timeIntervalSince1970, messageId: rowID))
+        if !files.isEmpty { attachmentCoordinator.setUploadAttachmentError(nil) }
+        isStartingChat = true
+        defer { isStartingChat = false }
+        messages.append(ChatMessage(
+            role: "user", content: text, timestamp: Date().timeIntervalSince1970, messageId: rowID,
+            attachments: files.isEmpty ? nil : files.map { MessageAttachment(name: $0.name, mime: $0.mime, size: $0.size, isImage: $0.isImage) }
+        ))
+        attachmentCoordinator.keepLocalPreviews(of: files, forMessageID: rowID)
+        let outgoing = attachmentCoordinator.outgoingAttachments(files).enumerated().map { index, file in
+            SquaddChatTurnCoordinator.OutgoingFile(id: files[index].id, name: file.name, mime: file.mime, data: file.data)
+        }
         do {
             // A queued send shows in the queue until it goes in, not as a sent row.
-            if try await squadd.send(text, sendId: sendId, localRowID: rowID) {
+            if try await squadd.send(text, files: outgoing, sendId: sendId, localRowID: rowID) {
                 messages.removeAll { $0.messageId == rowID }
             }
-            return .started
+        } catch let failure as SquaddChatTurnCoordinator.UploadFailed {
+            rollbackOptimisticMessage(id: rowID)
+            sendErrorMessage = String(localized: "Couldn't upload \(failure.name). Your message and files are still here: send again to retry.")
+            return .kept
         } catch {
-            messages.removeAll { $0.messageId == rowID }
+            rollbackOptimisticMessage(id: rowID)
             sendErrorMessage = SquaddChatTurnCoordinator.failureMessage(error)
             return .kept
         }
+        await attachmentCoordinator.consumeSentAttachments(files)
+        return .started
     }
 }

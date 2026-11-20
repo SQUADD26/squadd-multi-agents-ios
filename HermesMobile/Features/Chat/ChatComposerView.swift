@@ -302,6 +302,8 @@ struct MessageComposerView: View {
     /// the workspace picker takes a typed path (#1117). The + menu, dictation, the context
     /// indicator and the branch picker (#1116) stay.
     var showsSessionControls = true
+    /// A Squadd thread (#23) records voice notes while the other session controls stay hidden.
+    var allowsVoiceNotes = false
     /// The commands the `/` panel lists and runs: a Hermes chat's own and its host's (#1036).
     var slashScope = SlashCommandScope.webui
     /// The host's suggestions for a host command's argument (#1036).
@@ -1193,7 +1195,7 @@ struct MessageComposerView: View {
             isDisabled: isVoiceInputDisabled,
             color: metaControlColor,
             isRecordingVoiceNote: voiceNoteRecorder.isRecording,
-            supportsVoiceNotes: showsSessionControls,
+            supportsVoiceNotes: supportsVoiceNotes,
             onTap: toggleVoiceInput,
             onRecordingStart: { startVoiceNoteRecording() },
             // A note started from `+` ends at its bar's buttons, so a hold on the mic can't touch it.
@@ -1654,8 +1656,10 @@ struct MessageComposerView: View {
     /// Whether a hold-to-record gesture is allowed to start a new voice note.
     /// Recording mid-stream is fine (it queues like any send), so unlike dictation
     /// this does not block on `isWaitingForStream`.
+    private var supportsVoiceNotes: Bool { showsSessionControls || allowsVoiceNotes }
+
     private var isVoiceNoteRecordingDisabled: Bool {
-        !showsSessionControls
+        !supportsVoiceNotes
             || holdsHostControls
             || isSending
             || isSendingVoiceNote
