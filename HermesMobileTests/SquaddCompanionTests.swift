@@ -57,7 +57,7 @@ final class SquaddCompanionTests: XCTestCase {
         try manager.addSquaddServer(address: server, token: "revoked")
         XCTAssertEqual(manager.state, .loggedIn(server: server))
         let token = try XCTUnwrap(manager.squaddToken(for: server))
-        let model = SquaddAgentListModel(fetch: { try await self.client(token: token).bots() },
+        let model = SquaddAgentListModel(client: client(token: token),
                                          onUnpaired: { manager.squaddUnpaired(server: self.server) })
 
         await model.load()
@@ -88,6 +88,136 @@ final class SquaddCompanionTests: XCTestCase {
         await manager.removeServer(first)
         XCTAssertEqual(manager.squaddToken(for: otherServer), "token-b")
         XCTAssertEqual(manager.state, .loggedIn(server: otherServer))
+    }
+
+    // MARK: - Threads (#17), against the isolated companion's recordings (origin/dev 3d12c2fd7)
+
+    private let starter = "115b3d10-f305-4bef-8826-12c4856a6c97"
+    private let pinnedThread = "ad0bec87-7c36-40ca-a3ce-b5a991c6e22f"
+    private let sugarThread = "efb8fa96-47ef-4968-bb13-ce9aacada117"
+
+    func testThreadsFollowTheDesktopOrderAndArchivedWaitApart() async throws {
+        SquaddHTTPFixture.handler = { request in
+            (200, try! Self.fixture(request.httpMethod == "PATCH" ? "task-patch.json" : "bots-organized.json"))
+        }
+        let model = SquaddAgentListModel(client: client(token: "t"), onUnpaired: {})
+        await model.load()
+        let loaded = try XCTUnwrap(sections(model).first)
+
+        _ = await model.setPinned(false, threadId: pinnedThread, botId: starter)
+        _ = await model.setPinned(true, threadId: sugarThread, botId: starter)
+
+        XCTAssertEqual(loaded.threads.map(\.title), ["Rinominato", "ciao zucchero"], "pinned first, then the newest")
+        XCTAssertEqual(loaded.archived.map(\.title), ["Prova B"])
+        XCTAssertEqual(try sections(model).first?.threads.map(\.title), ["ciao zucchero", "Rinominato"], "an older pinned thread goes above a newer one")
+    }
+
+    func testThreadActionsUseTheTaskRoutes() async throws {
+        var seen: [(String, String, [String: Any])] = []
+        SquaddHTTPFixture.handler = { request in
+            let body = request.httpBodyStream.flatMap { stream -> [String: Any]? in
+                stream.open(); defer { stream.close() }
+                var data = Data(), buffer = [UInt8](repeating: 0, count: 4096)
+                while case let n = stream.read(&buffer, maxLength: buffer.count), n > 0 { data.append(buffer, count: n) }
+                return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            } ?? [:]
+            seen.append((request.httpMethod ?? "", request.url?.path ?? "", body))
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/bots"): return (200, try! Self.fixture("bots-organized.json"))
+            case ("POST", _): return (201, try! Self.fixture("task-create.json"))
+            case ("DELETE", _): return (200, try! Self.fixture("task-delete.json"))
+            default: return (200, try! Self.fixture("task-patch.json"))
+            }
+        }
+        let model = SquaddAgentListModel(client: client(token: "t"), onUnpaired: {})
+        await model.load()
+        let tasks = "/api/bots/\(starter)/tasks"
+
+        let created = await model.createThread(botId: starter)
+        let renamed = await model.rename(threadId: sugarThread, botId: starter, to: "Zucchero")
+        let unpinned = await model.setPinned(false, threadId: pinnedThread, botId: starter)
+        let archived = await model.setArchived(true, threadId: sugarThread, botId: starter, now: Date(timeIntervalSince1970: 2))
+        let restored = await model.setArchived(false, threadId: sugarThread, botId: starter)
+        let deleted = await model.delete(threadId: sugarThread, botId: starter)
+
+        XCTAssertEqual([created, renamed, unpinned, archived, restored, deleted], [true, true, true, true, true, true])
+        let calls = seen.dropFirst()
+        XCTAssertEqual(calls.map { "\($0.0) \($0.1)" }, ["POST \(tasks)", "PATCH \(tasks)/\(sugarThread)", "PATCH \(tasks)/\(pinnedThread)",
+                                                     "PATCH \(tasks)/\(sugarThread)", "PATCH \(tasks)/\(sugarThread)", "DELETE \(tasks)/\(sugarThread)"])
+        let bodies = calls.map(\.2)
+        XCTAssertEqual(bodies[0]["select"] as? Bool, false, "a phone's new thread never moves the desktop off its thread")
+        XCTAssertEqual(bodies[1]["title"] as? String, "Zucchero")
+        XCTAssertEqual(bodies[2]["pinned"] as? Bool, false)
+        XCTAssertEqual(bodies[3]["archivedAt"] as? Double, 2000)
+        XCTAssertTrue(bodies[4]["archivedAt"] is NSNull, "restore sends null")
+        let section = try XCTUnwrap(sections(model).first)
+        XCTAssertTrue(section.threads.contains { $0.title == "Prova A" }, "the created thread is listed")
+        XCTAssertFalse((section.threads + section.archived).contains { $0.id == sugarThread })
+    }
+
+    func testRefusedChangesPutTheThreadBack() async throws {
+        var refusing = false
+        SquaddHTTPFixture.handler = { request in
+            if refusing { return (400, try! Self.fixture("task-patch-400.json")) }
+            return (200, try! Self.fixture("bots-organized.json"))
+        }
+        let model = SquaddAgentListModel(client: client(token: "t"), onUnpaired: {})
+        await model.load()
+        let before = try sections(model)
+        refusing = true
+
+        let unpinned = await model.setPinned(false, threadId: pinnedThread, botId: starter)
+        let deleted = await model.delete(threadId: sugarThread, botId: starter)
+
+        XCTAssertFalse(unpinned)
+        XCTAssertFalse(deleted)
+        XCTAssertEqual(try sections(model), before)
+    }
+
+    func testSearchReadsHitsAndSaysWhenNothingMatches() async throws {
+        var queries: [String?] = []
+        SquaddHTTPFixture.handler = { request in
+            let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "q" }?.value
+            queries.append(query)
+            if query == "offline" { return (500, Data()) }
+            return (200, try! Self.fixture(query == "zucchero" ? "search-hits.json" : "search-empty.json"))
+        }
+        let model = SquaddAgentListModel(client: client(token: "t"), onUnpaired: {})
+
+        _ = await model.search("zucchero")
+        XCTAssertEqual(model.searchHits?.map(\.task), ["ciao zucchero"])
+        XCTAssertEqual(model.searchHits?.first?.snippet, "ciao zucchero")
+        let failed = await model.search("offline")
+        XCTAssertFalse(failed)
+        XCTAssertEqual(model.searchHits?.map(\.task), ["ciao zucchero"], "a failed search is not an empty one")
+        _ = await model.search("nessunrisultatoxyz")
+        XCTAssertEqual(model.searchHits, [])
+        _ = await model.search("  ")
+        XCTAssertNil(model.searchHits, "clearing the field ends the search")
+        XCTAssertEqual(queries, ["zucchero", "offline", "nessunrisultatoxyz"])
+    }
+
+    func testExportWritesTheDesktopMarkdownToAFile() async throws {
+        var path: String?
+        SquaddHTTPFixture.handler = { request in
+            path = request.url?.path
+            return (200, try! Self.fixture("export.md"))
+        }
+        let model = SquaddAgentListModel(client: client(token: "t"), onUnpaired: {})
+
+        let exported = await model.export(threadId: sugarThread, title: "ciao/zucchero")
+
+        let file = try XCTUnwrap(exported)
+
+        XCTAssertEqual(path, "/api/threads/\(sugarThread)/export")
+        XCTAssertEqual(file.lastPathComponent, "ciao-zucchero.md")
+        XCTAssertEqual(try Data(contentsOf: file), try Self.fixture("export.md"))
+        try FileManager.default.removeItem(at: file.deletingLastPathComponent())
+    }
+
+    private func sections(_ model: SquaddAgentListModel) throws -> [SquaddAgentSection] {
+        guard case .loaded(let sections) = model.phase else { XCTFail("not loaded"); return [] }
+        return sections
     }
 
     // MARK: - Helpers
@@ -202,6 +332,63 @@ final class SquaddScreenPhotoTests: XCTestCase {
         // The Settings pages that take the server: push and About read it, with the companion answering.
         try await shoot("e3-notifications", NavigationStack { SettingsNotificationsPage(server: studio) }, dir: dir) { true }
         try await shoot("e4-about", NavigationStack { SettingsAboutPage(server: account) }, dir: dir) { true }
+    }
+
+    /// #17: an agent's threads in the desktop's order (pinned first) with its archived ones folded
+    /// below, then search with matches and with none.
+    func testPhotoSquaddThreads() async throws {
+        let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
+        try XCTSkipIf(path == nil, "Only for photo runs")
+        let dir = URL(fileURLWithPath: path!)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let organized = try Self.fixture("bots-organized.json")
+        var served: [String] = []
+        SquaddHTTPFixture.handler = { request in
+            let path = request.url?.path ?? ""
+            served.append("\(request.httpMethod ?? "") \(path)")
+            if path == "/api/bots" { Self.botsServed += 1; return (200, organized) }
+            if path == "/api/search" {
+                let query = URLComponents(url: request.url!, resolvingAgainstBaseURL: false)?.queryItems?.first?.value
+                return (200, try! Self.fixture(query == "zucchero" ? "search-hits.json" : "search-empty.json"))
+            }
+            if path.hasSuffix("/export") { return (200, try! Self.fixture("export.md")) }
+            return (404, Data())
+        }
+        URLProtocol.registerClass(SquaddHTTPFixture.self)
+        let keychain = InMemoryKeychainStore()
+        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(),
+                                  serverRegistry: ServerRegistry.inMemory(keychain: keychain),
+                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
+        try add(studio, name: "Mac Studio", initials: "MS", color: "#2E7D32", token: "token-a", to: manager)
+        Self.botsServed = 0
+        try await shoot("f1-threads", home(manager, studio), dir: dir) { Self.botsServed > 0 }
+
+        // The real home, each started on one step through the handlers a tap reaches.
+        let steps: [(String, SquaddHomeStart, String)] = [
+            ("f2-search-hits", .search("zucchero"), "GET /api/search"),
+            ("f3-search-empty", .search("nessunrisultatoxyz"), "GET /api/search"),
+            ("f4-archived-open", .showArchived, "GET /api/bots"),
+            ("f5-delete-confirm", .act(.delete, threadTitle: "ciao zucchero"), "GET /api/bots"),
+            ("f6-rename", .act(.rename, threadTitle: "ciao zucchero"), "GET /api/bots"),
+        ]
+        for (name, start, awaited) in steps {
+            let from = served.count
+            try await shoot(name, SquaddServerHome(authManager: manager, server: studio, pendingThread: .constant(nil), start: start), dir: dir) {
+                served[from...].contains(awaited)
+            }
+        }
+        XCTAssertFalse(served.contains { $0.hasPrefix("DELETE") || $0.hasPrefix("PATCH") }, "showing a confirmation or a sheet changes nothing")
+
+        // The share sheet draws in another process, so the photo shows only its dimming.
+        let from = served.count
+        try await shoot("f7-export-share", SquaddServerHome(authManager: manager, server: studio, pendingThread: .constant(nil), start: .act(.export, threadTitle: "ciao zucchero")),
+                        dir: dir) { served[from...].contains("GET /api/threads/efb8fa96-47ef-4968-bb13-ce9aacada117/export") }
+        XCTAssertTrue(Self.shows(UIActivityViewController.self, from: window?.rootViewController), "export opens the share sheet")
+    }
+
+    private static func shows<T: UIViewController>(_ type: T.Type, from controller: UIViewController?) -> Bool {
+        guard let controller else { return false }
+        return controller is T || controller.children.contains { shows(type, from: $0) } || shows(type, from: controller.presentedViewController)
     }
 
     private func add(_ url: URL, name: String, initials: String, color: String, token: String, to manager: AuthManager) throws {
