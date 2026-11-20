@@ -26,7 +26,7 @@ struct SquaddBot: Decodable, Equatable, Identifiable {
     let busy: Bool?
     /// Milliseconds since 1970, as the companion sends every time.
     let createdAt: Double?
-    let tasks: [SquaddTask]
+    var tasks: [SquaddTask]
     let description: String?
     /// The agent's standing instructions (the desktop's «soul»).
     let soul: String?
@@ -132,25 +132,41 @@ struct SquaddInstance: Decodable, Equatable {
     }
 }
 
-/// One task thread of an agent: its title and when it last changed.
+/// One task thread of an agent. The desktop lists an agent's threads pinned first, then by
+/// `lastThreadOrderAt` (else `createdAt`), newest first, and hides the archived ones.
 struct SquaddTask: Decodable, Equatable, Identifiable {
     let threadId: String
-    let title: String?
-    /// Milliseconds since 1970.
+    var title: String?
+    /// Milliseconds since 1970, like every companion time.
     let updatedAt: Double?
+    let createdAt: Double?
+    let lastThreadOrderAt: Double?
     let unread: Bool?
     let busy: Bool?
+    var pinned: Bool?
+    var archivedAt: Double?
+    var projectId: String?
 
     var id: String { threadId }
+    var isPinned: Bool { pinned == true }
+    var isArchived: Bool { archivedAt != nil }
 
-    private enum CodingKeys: String, CodingKey { case threadId, title, updatedAt, unread, busy }
+    private enum CodingKeys: String, CodingKey {
+        case threadId, title, updatedAt, createdAt, lastThreadOrderAt, unread, busy, pinned, archivedAt, projectId
+    }
 
-    init(threadId: String, title: String?, updatedAt: Double? = nil, unread: Bool? = nil, busy: Bool? = nil) {
+    init(threadId: String, title: String?, updatedAt: Double? = nil, createdAt: Double? = nil, lastThreadOrderAt: Double? = nil,
+         unread: Bool? = nil, busy: Bool? = nil, pinned: Bool? = nil, archivedAt: Double? = nil, projectId: String? = nil) {
         self.threadId = threadId
         self.title = title
         self.updatedAt = updatedAt
+        self.createdAt = createdAt
+        self.lastThreadOrderAt = lastThreadOrderAt
         self.unread = unread
         self.busy = busy
+        self.pinned = pinned
+        self.archivedAt = archivedAt
+        self.projectId = projectId
     }
 
     init(from decoder: Decoder) throws {
@@ -158,9 +174,56 @@ struct SquaddTask: Decodable, Equatable, Identifiable {
         threadId = try container.decode(String.self, forKey: .threadId)
         title = try? container.decodeIfPresent(String.self, forKey: .title)
         updatedAt = try? container.decodeIfPresent(Double.self, forKey: .updatedAt)
+        createdAt = try? container.decodeIfPresent(Double.self, forKey: .createdAt)
+        lastThreadOrderAt = try? container.decodeIfPresent(Double.self, forKey: .lastThreadOrderAt)
         unread = try? container.decodeIfPresent(Bool.self, forKey: .unread)
         busy = try? container.decodeIfPresent(Bool.self, forKey: .busy)
+        pinned = try? container.decodeIfPresent(Bool.self, forKey: .pinned)
+        archivedAt = try? container.decodeIfPresent(Double.self, forKey: .archivedAt)
+        projectId = try? container.decodeIfPresent(String.self, forKey: .projectId)
     }
+
+    /// The desktop sidebar's order (`orderedThreadList` in openmausbot's wire): pinned first, then
+    /// the newest `lastThreadOrderAt` or `createdAt`; ties keep the companion's order.
+    static func desktopOrder(_ tasks: [SquaddTask]) -> [SquaddTask] {
+        tasks.enumerated().sorted { a, b in
+            if a.element.isPinned != b.element.isPinned { return a.element.isPinned }
+            let left = a.element.lastThreadOrderAt ?? a.element.createdAt ?? 0
+            let right = b.element.lastThreadOrderAt ?? b.element.createdAt ?? 0
+            return left != right ? left > right : a.offset < b.offset
+        }.map(\.element)
+    }
+}
+
+/// `POST /api/bots/:id/tasks` and `PATCH /api/bots/:id/tasks/:threadId`: the thread as saved.
+struct SquaddTaskResponse: Decodable {
+    let task: SquaddTask
+}
+
+/// `GET /api/search`: matches in the messages of every conversation the phone can see.
+struct SquaddSearchResponse: Decodable {
+    let hits: [SquaddSearchHit]
+
+    private enum CodingKeys: String, CodingKey { case hits }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        hits = (try? container.decodeIfPresent([Lossy<SquaddSearchHit>].self, forKey: .hits))?.compactMap(\.value) ?? []
+    }
+}
+
+/// One search match: the snippet around it, and the agent (`name`) and thread (`task`) it is in.
+/// A room's match has `groupId` and no `botId`.
+struct SquaddSearchHit: Decodable, Equatable, Identifiable {
+    let threadId: String
+    let messageId: String
+    let snippet: String
+    let at: Double?
+    let botId: String?
+    let name: String?
+    let task: String?
+
+    var id: String { threadId + "/" + messageId }
 }
 
 /// `POST /api/pair`'s answer: the device token every later request carries as its bearer.
