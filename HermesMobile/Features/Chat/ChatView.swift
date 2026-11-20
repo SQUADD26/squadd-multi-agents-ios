@@ -641,9 +641,11 @@ struct ChatView: View {
             // Continue (#1141). So does a cached transcript shown while the chat connects.
             isSending: viewModel.isStartingChat || viewModel.isSendingVoiceNote || viewModel.isHermesSubmissionUncertain
                 || viewModel.isUndoingExchange || viewModel.hermesRequests?.answeringRequestID != nil
-                || viewModel.isCachedCopyProvisional,
+                || viewModel.isCachedCopyProvisional
+                // Squadd has no Stop yet (its own ticket): Send stays held until the turn ends.
+                || isSquaddThread && viewModel.activeStreamID != nil,
             isCompressingSession: viewModel.isCompressingSession,
-            isWaitingForStream: viewModel.activeStreamID != nil,
+            isWaitingForStream: viewModel.activeStreamID != nil && !isSquaddThread,
             isCancellingStream: viewModel.isCancellingStream,
             // Offline the draft stays editable and Send waits for the reconnect (#1375); a Hermes
             // chat's plain-text Send waits as the transcript's waiting bubble (#1407).

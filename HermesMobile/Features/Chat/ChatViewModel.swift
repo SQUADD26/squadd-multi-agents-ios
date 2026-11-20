@@ -9936,6 +9936,11 @@ extension ChatViewModel: SquaddChatTurnDelegate {
     fileprivate func submitSquaddPrompt(_ draft: String, to squadd: SquaddChatTurnCoordinator) async -> ChatSendOutcome {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return .kept }
+        // Files to a Squadd agent are their own ticket: refuse rather than drop them.
+        guard pendingAttachments.isEmpty else {
+            sendErrorMessage = String(localized: "Agents on the computer can't receive files yet. Remove them to send.")
+            return .kept
+        }
         let sendId = squadd.makeSendID()
         let rowID = "local-\(sendId)"
         sendErrorMessage = nil
