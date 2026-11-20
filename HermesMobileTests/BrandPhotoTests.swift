@@ -55,13 +55,17 @@ func readyPhoto(of window: UIWindow, until ready: () -> Bool = { true }, limit: 
     }
     let preview = UIGraphicsImageRenderer(bounds: window.bounds, format: small)
     let pixels = { (image: UIImage) in image.cgImage?.dataProvider?.data as Data? }
+    // Liquid Glass settles in steps the frames don't show: wait until no layer is animating.
+    func animating(_ layer: CALayer) -> Bool {
+        !(layer.animationKeys() ?? []).isEmpty || (layer.sublayers ?? []).contains(where: animating)
+    }
     var last = draw(preview), still = false
     let end = ContinuousClock.now + limit
     while !still, ContinuousClock.now < end {
         // test-wait: a photo, not a check; two display frames for the next one to draw before comparing
         try await Task.sleep(for: .milliseconds(33))
         let now = draw(preview)
-        still = ready() && pixels(now) == pixels(last)
+        still = ready() && !animating(window.layer) && pixels(now) == pixels(last)
         last = now
     }
     return try XCTUnwrap(draw(UIGraphicsImageRenderer(bounds: window.bounds)).pngData())
