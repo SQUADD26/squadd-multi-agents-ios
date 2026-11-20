@@ -263,7 +263,7 @@ class SquaddRoomPhotoTestCase: XCTestCase {
     }
 
     /// The photo folder, with the recorded room answering through `URLSession.shared`; skips outside photo runs.
-    func photoDir() throws -> URL {
+    func photoDir(bots: String = "room-bots.json") throws -> URL {
         let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
         try XCTSkipIf(path == nil, "Only for photo runs")
         let dir = URL(fileURLWithPath: path!)
@@ -272,7 +272,7 @@ class SquaddRoomPhotoTestCase: XCTestCase {
         SquaddHTTPFixture.handler = { request in
             let path = request.url?.path ?? ""
             Self.served.append(path)
-            if path == "/api/bots" { return (200, Self.fixture("room-bots.json")) }
+            if path == "/api/bots" { return (200, Self.fixture(bots)) }
             // A busy room queues a send (`room-send-queued.json`, recorded).
             if request.httpMethod == "POST", path.hasSuffix("/messages") { return (202, Self.fixture("room-send-queued.json")) }
             if path.hasSuffix("/messages") { return (200, Self.fixture("room-messages.json")) }
@@ -402,5 +402,52 @@ final class SquaddRoomQueuePhotoTests: SquaddRoomPhotoTestCase {
         }, dir: dir) {
             continuity.model?.queuedPromptMessages.isEmpty == false
         }
+    }
+}
+
+/// The home lists what the desktop lists (`bots-roberto.json`: Roberto's eleven agents and six channels):
+/// the lead agent first, and no thread still on its factory title, which has no message yet.
+@MainActor
+final class SquaddHomeListTests: XCTestCase {
+    override func tearDown() {
+        SquaddChatFixture.reset()
+        super.tearDown()
+    }
+
+    func testLeadAgentFirstAndNoUntitledThreads() async throws {
+        SquaddChatFixture.handler = { _ in .reply(200, SquaddRoomPhotoTestCase.fixture("bots-roberto.json")) }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [SquaddChatFixture.self]
+        let client = SquaddCompanionClient(server: URL(string: "http://192.0.2.10:8811")!, token: "device-token",
+                                           session: URLSession(configuration: configuration))
+        let model = SquaddAgentListModel(client: client, onUnpaired: {})
+
+        await model.load()
+
+        guard case .loaded(let sections) = model.phase else { return XCTFail("the agents load") }
+        XCTAssertEqual(sections.first?.name, "Friday", "the lead agent heads Direct Messages")
+        XCTAssertEqual(sections.dropFirst().first?.name, "Copywriter", "the others keep the computer's order")
+        let titles = sections.flatMap { $0.threads + $0.folders.flatMap(\.threads) + $0.archived }.map(\.title)
+            + model.rooms.flatMap(\.threads).map(\.title)
+        XCTAssertFalse(titles.contains { $0 == "New thread" || $0 == "New task" || $0 == nil }, "no row reads New thread")
+        XCTAssertTrue(titles.contains("Problems to look at"))
+    }
+}
+
+/// The home with Roberto's agents and channels (`FOTO_DIR`): Channels, then Direct Messages, at the default
+/// text size and at the largest accessibility size, where no name breaks inside a word.
+final class SquaddHomeListPhotoTests: SquaddRoomPhotoTestCase {
+    func testPhotoHomeList() async throws {
+        let dir = try photoDir(bots: "bots-roberto.json")
+        let manager = try manager()
+        for (name, size) in [("l1-home-default", DynamicTypeSize.large), ("l2-home-ax5", .accessibility5)] {
+            Self.served = []
+            try await shoot(name, SquaddServerHome(authManager: manager, server: server, pendingThread: .constant(nil))
+                .environment(\.dynamicTypeSize, size), dir: dir) { Self.served.contains("/api/bots") }
+        }
+        Self.served = []
+        try await shoot("l3-home-agent-open", SquaddServerHome(authManager: manager, server: server, pendingThread: .constant(nil),
+                                                               start: .showArchived),
+                        dir: dir) { Self.served.contains("/api/bots") }
     }
 }

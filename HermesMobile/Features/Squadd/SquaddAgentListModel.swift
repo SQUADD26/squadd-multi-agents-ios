@@ -30,6 +30,8 @@ struct SquaddAgentSection: Identifiable, Equatable {
     let unreadThreadIDs: Set<String>
     /// The agent as the companion sent it, for its avatar and its editor.
     let bot: SquaddBot
+    /// The agent or one of its threads waits to be read.
+    var isUnread: Bool { bot.unread == true || !unreadThreadIDs.isEmpty }
 
     init(bot: SquaddBot) {
         self.bot = bot
@@ -40,13 +42,21 @@ struct SquaddAgentSection: Identifiable, Equatable {
         subtitle = Self.nonEmpty(bot.title)
         isBusy = bot.busy == true
         let layout = bot.desktopLayout
-        threads = layout.loose.map(Self.row)
+        threads = layout.loose.filter(Self.isShown).map(Self.row)
         folders = layout.folders.map { folder in
-            Folder(id: folder.project.id, name: folder.project.name, emoji: folder.project.emoji, threads: folder.tasks.map(Self.row),
+            Folder(id: folder.project.id, name: folder.project.name, emoji: folder.project.emoji,
+                   threads: folder.tasks.filter(Self.isShown).map(Self.row),
                    canMoveUp: bot.projects(movingFolder: folder.project.id, by: -1) != nil,
                    canMoveDown: bot.projects(movingFolder: folder.project.id, by: 1) != nil)
         }
-        archived = SquaddTask.desktopOrder(bot.tasks).filter(\.isArchived).map(Self.row)
+        archived = SquaddTask.desktopOrder(bot.tasks).filter { $0.isArchived && Self.isShown($0) }.map(Self.row)
+    }
+
+    /// The companion titles a thread from its first message, so one still on its factory title has none
+    /// yet: the desktop leaves it out (`abandonedEmpty`), and the agent's row opens the agent's own one.
+    static func isShown(_ task: SquaddTask) -> Bool {
+        let title = task.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return !title.isEmpty && title != "New thread" && title != "New task"
     }
 
     private static func row(_ task: SquaddTask) -> SessionSummary {
@@ -68,6 +78,8 @@ struct SquaddAgentSection: Identifiable, Equatable {
 /// first as the desktop lists them, with the members `@` reaches in each.
 struct SquaddRoomSection: Identifiable, Equatable {
     let id: String
+    /// The room's current conversation, which its row opens as the desktop does.
+    let threadID: String?
     let name: String
     let isBusy: Bool
     let threads: [SessionSummary]
@@ -76,10 +88,11 @@ struct SquaddRoomSection: Identifiable, Equatable {
 
     init(room: SquaddRoom, bots: [SquaddBot]) {
         id = room.id
+        threadID = room.threadId
         let name = room.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         self.name = name.isEmpty ? String(localized: "Unnamed Group Chat") : name
         isBusy = room.working == true
-        let tasks = SquaddTask.desktopOrder(room.tasks).filter { !$0.isArchived }
+        let tasks = SquaddTask.desktopOrder(room.tasks).filter { !$0.isArchived && SquaddAgentSection.isShown($0) }
         threads = tasks.map {
             SessionSummary(sessionId: $0.threadId, title: $0.title, updatedAt: $0.updatedAt.map { $0 / 1000 },
                            pinned: $0.pinned, isStreaming: $0.busy)
@@ -313,14 +326,15 @@ final class SquaddAgentListModel {
     }
 
     /// A new, empty conversation at the top of the room; waits for the computer's answer.
-    func createRoomThread(_ roomId: String) async -> Bool {
+    /// A new conversation in the room, which becomes its current one; its thread id, or nil when the computer refused it.
+    func createRoomThread(_ roomId: String) async -> String? {
         do {
             let room = try await client.createRoomTask(roomId)
-            editRoom(roomId) { $0.tasks = room.tasks }
-            return true
+            editRoom(roomId) { $0 = room }
+            return room.threadId
         } catch {
             _ = handled(error)
-            return false
+            return nil
         }
     }
 
@@ -400,7 +414,9 @@ final class SquaddAgentListModel {
 
     private func publish() {
         rooms = roomList.map { SquaddRoomSection(room: $0, bots: bots) }
-        let sections = bots.map(SquaddAgentSection.init(bot:))
+        // The lead agent first, as the desktop's Direct Messages list it; the rest keep the companion's order.
+        let all = bots.map(SquaddAgentSection.init(bot:))
+        let sections = all.filter { $0.bot.chiefOfStaff == true } + all.filter { $0.bot.chiefOfStaff != true }
         phase = .loaded(sections)
         guard !isShowingCache else { return }
         widgets.publish(sections, squaddServer: client.server)

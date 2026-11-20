@@ -68,6 +68,8 @@ struct SquaddServerHome: View {
     @State private var deleting: SquaddThreadRef?
     @State private var exported: SessionExportShareItem?
     @State private var expandedArchives: Set<String> = []
+    /// The agents (by id) and channels (by `headerRowID`) showing their threads.
+    @State private var expanded: Set<String> = []
     @State private var toast = ActionToastState()
     /// The agent a New Folder alert is naming a folder for.
     @State private var namingFolderFor: String?
@@ -113,6 +115,8 @@ struct SquaddServerHome: View {
                 .toolbar(.hidden, for: .navigationBar)
                 .onChange(of: model?.phase) { openPendingThread(proxy); offerShare() }
                 .onChange(of: pendingThread) { openPendingThread(proxy) }
+                // Back from a chat: a first message has titled its thread on the computer.
+                .onChange(of: path.isEmpty) { _, isHome in if isHome { Task { await model?.load() } } }
                 // The computer answered again after an offline copy: the route row looks again too.
                 .onChange(of: model?.isShowingCache) { was, now in
                     if was == true, now == false, finder?.route == nil { Task { await finder?.find() } }
@@ -404,12 +408,59 @@ struct SquaddServerHome: View {
                 .sessionsScreenListRow()
             newAgentButton
         case .loaded(let sections):
-            newAgentButton
+            let rooms = model?.rooms ?? []
+            if !rooms.isEmpty {
+                SquaddListSectionTitle(title: "Channels")
+                ForEach(rooms) { room in
+                    SquaddRoomRow(room: room, isExpanded: expanded.contains(room.headerRowID),
+                                  chat: room.threadID.map { roomChat(room, threadID: $0) }) {
+                        toggle(room.headerRowID)
+                    } newThread: {
+                        newThread(in: room)
+                    } rename: {
+                        newRoomName = room.name
+                        renamingRoom = room
+                    } delete: {
+                        deletingRoom = room
+                    }
+                    .id(room.headerRowID)
+                    .sessionsScreenListRow()
+                    if expanded.contains(room.headerRowID) {
+                        SquaddNewThreadRow { newThread(in: room) }
+                        ForEach(room.threads) { thread in
+                            NavigationLink(value: SquaddThreadChat(room: room, thread: thread, server: server, token: token)) {
+                                SessionRowView(session: thread, showsMessageCount: false, showsWorkspace: false,
+                                               isUnread: room.unreadThreadIDs.contains(thread.id))
+                            }
+                            .buttonStyle(.plain)
+                            .id(thread.id)
+                            .padding(.leading, 28)
+                            .padding(.trailing, 12)
+                            .sessionsScreenListRow()
+                        }
+                    }
+                }
+            }
+            SquaddListSectionTitle(title: "Direct Messages") {
+                Button { isCreatingAgent = true } label: {
+                    Image(systemName: "plus")
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .disabled(client == nil)
+                .accessibilityLabel("New Agent")
+            }
             ForEach(sections) { section in
-                SquaddAgentHeader(section: section, client: client) {
+                SquaddAgentRow(section: section, client: client, isExpanded: expanded.contains(section.id),
+                               chat: section.threadID.map {
+                                   SquaddThreadChat(server: server, token: token, botId: section.id, threadId: $0,
+                                                    title: section.name, botName: section.name)
+                               }) {
+                    toggle(section.id)
+                } edit: {
                     editingAgent = section.bot
                 } newThread: {
-                    Task { await run { await $0.createThread(botId: section.id) != nil } }
+                    newThread(for: section)
                 } newFolder: {
                     newFolderName = ""
                     namingFolderFor = section.id
@@ -417,53 +468,60 @@ struct SquaddServerHome: View {
                 .background(linkedMark(section.headerRowID))
                 .id(section.headerRowID)
                 .sessionsScreenListRow()
-                ForEach(section.folders) { folder in
-                    folderHeader(folder, in: section)
-                    ForEach(folder.threads) { thread in
+                if expanded.contains(section.id) {
+                    SquaddNewThreadRow(edit: { editingAgent = section.bot }) { newThread(for: section) }
+                    ForEach(section.folders) { folder in
+                        folderHeader(folder, in: section)
+                        ForEach(folder.threads) { thread in
+                            threadRow(thread, in: section)
+                        }
+                    }
+                    ForEach(section.threads) { thread in
                         threadRow(thread, in: section)
                     }
-                }
-                if section.threads.isEmpty && section.folders.allSatisfy(\.threads.isEmpty) {
-                    Text("No threads yet")
-                        .font(AppFont.subheadline())
-                        .foregroundStyle(.appSecondary)
-                        .padding(.horizontal, 24)
-                        .sessionsScreenListRow()
-                }
-                ForEach(section.threads) { thread in
-                    threadRow(thread, in: section)
-                }
-                if !section.archived.isEmpty {
-                    archiveToggle(section)
-                    if expandedArchives.contains(section.id) {
-                        ForEach(section.archived) { thread in
-                            threadRow(thread, in: section)
+                    if !section.archived.isEmpty {
+                        archiveToggle(section)
+                        if expandedArchives.contains(section.id) {
+                            ForEach(section.archived) { thread in
+                                threadRow(thread, in: section)
+                            }
                         }
                     }
                 }
             }
-            ForEach(model?.rooms ?? []) { room in
-                SquaddRoomHeader(room: room) {
-                    Task { await run { await $0.createRoomThread(room.id) } }
-                } rename: {
-                    newRoomName = room.name
-                    renamingRoom = room
-                } delete: {
-                    deletingRoom = room
-                }
-                .id(room.headerRowID)
-                .sessionsScreenListRow()
-                ForEach(room.threads) { thread in
-                    NavigationLink(value: SquaddThreadChat(room: room, thread: thread, server: server, token: token)) {
-                        SessionRowView(session: thread, showsMessageCount: false, showsWorkspace: false,
-                                       isUnread: room.unreadThreadIDs.contains(thread.id))
-                    }
-                    .buttonStyle(.plain)
-                    .id(thread.id)
-                    .padding(.horizontal, 12)
-                    .sessionsScreenListRow()
-                }
+        }
+    }
+
+    private func toggle(_ id: String) {
+        withAnimation(SessionListMotion.disclosureAnimation(reduceMotion: reduceMotion)) {
+            if expanded.contains(id) { expanded.remove(id) } else { expanded.insert(id) }
+        }
+    }
+
+    private func roomChat(_ room: SquaddRoomSection, threadID: String) -> SquaddThreadChat {
+        SquaddThreadChat(room: room, thread: room.threads.first { $0.id == threadID } ?? SessionSummary(sessionId: threadID, title: room.name),
+                         server: server, token: token)
+    }
+
+    private func newThread(in room: SquaddRoomSection) {
+        Task {
+            guard let threadID = await model?.createRoomThread(room.id) else {
+                toast.show(.failure(String(localized: "Couldn’t start a thread on the computer.")))
+                return
             }
+            path = [roomChat(room, threadID: threadID)]
+        }
+    }
+
+    /// A new thread opens at once: an untitled one has no row until its first message titles it.
+    private func newThread(for section: SquaddAgentSection) {
+        Task {
+            guard let task = await model?.createThread(botId: section.id) else {
+                toast.show(.failure(String(localized: "Couldn’t start a thread on the computer.")))
+                return
+            }
+            path = [SquaddThreadChat(server: server, token: token, botId: section.id, threadId: task.threadId,
+                                     title: section.name, botName: section.name)]
         }
     }
 
@@ -477,7 +535,8 @@ struct SquaddServerHome: View {
             .background(linkedMark(thread.id))
             .accessibilityAddTraits(linkedRow == thread.id ? .isSelected : [])
             .id(thread.id)
-            .padding(.horizontal, 12)
+            .padding(.leading, 28)
+            .padding(.trailing, 12)
             .contextMenu { SquaddThreadMenu(thread: ref, folders: section.folders, act: act) }
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                 if thread.archived != true {
@@ -518,7 +577,8 @@ struct SquaddServerHome: View {
                 .font(AppFont.caption())
                 .foregroundStyle(.appSecondary)
         }
-        .padding(.horizontal, 24)
+        .padding(.leading, 40)
+        .padding(.trailing, 24)
         .padding(.top, 10)
         .padding(.bottom, 2)
         .contentShape(Rectangle())
@@ -552,7 +612,8 @@ struct SquaddServerHome: View {
             }
             .font(AppFont.subheadline())
             .foregroundStyle(.appSecondary)
-            .padding(.horizontal, 24)
+            .padding(.leading, 40)
+            .padding(.trailing, 24)
             .padding(.vertical, 8)
             .contentShape(Rectangle())
         }
@@ -616,6 +677,7 @@ struct SquaddServerHome: View {
             searchText = text
         case .showArchived:
             expandedArchives = Set(sections.map(\.id))
+            expanded = Set(sections.map(\.id))
         case .newFolder:
             newFolderName = ""
             namingFolderFor = sections.first?.id
@@ -662,6 +724,7 @@ struct SquaddServerHome: View {
               case .loaded(let sections) = model?.phase else { return }
         pendingThread = nil
         if let chat = link.roomChat(in: model?.rooms ?? [], server: server, token: token) {
+            if let room = model?.rooms.first(where: { $0.id == chat.botId }) { expanded.insert(room.headerRowID) }
             withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(link.threadID, anchor: .center) }
             path = [chat]
             return
@@ -673,6 +736,9 @@ struct SquaddServerHome: View {
         }
         linkedRow = row
         if let section = sections.first(where: { $0.archived.contains { $0.id == row } }) { expandedArchives.insert(section.id) }
+        if let section = sections.first(where: { ($0.threads + $0.folders.flatMap(\.threads) + $0.archived).contains { $0.id == row } }) {
+            expanded.insert(section.id)
+        }
         withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(row, anchor: .center) }
         if let section = sections.first(where: { section in
             section.threadID == link.threadID || (section.threads + section.archived).contains { $0.id == link.threadID }
@@ -759,61 +825,136 @@ struct SquaddServerHome: View {
     }
 }
 
-/// An agent's name over its threads, set like the Sessions list's own title row.
-/// Tapping it opens the agent's editor.
-private struct SquaddAgentHeader: View {
+/// A list section's title, as the desktop sidebar sets Channels and Direct Messages, with an optional action.
+struct SquaddListSectionTitle<Action: View>: View {
+    let title: LocalizedStringKey
+    @ViewBuilder var action: () -> Action
+
+    var body: some View {
+        HStack {
+            Text(title)
+                .font(AppFont.subheadline(weight: .semibold))
+                .foregroundStyle(.appSecondary)
+                .accessibilityAddTraits(.isHeader)
+            Spacer()
+            action().foregroundStyle(.tint)
+        }
+        .frame(minHeight: 44)
+        .padding(.leading, 24)
+        .padding(.trailing, 14)
+        .padding(.top, 16)
+    }
+}
+
+extension SquaddListSectionTitle where Action == EmptyView {
+    init(title: LocalizedStringKey) { self.init(title: title) { EmptyView() } }
+}
+
+/// The disclosure arrow that shows or hides a row's threads.
+struct SquaddThreadsToggle: View {
+    let isExpanded: Bool
+    let toggle: () -> Void
+
+    var body: some View {
+        Button(action: toggle) {
+            Image(systemName: "chevron.right")
+                .font(AppFont.footnote(weight: .semibold))
+                .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(.appSecondary)
+        .accessibilityLabel("Threads")
+        .accessibilityValue(isExpanded ? Text("Expanded") : Text("Collapsed"))
+    }
+}
+
+/// One agent under Direct Messages, one line as the desktop lists it: tapping it opens the agent's own
+/// chat, the arrow shows its threads, and its menu starts a thread or a folder or edits the agent.
+private struct SquaddAgentRow: View {
     let section: SquaddAgentSection
     let client: SquaddCompanionClient?
+    let isExpanded: Bool
+    /// The agent's own chat; nil opens the threads instead.
+    let chat: SquaddThreadChat?
+    let toggle: () -> Void
     let edit: () -> Void
     let newThread: () -> Void
     let newFolder: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
-            Button(action: edit) { identity }
-                .buttonStyle(.plain)
-                .accessibilityHint(Text("Edits the agent"))
-            if section.isBusy {
-                ProgressView()
-                    .controlSize(.small)
-                    .accessibilityLabel("Working")
+        HStack(spacing: 4) {
+            if let chat {
+                NavigationLink(value: chat) { identity }.buttonStyle(.plain)
+            } else {
+                Button(action: toggle) { identity }.buttonStyle(.plain)
             }
-            Menu {
-                Button(action: newThread) { Label("New Thread", systemImage: "square.and.pencil") }
-                Button(action: newFolder) { Label("New Folder", systemImage: "folder.badge.plus") }
-            } label: {
-                Image(systemName: "plus")
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
-            }
-            .foregroundStyle(.tint)
-            .accessibilityLabel(Text("New Thread for \(section.name)"))
+            SquaddThreadsToggle(isExpanded: isExpanded, toggle: toggle)
         }
         .padding(.leading, 24)
-        .padding(.trailing, 14)
-        .padding(.top, 20)
-        .padding(.bottom, 4)
+        .padding(.trailing, 6)
+        .contextMenu {
+            Button(action: newThread) { Label("New Thread", systemImage: "square.and.pencil") }
+            Button(action: newFolder) { Label("New Folder", systemImage: "folder.badge.plus") }
+            Button(action: edit) { Label("Edit Agent", systemImage: "slider.horizontal.3") }
+        }
         .accessibilityElement(children: .contain)
     }
 
     private var identity: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 10) {
             if let client {
                 SquaddAgentAvatar(client: client, path: section.bot.avatarUrl, name: section.name)
             }
-            Text(section.name)
-                .font(AppFont.title3().bold())
-                .foregroundStyle(.appPrimary)
-            if let subtitle = section.subtitle {
-                Text(subtitle)
-                    .font(AppFont.subheadline())
-                    .foregroundStyle(.appSecondary)
+            SquaddRowName(name: section.name, isUnread: section.isUnread)
+            if section.bot.chiefOfStaff == true {
+                Image(systemName: "crown")
+                    .font(AppFont.caption())
+                    .foregroundStyle(.tint)
+                    .accessibilityHidden(true)
             }
-            Spacer()
+            Spacer(minLength: 4)
+            SquaddRowStatus(isBusy: section.isBusy, isUnread: section.isUnread)
         }
+        .frame(minHeight: 44)
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// A row's name on one line, never broken inside a word: a long name at a large text size shrinks to fit.
+struct SquaddRowName: View {
+    let name: String
+    let isUnread: Bool
+
+    var body: some View {
+        Text(verbatim: name)
+            .font(AppFont.body(weight: isUnread ? .semibold : .regular))
+            .foregroundStyle(.appPrimary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.4)
+            .allowsTightening(true)
+    }
+}
+
+/// Working and unread marks at a row's end.
+struct SquaddRowStatus: View {
+    let isBusy: Bool
+    let isUnread: Bool
+
+    var body: some View {
+        if isBusy {
+            ProgressView()
+                .controlSize(.small)
+                .accessibilityLabel("Working")
+        }
+        if isUnread {
+            Circle()
+                .fill(.tint)
+                .frame(width: 8, height: 8)
+                .accessibilityLabel("Unread")
+        }
     }
 }
 
