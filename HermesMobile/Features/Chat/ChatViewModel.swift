@@ -756,8 +756,9 @@ final class ChatViewModel {
     private let turn: any ChatTurnCoordinating
     /// Set on a Hermes session: its turns run here, and webui-only paths stay off.
     private let hermesTurn: HermesChatTurnCoordinator?
-    /// A Squadd thread's turns (#11). Nothing in such a chat reaches the webui API.
-    private let squaddTurn: SquaddChatTurnCoordinator?
+    /// A Squadd thread's turns (#11). Nothing in such a chat reaches the webui API. Its rows'
+    /// versions and reactions (#19) are read from here.
+    let squaddTurn: SquaddChatTurnCoordinator?
     private let drafts: ChatDraftStore
     private let pendingActionCoordinator: ChatPendingActionCoordinator
     private let attachmentCoordinator: ChatAttachmentCoordinator
@@ -2553,10 +2554,13 @@ final class ChatViewModel {
             message: message,
             visibleIndex: visibleIndex,
             messagesOffset: messagesOffset,
+            // A Squadd thread edits a stored typed message into a new version (#19) and regenerates nothing.
             offersHistoryActions: hermesTurn.map { $0.policy.offersHistoryActions && hermesRewindableMessageIDs.contains(message.id) }
+                ?? squaddTurn.map { message.role == "user" && $0.storedID(ofRow: message.id) != nil }
                 ?? true,
             // A Hermes branch counts to a row the host saved (#1051). A Bot Chat offers neither (#1145).
-            offersFork: hermesTurn.map { $0.policy.offersHistoryActions && message.rowID != nil } ?? true
+            offersFork: hermesTurn.map { $0.policy.offersHistoryActions && message.rowID != nil }
+                ?? (squaddTurn == nil)
         )
     }
 
@@ -6347,6 +6351,24 @@ final class ChatViewModel {
             return edited
         }
 
+        if let squaddTurn {
+            let text = newText.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else {
+                messageActionErrorMessage = String(localized: "The edited message cannot be empty.")
+                return false
+            }
+            isEditingMessage = true
+            messageActionErrorMessage = nil
+            defer { isEditingMessage = false }
+            do {
+                try await squaddTurn.edit(rowID: context.messageID, to: text)
+                return true
+            } catch {
+                messageActionErrorMessage = SquaddChatTurnCoordinator.failureMessage(error)
+                return false
+            }
+        }
+
         guard let sessionID else {
             messageActionErrorMessage = String(localized: "The server did not provide a session ID.")
             return false
@@ -9958,6 +9980,10 @@ extension ChatViewModel: SquaddChatTurnDelegate {
         self.messages = messages.filter { $0.messageId.map(shown.contains) != true } + self.messages
         transcriptRevision &+= 1
         hasOlderMessages = hasOlder
+    }
+
+    func squaddActionDidFail(_ message: String) {
+        messageActionErrorMessage = message
     }
 
     func squaddConnectionDidChange(failure: String?) {

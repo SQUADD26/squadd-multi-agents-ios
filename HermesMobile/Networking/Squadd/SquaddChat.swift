@@ -14,6 +14,13 @@ struct SquaddMessage: Decodable, Equatable {
     let itemId: String?
     /// The client's own id for a send, echoed on the stored user row.
     let sendId: String?
+    /// The message this one follows; nil at the thread's root. An edit is a second user row
+    /// under the same parent: the versions of that message.
+    let parentId: String?
+    /// One per person: `by` is "user" on a computer one person uses.
+    let reactions: [SquaddReaction]
+    /// Set on the user line a 👍 or 👎 made in place of typing: shown on the message it answers, never as a bubble.
+    let reaction: String?
     /// Files the computer attached to the row itself, such as a bot's voice note (#23). A person's
     /// files ride in `text` as tags (`SquaddAttachmentTags`).
     let attachments: [Attachment]
@@ -27,10 +34,11 @@ struct SquaddMessage: Decodable, Equatable {
         let bytes: Int?
     }
 
-    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, attachments }
+    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, parentId, reactions, reaction, attachments }
 
     init(id: String, role: String?, kind: String? = "text", text: String?, at: Double? = nil,
-         itemId: String? = nil, sendId: String? = nil, attachments: [Attachment] = []) {
+         itemId: String? = nil, sendId: String? = nil, parentId: String? = nil, reactions: [SquaddReaction] = [],
+         reaction: String? = nil, attachments: [Attachment] = []) {
         self.id = id
         self.role = role
         self.kind = kind
@@ -38,6 +46,9 @@ struct SquaddMessage: Decodable, Equatable {
         self.at = at
         self.itemId = itemId
         self.sendId = sendId
+        self.parentId = parentId
+        self.reactions = reactions
+        self.reaction = reaction
         self.attachments = attachments
     }
 
@@ -50,16 +61,23 @@ struct SquaddMessage: Decodable, Equatable {
         at = try? container.decodeIfPresent(Double.self, forKey: .at)
         itemId = try? container.decodeIfPresent(String.self, forKey: .itemId)
         sendId = try? container.decodeIfPresent(String.self, forKey: .sendId)
+        parentId = try? container.decodeIfPresent(String.self, forKey: .parentId)
+        reactions = (try? container.decodeIfPresent([SquaddLossy<SquaddReaction>].self, forKey: .reactions))?
+            .compactMap(\.value) ?? []
+        reaction = try? container.decodeIfPresent(String.self, forKey: .reaction)
         attachments = (try? container.decodeIfPresent([SquaddLossy<Attachment>].self, forKey: .attachments))?
             .compactMap(\.value) ?? []
     }
+
+    /// A version of a typed message: the rows an edit puts side by side.
+    var isTypedUserText: Bool { role == "user" && (kind == nil || kind == "text") }
 
     /// The transcript row the chat draws, or nil for rows the v1 chat doesn't show: tool steps,
     /// turn digests, screens, compaction markers and the other cards their own tickets bring.
     /// `options` (a question card) shows its words until the card has its own view.
     /// A row's files show as its attachments, the tags they rode in taken out of its words.
     var chatMessage: ChatMessage? {
-        guard kind == nil || kind == "text" || kind == "options" else { return nil }
+        guard kind == nil || kind == "text" || kind == "options", reaction == nil else { return nil }
         let parsed = SquaddAttachmentTags.parse(text ?? "")
         let files = parsed.files.map { MessageAttachment(name: $0.name, path: $0.path, isImage: $0.isImage) }
             + attachments.map { MessageAttachment(name: $0.name, path: $0.path, mime: $0.mime, size: $0.bytes,
@@ -70,22 +88,34 @@ struct SquaddMessage: Decodable, Equatable {
     }
 }
 
-/// `GET /api/threads/:id/messages`: a page, oldest first; `hasMore` when older rows remain.
+/// One person's reaction on a message (`REACTIONS` in `phone-protocol/src/reactions.ts`).
+struct SquaddReaction: Decodable, Equatable {
+    let emoji: String
+    let by: String
+
+    /// Every reaction the computer accepts, in the order its clients offer them.
+    static let all = ["👍", "👎", "❤️", "😂", "🎉", "👀"]
+}
+
+/// `GET /api/threads/:id/messages`: a page, oldest first; `hasMore` when older rows remain. The page
+/// holds every version an edit made; `activeLeafId` is the newest row of the one the thread shows.
 struct SquaddMessagePage: Decodable, Equatable {
     let messages: [SquaddMessage]
     let hasMore: Bool
+    let activeLeafId: String?
 
-    private enum CodingKeys: String, CodingKey { case messages, hasMore }
+    private enum CodingKeys: String, CodingKey { case messages, hasMore, activeLeafId }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         messages = (try? container.decodeIfPresent([SquaddLossy<SquaddMessage>].self, forKey: .messages))?
             .compactMap(\.value) ?? []
         hasMore = (try? container.decodeIfPresent(Bool.self, forKey: .hasMore)) ?? false
+        activeLeafId = try? container.decodeIfPresent(String.self, forKey: .activeLeafId)
     }
 }
 
-/// `POST /api/bots/:id/messages`'s 202: the stored user row, or a queue slot when the bot was busy.
+/// `POST /api/bots/:id/messages`'s 202 (and an edit's): the stored user row, or a queue slot when the bot was busy.
 struct SquaddSendReceipt: Decodable {
     let threadId: String?
     let message: SquaddMessage?
@@ -99,6 +129,8 @@ enum SquaddFrame: Equatable {
     case hello(cursor: String, resumed: Bool)
     /// A row was stored or changed.
     case message(threadId: String, message: SquaddMessage)
+    /// The thread now shows another version: an edit, or a version picked on any device.
+    case activeBranch(threadId: String)
     case turnStarted(threadId: String)
     /// A piece of the reply's text as it is written.
     case replyDelta(threadId: String, itemId: String?, text: String)
@@ -116,6 +148,9 @@ enum SquaddFrame: Equatable {
         case "message", "message.patch":
             guard let threadId = frame.threadId, let message = frame.message?.value else { return .ignored }
             return .message(threadId: threadId, message: message)
+        case "thread":
+            guard let threadId = frame.threadId else { return .ignored }
+            return .activeBranch(threadId: threadId)
         case "runtime":
             guard let event = frame.event, let threadId = event.threadId else { return .ignored }
             switch event.type {
@@ -201,13 +236,37 @@ extension SquaddCompanionClient {
     /// `mode` "goal" starts a goal with `text` (`SquaddSlashCommands.outgoing`). The reply comes
     /// over `events`, not here.
     func send(_ text: String, botId: String, threadId: String, sendId: String, mode: String? = nil) async throws -> SquaddSendReceipt {
-        var request = authorized("api/bots/\(botId)/messages")
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         var body = ["text": text, "threadId": threadId, "sendId": sendId]
         if let mode { body["mode"] = mode }
+        return try await post("api/bots/\(botId)/messages", body)
+    }
+
+    /// Sends `text` as a new version of the stored user message `messageId`: the thread moves to it
+    /// and the agent answers it, while the old version stays one swipe of the version picker away.
+    func edit(messageId: String, to text: String, botId: String, threadId: String, sendId: String) async throws -> SquaddSendReceipt {
+        try await post("api/bots/\(botId)/messages/\(messageId)/edit", ["text": text, "threadId": threadId, "sendId": sendId])
+    }
+
+    /// Shows the version of the conversation through `messageId`, down to its newest row.
+    func showBranch(through messageId: String, botId: String, threadId: String) async throws {
+        let _: SquaddActiveBranch = try await post("api/bots/\(botId)/active-branch", ["messageId": messageId, "threadId": threadId])
+    }
+
+    /// Puts this person's `emoji` on a message (`on`) or takes it off. Returns the message as saved.
+    func react(_ emoji: String, on: Bool, messageId: String, threadId: String) async throws -> SquaddMessage {
+        var request = authorized("api/threads/\(threadId)/messages/\(messageId)/reactions")
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONSerialization.data(withJSONObject: ["emoji": emoji, "on": on])
+        return try JSONDecoder().decode(SquaddReactionReply.self, from: await Self.send(request, session: session)).message
+    }
+
+    private func post<Reply: Decodable>(_ path: String, _ body: [String: String]) async throws -> Reply {
+        var request = authorized(path)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(body)
-        return try JSONDecoder().decode(SquaddSendReceipt.self, from: await Self.send(request, session: session))
+        return try JSONDecoder().decode(Reply.self, from: await Self.send(request, session: session))
     }
 
     /// The computer's live event stream, one frame per element with its `id:` (the cursor a
@@ -253,6 +312,9 @@ extension SquaddCompanionClient {
         return request
     }
 }
+
+private struct SquaddActiveBranch: Decodable { let activeLeafId: String? }
+private struct SquaddReactionReply: Decodable { let message: SquaddMessage }
 
 // MARK: - Attachments (#23)
 
