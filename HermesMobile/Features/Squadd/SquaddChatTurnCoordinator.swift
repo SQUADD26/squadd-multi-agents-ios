@@ -728,10 +728,11 @@ final class SquaddChatTurnCoordinator {
             // A reconnect whose frames were lost: what they carried is in the stored transcript.
             else if !resumed, isResuming, hasLoaded {
                 // The turn may still run or may have ended unseen: close it quietly, and a reply
-                // that goes on rejoins as working. The Lock Screen card stays (and keeps its timer)
-                // until a turn's end says so; one that ended unseen goes stale after 15 minutes.
+                // that goes on rejoins as working. The Lock Screen card stays, and keeps its timer,
+                // unless the stored transcript shows the turn ended.
                 finish(nil)
                 await reload()
+                if activeStreamID == nil, Self.lastTurnEnded(pageMessages) { liveActivities?.end(botId: chat.botId) }
             }
         case .turnStarted(let threadId, let turnId) where threadId == chat.threadId:
             beginTurn()
@@ -789,6 +790,12 @@ final class SquaddChatTurnCoordinator {
         default:
             break
         }
+    }
+
+    /// Whether a reply after the newest message the person sent closed its turn.
+    private static func lastTurnEnded(_ messages: [SquaddMessage]) -> Bool {
+        let start = messages.lastIndex { $0.role == "user" }.map { $0 + 1 } ?? 0
+        return messages[start...].contains { $0.turnTerminal == true }
     }
 
     private func showActivity(ask: String?) {

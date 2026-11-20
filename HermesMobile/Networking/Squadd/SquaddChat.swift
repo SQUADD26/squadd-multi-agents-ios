@@ -30,6 +30,8 @@ struct SquaddMessage: Decodable, Equatable {
     let attachments: [Attachment]
     /// An `options` row's card: an approval or a question the agent waits on (#14, #15).
     let card: SquaddCard?
+    /// A bot reply that closed its turn.
+    let turnTerminal: Bool?
 
     struct Author: Decodable, Equatable {
         let botId: String?
@@ -45,13 +47,13 @@ struct SquaddMessage: Decodable, Equatable {
         let bytes: Int?
     }
 
-    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, from, parentId, reactions, reaction, attachments, compaction, card }
+    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, from, parentId, reactions, reaction, attachments, compaction, card, turnTerminal }
     private struct Compaction: Decodable { let summary: String? }
 
     init(id: String, role: String?, kind: String? = "text", text: String?, at: Double? = nil,
          itemId: String? = nil, sendId: String? = nil, from: Author? = nil, parentId: String? = nil,
          reactions: [SquaddReaction] = [], reaction: String? = nil, attachments: [Attachment] = [],
-         card: SquaddCard? = nil) {
+         card: SquaddCard? = nil, turnTerminal: Bool? = nil) {
         self.id = id
         self.role = role
         self.kind = kind
@@ -66,6 +68,7 @@ struct SquaddMessage: Decodable, Equatable {
         self.reaction = reaction
         self.attachments = attachments
         self.card = card
+        self.turnTerminal = turnTerminal
     }
 
     init(from decoder: Decoder) throws {
@@ -86,6 +89,7 @@ struct SquaddMessage: Decodable, Equatable {
             .compactMap(\.value) ?? []
         compactionSummary = (try? container.decodeIfPresent(Compaction.self, forKey: .compaction))?.summary
         card = try? container.decodeIfPresent(SquaddCard.self, forKey: .card)
+        turnTerminal = try? container.decodeIfPresent(Bool.self, forKey: .turnTerminal)
     }
 
     /// A version of a typed message: the rows an edit puts side by side.

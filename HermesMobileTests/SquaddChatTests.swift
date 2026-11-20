@@ -188,6 +188,36 @@ final class SquaddChatTests: XCTestCase {
         XCTAssertEqual(model.messages.filter { $0.content == reply }.count, 1)
     }
 
+    func testALostResumeAfterTheTurnEndedEndsTheLockScreenCard() async throws {
+        let cut = try Self.text("resume-cut.sse")
+        let stale = try Self.text("resume-stale.sse").replacingOccurrences(of: "5c85f42b:189", with: "5c85f42b:54")
+        let thread = resumeThread
+        var turnEnded = false
+        var opened = expectation(description: "the stream opens")
+        SquaddChatFixture.handler = { request in
+            switch request.url?.path {
+            case "/api/threads/\(thread)/messages":
+                return .reply(200, try! Self.fixture(turnEnded ? "resume-thread-after.json" : "resume-thread-before.json"))
+            default: return .hold
+            }
+        }
+        SquaddChatFixture.didHold = { if $0.url?.path == "/api/events" { opened.fulfill() } }
+        let activities = ActivityRecorder()
+        let (model, _) = makeChat(bot: resumeBot, thread: resumeThread, liveActivities: activities, reconnectDelay: { _ in })
+        await model.loadMessages()
+        await fulfillment(of: [opened], timeout: 5)
+        await waitUntil("the thread shows before the turn's frames come") { !model.messages.isEmpty }
+        opened = expectation(description: "the stream reopens on its own")
+        SquaddChatFixture.stream(Data(cut.utf8), finish: true)
+        await fulfillment(of: [opened], timeout: 5)
+
+        // The turn ended while its frames were lost: the stored transcript has its last reply.
+        turnEnded = true
+        SquaddChatFixture.stream(Data(stale.utf8))
+
+        await waitUntil("the stored reply ends the card") { activities.ended == [self.resumeBot] }
+    }
+
     func testRefusedSendGoesBackToTheComposerWithTheReason() async throws {
         let threadId = threadId
         SquaddChatFixture.handler = { request in
