@@ -1,0 +1,8 @@
+data: {"kind":"hello","cursor":"eb3044bd:93","resumed":false}
+
+id: eb3044bd:94
+data: {"kind":"message.patch","threadId":"77970d46-59b0-4ff8-9ed8-58cd35e34d83","message":{"id":"37e610cd-58f8-451e-896a-296d21de6646","at":1795145920183,"parentId":"3a1ba769-7652-48e2-9c61-767c20058076","role":"bot","kind":"text","text":"hello from fake claude","turnId":"c18874d1-a6a0-40e7-a245-390598ab01cc","itemId":"text-89213b46-547d-436c-b7a7-b4050ce0d0d2","requestMessageId":"3a1ba769-7652-48e2-9c61-767c20058076","turnTerminal":true,"turnCompletedAt":1795145920195,"turnSucceeded":true,"reactions":[{"emoji":"❤️","by":"user","at":1795145947173}]},"seq":94}
+
+id: eb3044bd:95
+data: {"kind":"message.patch","threadId":"77970d46-59b0-4ff8-9ed8-58cd35e34d83","message":{"id":"37e610cd-58f8-451e-896a-296d21de6646","at":1795145920183,"parentId":"3a1ba769-7652-48e2-9c61-767c20058076","role":"bot","kind":"text","text":"hello from fake claude","turnId":"c18874d1-a6a0-40e7-a245-390598ab01cc","itemId":"text-89213b46-547d-436c-b7a7-b4050ce0d0d2","requestMessageId":"3a1ba769-7652-48e2-9c61-767c20058076","turnTerminal":true,"turnCompletedAt":1795145920195,"turnSucceeded":true},"seq":95}
+
