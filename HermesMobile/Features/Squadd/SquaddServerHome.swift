@@ -7,12 +7,17 @@ struct SquaddRoute<Webui: View>: View {
     let server: URL
     /// A thread link waiting for this server's home (`SquaddThreadLink`).
     var pendingThread: Binding<SquaddThreadLink?> = .constant(nil)
+    /// A share from another app waiting for this server's home (#24).
+    var pendingShare: SharedImportReservation?
+    var didRouteShare: (SharedImportReservation) -> Void = { _ in }
+    var didDeclineShare: (SharedImportReservation) -> Void = { _ in }
     @ViewBuilder let webui: () -> Webui
 
     var body: some View {
         if authManager.kind(of: server) == .squadd {
             if case .loggedIn = authManager.state {
-                SquaddServerHome(authManager: authManager, server: server, pendingThread: pendingThread).id(server)
+                SquaddServerHome(authManager: authManager, server: server, pendingThread: pendingThread, pendingShare: pendingShare,
+                                 didRouteShare: didRouteShare, didDeclineShare: didDeclineShare).id(server)
             } else {
                 SquaddPairAgainView(authManager: authManager, server: server).id(server)
             }
@@ -31,6 +36,12 @@ struct SquaddServerHome: View {
     @Bindable var authManager: AuthManager
     let server: URL
     @Binding var pendingThread: SquaddThreadLink?
+    /// A share from another app (#24): the user picks an agent, and a new thread of that agent
+    /// opens with the share's words and files in its composer. It routes once the thread opens,
+    /// or when the user cancels; a thread the computer refused leaves it queued.
+    var pendingShare: SharedImportReservation?
+    var didRouteShare: (SharedImportReservation) -> Void = { _ in }
+    var didDeclineShare: (SharedImportReservation) -> Void = { _ in }
     /// What the home does once its agents first load; nil in the app. The photo runs use it to
     /// show the search and a thread's actions through the same handlers a tap reaches.
     var start: SquaddHomeStart?
@@ -67,8 +78,15 @@ struct SquaddServerHome: View {
     @State private var token = ""
     /// The open thread, so the keyboard's chat shortcuts know where they stand.
     @State private var path: [SquaddThreadChat] = []
+    @State private var isChoosingShareAgent = false
+    /// The share already offered: the agents reload while its thread opens, and it isn't asked again.
+    @State private var offeredShare: String?
+    /// The share the thread it opened shows in its composer.
+    @State private var openedShare: (chatID: String, share: SharedImport, notice: SharedSkipsNotice?)?
 
-    var body: some View {
+    /// The home's list and chats, and the agent picker a share from another app opens (#24).
+    /// Its own property, so the compiler checks `body` in reasonable time.
+    private var sharing: some View {
         NavigationStack(path: $path) {
             ScrollViewReader { proxy in
                 AppList(rows: .plain) {
@@ -91,15 +109,33 @@ struct SquaddServerHome: View {
                 }
                 .refreshable { await model?.load() }
                 .toolbar(.hidden, for: .navigationBar)
-                .onChange(of: model?.phase) { openPendingThread(proxy) }
+                .onChange(of: model?.phase) { openPendingThread(proxy); offerShare() }
                 .onChange(of: pendingThread) { openPendingThread(proxy) }
                 // The computer answered again after an offline copy: the route row looks again too.
                 .onChange(of: model?.isShowingCache) { was, now in
                     if was == true, now == false, finder?.route == nil { Task { await finder?.find() } }
                 }
             }
-            .navigationDestination(for: SquaddThreadChat.self) { ChatView(squaddThread: $0).id($0.id) }
+            .navigationDestination(for: SquaddThreadChat.self) { chat in
+                let share = openedShare?.chatID == chat.id ? openedShare : nil
+                ChatView(squaddThread: chat, share: share?.share, shareNotice: share?.notice).id(chat.id)
+            }
         }
+        .onChange(of: pendingShare?.reservationID, initial: true) { offerShare() }
+        .confirmationDialog("Send to an Agent", isPresented: $isChoosingShareAgent, titleVisibility: .visible) {
+            if case .loaded(let sections) = model?.phase {
+                ForEach(sections) { section in
+                    Button(section.name) { share(to: section.id) }
+                }
+            }
+            Button("Cancel", role: .cancel) { if let pendingShare { didRouteShare(pendingShare) } }
+        } message: {
+            Text("A new thread opens with what you shared in its composer.")
+        }
+    }
+
+    var body: some View {
+        sharing
         .focusedSceneValue(\.hermexSceneActions, sceneActions)
         .alert("Thread Not Found", isPresented: $isLinkedThreadMissing) {
             Button("OK", role: .cancel) {}
@@ -324,7 +360,7 @@ struct SquaddServerHome: View {
                 SquaddAgentHeader(section: section, client: client) {
                     editingAgent = section.bot
                 } newThread: {
-                    Task { await run { await $0.createThread(botId: section.id) } }
+                    Task { await run { await $0.createThread(botId: section.id) != nil } }
                 } newFolder: {
                     newFolderName = ""
                     namingFolderFor = section.id
@@ -541,6 +577,8 @@ struct SquaddServerHome: View {
                     return
                 }
             }
+        case .share(let agentName):
+            if let section = sections.first(where: { $0.name == agentName }) { share(to: section.id) }
         case .renameRoom:
             guard let room = model?.rooms.first else { return }
             newRoomName = room.name
@@ -587,6 +625,30 @@ struct SquaddServerHome: View {
         }) {
             let title = (section.threads + section.archived).first { $0.id == link.threadID }?.title ?? section.name
             path = [SquaddThreadChat(server: server, token: token, botId: section.id, threadId: link.threadID, title: title)]
+        }
+    }
+
+    /// Asks for the agent once this server's agents are loaded.
+    private func offerShare() {
+        guard let pendingShare, pendingShare.reservationID != offeredShare, case .loaded = model?.phase else { return }
+        offeredShare = pendingShare.reservationID
+        isChoosingShareAgent = true
+    }
+
+    /// Opens a new thread of `botId` holding the pending share in its composer.
+    private func share(to botId: String) {
+        guard let reservation = pendingShare, let model else { return }
+        offeredShare = reservation.reservationID
+        isChoosingShareAgent = false
+        Task {
+            guard let task = await model.createThread(botId: botId) else {
+                toast.show(.failure(String(localized: "Couldn’t start a thread on the computer.")))
+                return didDeclineShare(reservation)
+            }
+            let chat = SquaddThreadChat(server: server, token: token, botId: botId, threadId: task.threadId, title: task.title)
+            openedShare = (chat.id, reservation.sharedImport, SharedSkipsNotice(reservation.sharedImport.skipped))
+            path = [chat]
+            didRouteShare(reservation)
         }
     }
 
@@ -712,6 +774,8 @@ enum SquaddHomeStart {
     case renameRoom, deleteRoom
     /// The action on the first thread with this title.
     case act(SquaddThreadAction, threadTitle: String)
+    /// The pending share sent to the agent with this name, as its button in Send to an Agent does.
+    case share(agentName: String)
 }
 
 /// What a thread's menu and swipes ask the home to do.

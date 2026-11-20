@@ -141,6 +141,10 @@ final class SquaddChatTurnCoordinator {
     /// Every approval still waiting here, by stored message id: answered here, on the desktop or
     /// on another phone, its card's patch takes it out.
     @ObservationIgnored private var openApprovals: [String: SquaddMessage] = [:]
+    /// The rows of the last exchange on screen, from this person's last typed message on, which offer
+    /// Undo; and whether it can go: not when that message is the thread's first (#20).
+    private(set) var lastExchangeRowIDs: Set<String> = []
+    private(set) var canUndo = false
 
     @ObservationIgnored private weak var delegate: (any SquaddChatTurnDelegate)?
     @ObservationIgnored private let client: SquaddCompanionClient
@@ -403,9 +407,14 @@ final class SquaddChatTurnCoordinator {
         storedIDs = [:]
         forkableIDs = []
         newestForkableID = nil
+        var exchange: [String] = []
+        var lastTyped: SquaddMessage?
         for message in all where path?.contains(message.id) ?? true {
             let rowID = rowIDs[message.id] ?? message.id
             storedIDs[rowID] = message.id
+            // The companion undoes back to before the last typed message (`undo-exchange`).
+            if message.role == "user", message.kind == "text" { lastTyped = message; exchange = [] }
+            if lastTyped != nil { exchange.append(rowID) }
             // The companion forks from a typed message or a reply (`forkHistory` in `store-forks.ts`).
             if message.kind == "text", message.role == "user" || message.role == "bot" {
                 forkableIDs.insert(message.id)
@@ -424,6 +433,9 @@ final class SquaddChatTurnCoordinator {
             if !mark.isEmpty { marks[rowID] = mark }
         }
         if marks != self.marks { self.marks = marks }
+        if Set(exchange) != lastExchangeRowIDs { lastExchangeRowIDs = Set(exchange) }
+        let undoable = lastTyped?.parentId != nil
+        if undoable != canUndo { canUndo = undoable }
     }
 
     /// The stored message behind an on-screen row, for the actions it offers.
@@ -441,6 +453,20 @@ final class SquaddChatTurnCoordinator {
         }
         let task = try await client.fork(threadId: chat.threadId, through: messageID, botId: chat.botId)
         return SquaddThreadChat(server: chat.server, token: chat.token, botId: chat.botId, threadId: task.threadId, title: task.title)
+    }
+
+    // MARK: Undo (#20)
+
+    /// Undo Last Exchange and `/undo`: the thread goes back to before this person's last typed message
+    /// and shows the companion's version. Says why in the chat when the computer didn't take it.
+    func undoLastExchange() async {
+        guard activeStreamID == nil, canUndo else { return }
+        do {
+            try await client.undoExchange(botId: chat.botId, threadId: chat.threadId)
+            await reload()
+        } catch {
+            delegate?.squaddActionDidFail(Self.failureMessage(error))
+        }
     }
 
     // MARK: Versions and reactions (#19)

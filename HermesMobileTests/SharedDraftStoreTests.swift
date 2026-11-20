@@ -1050,6 +1050,24 @@ final class SharedDraftStoreTests: XCTestCase {
         XCTAssertEqual(queue.pending?.itemID, share.itemID, "The other server's home takes the released share")
     }
 
+    /// #24: a Squadd home, like a Hermes one, has no Open Next banner, so it is offered the
+    /// share waiting in the app group and, once it routed one, the next at once.
+    func testASquaddHomeTakesEachSharedItemInTurn() throws {
+        let squadd = URL(string: "https://squadd.example:21930")!
+        let servers = [account(squadd, .squadd)]
+        let inbox = try temporaryDirectory()
+        try HermesShareDraft.savePendingDraft("First", in: inbox)
+        try HermesShareDraft.savePendingDraft("Second", in: inbox)
+        var queue = SharedImportQueue()
+        queue.reserveNext(in: inbox, active: squadd, servers: servers)
+        let first = try XCTUnwrap(queue.offered(to: squadd), "the Squadd home is offered the share")
+
+        queue.consume(first, in: inbox, active: squadd, servers: servers)
+
+        let second = try XCTUnwrap(queue.offered(to: squadd), "the next share follows without Open Next")
+        XCTAssertNotEqual(second.itemID, first.itemID)
+    }
+
     // MARK: - Shortcut text (#1402)
 
     private let studio = URL(string: "https://other.example:9119")!
