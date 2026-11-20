@@ -293,7 +293,7 @@ class SquaddRoomPhotoTestCase: XCTestCase {
 
     /// Shows `view` in the class's one window (made on the first shot) and writes `<name>.png` once it has drawn.
     fileprivate final func shoot<V: View>(_ name: String, _ view: V, dir: URL, height: CGFloat = 874,
-                                          until ready: () -> Bool) async throws {
+                                          style: UIUserInterfaceStyle = .unspecified, until ready: () -> Bool) async throws {
         if window == nil {
             let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
             window = UIWindow(windowScene: scene)
@@ -301,6 +301,7 @@ class SquaddRoomPhotoTestCase: XCTestCase {
             window?.makeKeyAndVisible()
         }
         window?.frame = CGRect(x: 0, y: 0, width: 402, height: height)
+        window?.overrideUserInterfaceStyle = style
         let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         window?.rootViewController = UIHostingController(rootView: view.modelContainer(container))
@@ -441,10 +442,10 @@ final class SquaddHomeListTests: XCTestCase {
 /// so each stays under 3 s; the window is tall enough for all eleven agents.
 class SquaddHomeListPhotoTestCase: SquaddRoomPhotoTestCase {
     fileprivate final func shootList(_ name: String, size: DynamicTypeSize = .large, height: CGFloat,
-                                     start: SquaddHomeStart? = nil) async throws {
+                                     start: SquaddHomeStart? = nil, style: UIUserInterfaceStyle = .dark) async throws {
         let dir = try photoDir(bots: "bots-roberto.json")
         try await shoot(name, SquaddServerHome(authManager: try manager(), server: server, pendingThread: .constant(nil), start: start)
-            .environment(\.dynamicTypeSize, size), dir: dir, height: height) { Self.served.contains("/api/bots") }
+            .environment(\.dynamicTypeSize, size), dir: dir, height: height, style: style) { Self.served.contains("/api/bots") }
     }
 }
 
@@ -457,5 +458,5 @@ final class SquaddHomeListLargestTextPhotoTests: SquaddHomeListPhotoTestCase {
 }
 
 final class SquaddHomeListOpenAgentPhotoTests: SquaddHomeListPhotoTestCase {
-    func testPhotoHomeListOpenAgent() async throws { try await shootList("l3-home-agent-open", height: 1900, start: .showArchived) }
+    func testPhotoHomeListOpenAgent() async throws { try await shootList("l3-home-agent-open", height: 1900, start: .showArchived, style: .light) }
 }
