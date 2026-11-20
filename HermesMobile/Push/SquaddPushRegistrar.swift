@@ -24,6 +24,8 @@ import UserNotifications
     /// The configured Squadd servers that are paired, each with a client holding its device token.
     private let clients: @MainActor () -> [URL: SquaddCompanionClient]
     private let environment: PushEnvironment?
+    /// Push came on for a computer: its Live Activity registration follows.
+    private let didEnable: @MainActor () -> Void
     private var currentToken: String?
     private var pendingLaunchRefresh = false
     private var tokenWaiters: [CheckedContinuation<String, any Error>] = []
@@ -38,8 +40,10 @@ import UserNotifications
             await UNUserNotificationCenter.current().notificationSettings().authorizationStatus == .authorized
         },
         clients: @escaping @MainActor () -> [URL: SquaddCompanionClient] = SquaddPushRegistrar.pairedClients,
-        environment: PushEnvironment? = PushEnvironment.current()
+        environment: PushEnvironment? = PushEnvironment.current(),
+        didEnable: @escaping @MainActor () -> Void = { SquaddLiveActivities.shared.sync() }
     ) {
+        self.didEnable = didEnable
         self.remoteNotifications = remoteNotifications ?? UIApplicationRemoteNotificationRegistrar()
         self.requestAuthorization = requestAuthorization
         self.isAuthorized = isAuthorized
@@ -54,7 +58,7 @@ import UserNotifications
         guard await requestAuthorization() else { throw Failure.permissionDenied }
         let token = try await deviceToken()
         try await client.registerPush(token: token, environment: environment, pairing: SquaddPush.pairingTag(for: server))
-        SquaddLiveActivities.shared.sync()
+        didEnable()
     }
 
     /// Push off here: no notification, and no Live Activity the computer starts or updates.

@@ -121,7 +121,8 @@ final class SquaddLiveActivityTests: XCTestCase {
     }
 }
 
-@MainActor private final class ActivityRecorder: SquaddLiveActivityDriving {
+/// Observable, so a test waits on its calls.
+@MainActor @Observable private final class ActivityRecorder: SquaddLiveActivityDriving {
     private(set) var shown: [(bot: SquaddActivityBot, ask: String?)] = []
     private(set) var ended: [String] = []
 

@@ -117,7 +117,7 @@ final class SquaddPushTests: XCTestCase {
         let session = URLSession(configuration: configuration)
         let clients = Dictionary(uniqueKeysWithValues: servers.map { ($0, SquaddCompanionClient(server: $0, token: "device-token", session: session)) })
         return SquaddPushRegistrar(remoteNotifications: remote, requestAuthorization: { true }, isAuthorized: { true },
-                                   clients: { clients }, environment: .sandbox)
+                                   clients: { clients }, environment: .sandbox, didEnable: {})
     }
 
     private func account(_ url: URL) -> ServerAccount {
