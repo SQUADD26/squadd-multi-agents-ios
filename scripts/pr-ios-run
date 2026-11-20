@@ -1,0 +1,145 @@
+#!/usr/bin/env python3
+"""Push red rows and wait for PR iOS runs, never on a run that cannot come.
+
+Usage:
+  scripts/pr-ios-run red <issue> <name>=<commit> [<name>=<commit> ...]
+  scripts/pr-ios-run wait <branch> <sha>
+
+red pushes each mutation commit to its own branch rosso/<issue>-<name>, all at
+once, waits for every PR iOS run, prints each failing assertion and deletes
+the branches. Exit 0 when every mutation turned a test red, 1 when one stayed
+green or was cancelled, 2 when a push or gh failed or a run never started.
+
+wait waits for the PR iOS run of <sha> on <branch> and prints its conclusion
+and failing assertions. Exit 0 green, 1 red or cancelled, 2 as above.
+
+Works from any folder: every git call runs in this checkout and every gh call
+names the repository. Why: #98 waited 36 minutes on a push that had failed
+(the loop kept looking for a run of a commit GitHub never got) and 15 more on
+watchers run outside a checkout, whose gh had no repository.
+"""
+
+import json
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+WORKFLOW = "pr-ios.yml"
+POLL_SECONDS = 20
+NO_RUN_MINUTES = 4   # a push starts its run within a minute
+CAP_MINUTES = 20     # a PR iOS run takes a few minutes
+
+
+class Stop(Exception):
+    """A failure no amount of waiting fixes: exit 2 with its message."""
+
+
+def sh(*cmd):
+    try:
+        done = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise Stop(f"{' '.join(cmd[:3])}: {error}")
+    if done.returncode != 0:
+        raise Stop(f"{' '.join(cmd[:3])} failed: {(done.stderr or done.stdout).strip()[:600]}")
+    return done.stdout
+
+
+def git(*args):
+    return sh("git", "-C", str(ROOT), *args)
+
+
+def repository():
+    url = git("remote", "get-url", "origin").strip()
+    match = re.search(r"github\.com[:/]([\w.-]+)/([\w.-]+?)(?:\.git)?/?$", url)
+    if not match:
+        raise Stop(f"origin is not a GitHub repository: {url}")
+    return f"{match.group(1)}/{match.group(2)}"
+
+
+def find_run(repo, branch, sha):
+    runs = json.loads(sh("gh", "run", "list", "-R", repo, "--branch", branch, "--workflow", WORKFLOW,
+                         "-L", "20", "--json", "databaseId,headSha,status,conclusion") or "[]")
+    return next((run for run in runs if run["headSha"] == sha), None)
+
+
+def wait_run(repo, branch, sha):
+    start = time.monotonic()
+    while True:
+        run = find_run(repo, branch, sha)
+        if run and run["status"] == "completed":
+            return run
+        waited = time.monotonic() - start
+        if not run and waited > NO_RUN_MINUTES * 60:
+            raise Stop(f"no PR iOS run for {sha[:7]} on {branch} after {NO_RUN_MINUTES} min: "
+                       f"check the push reached GitHub (git ls-remote origin {branch})")
+        if waited > CAP_MINUTES * 60:
+            raise Stop(f"run {run['databaseId']} on {branch} still {run['status']} after {CAP_MINUTES} min")
+        time.sleep(POLL_SECONDS)
+
+
+def failing_assertions(repo, run_id):
+    log = sh("gh", "run", "view", str(run_id), "-R", repo, "--log")
+    lines = [line.split("\t")[-1] for line in log.splitlines() if ": error: -[" in line]
+    return [re.sub(r"^.*?(HermesMobileTests/)", r"\1", line)[:300] for line in lines][:5]
+
+
+def report(repo, branch, run):
+    print(f"== {branch} run {run['databaseId']} {run['conclusion']}", flush=True)
+    errors = failing_assertions(repo, run["databaseId"]) if run["conclusion"] == "failure" else []
+    for line in errors:
+        print(f"   {line}", flush=True)
+    return errors
+
+
+def wait(branch, sha):
+    repo = repository()
+    run = wait_run(repo, branch, sha)
+    report(repo, branch, run)
+    return 0 if run["conclusion"] == "success" else 1
+
+
+def red(issue, pairs):
+    repo = repository()
+    rows = []
+    for pair in pairs:
+        name, _, commit = pair.partition("=")
+        if not re.fullmatch(r"[a-z0-9-]+", name) or not commit:
+            raise Stop(f"expected <name>=<commit> with a lowercase name, got {pair!r}")
+        rows.append((f"rosso/{issue}-{name}", git("rev-parse", "--verify", f"{commit}^{{commit}}").strip()))
+    pushed = []
+    try:
+        for branch, sha in rows:
+            git("push", "-q", "--force", "origin", f"{sha}:refs/heads/{branch}")
+            pushed.append(branch)
+        status = 0
+        for branch, sha in rows:
+            run = wait_run(repo, branch, sha)
+            errors = report(repo, branch, run)
+            if run["conclusion"] != "failure" or not errors:
+                print(f"   {branch}: no test failed on this mutation ({run['conclusion']})", flush=True)
+                status = 1
+        return status
+    finally:
+        for branch in pushed:
+            subprocess.run(["git", "-C", str(ROOT), "push", "-q", "origin", "--delete", f"refs/heads/{branch}"],
+                           capture_output=True, text=True, timeout=120)
+
+
+def main(argv):
+    try:
+        if len(argv) == 3 and argv[0] == "wait":
+            return wait(argv[1], argv[2])
+        if len(argv) >= 3 and argv[0] == "red":
+            return red(argv[1], argv[2:])
+    except Stop as error:
+        print(f"pr-ios-run: {error}", file=sys.stderr)
+        return 2
+    print(__doc__.split("\n\n")[1], file=sys.stderr)
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))
