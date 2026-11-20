@@ -34,11 +34,26 @@ import WidgetKit
     /// dropping the server, and reloads the widget only when that changed something. A roster that
     /// arrives after its server was removed writes nothing, so it can't bring the rows back.
     func publish(_ profiles: [BotProfile], server: URL, connectionID: UUID) {
+        let key = BotHistoryCache.Scope.key(server)
+        write(profiles.prefix(BotWidgetSnapshot.maxBotsPerServer).map {
+            BotWidgetSnapshot.Bot(profile: $0.id, title: $0.name, avatar: Self.avatarName(serverKey: key, profile: $0, connectionID: connectionID))
+        }, server: server)
+    }
+
+    /// A Squadd computer's agents (#31), as its home last read them. A slot opens the agent's own chat,
+    /// so its `profile` is that thread's id (`ContentView` opens it as a `SquaddThreadLink`).
+    // shortcut: no avatar is rendered, so Squadd slots show the plain face; render `SquaddAgentAvatar` when wanted.
+    func publish(_ agents: [SquaddAgentSection], squaddServer server: URL) {
+        let prefix = Self.avatarPrefix(serverKey: BotHistoryCache.Scope.key(server))
+        write(agents.prefix(BotWidgetSnapshot.maxBotsPerServer).compactMap { agent in
+            agent.threadID.map { BotWidgetSnapshot.Bot(profile: $0, title: agent.name, avatar: prefix + Self.profileDigest($0)) }
+        }, server: server)
+    }
+
+    private func write(_ unsorted: [BotWidgetSnapshot.Bot], server: URL) {
         guard let file, let title = serverTitle(server) else { return }
         let key = BotHistoryCache.Scope.key(server)
-        let bots = profiles.prefix(BotWidgetSnapshot.maxBotsPerServer).map {
-            BotWidgetSnapshot.Bot(profile: $0.id, title: $0.name, avatar: Self.avatarName(serverKey: key, profile: $0, connectionID: connectionID))
-        }.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        let bots = unsorted.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
         let current = file.read()
         var snapshot = current
         let entry = BotWidgetSnapshot.Server(serverKey: key, title: title, bots: bots)

@@ -60,6 +60,8 @@ struct SquaddThreadChat: Hashable, Identifiable {
     let title: String?
     /// The room the thread is a conversation of; nil for an agent's own thread.
     var room: SquaddRoomChat?
+    /// The agent's name, for its Live Activity.
+    var botName: String?
 
     var id: String { threadId }
 
@@ -101,7 +103,7 @@ extension SquaddThreadChat {
     }
 
     init(in section: SquaddAgentSection, thread: SessionSummary, server: URL, token: String) {
-        self.init(server: server, token: token, botId: section.id, threadId: thread.id, title: thread.title)
+        self.init(server: server, token: token, botId: section.id, threadId: thread.id, title: thread.title, botName: section.name)
     }
 }
 
@@ -179,13 +181,17 @@ final class SquaddChatTurnCoordinator {
     /// The running reply began before this chat saw it (opened mid-turn, or frames lost on a
     /// reconnect): it shows as working, and its stored row comes when the turn ends.
     @ObservationIgnored private var joinedMidReply = false
+    @ObservationIgnored private let liveActivities: (any SquaddLiveActivityDriving)?
     /// A send's id, which makes a retry land once; tests pass the recorded one.
     @ObservationIgnored var makeSendID: () -> String = { UUID().uuidString }
 
     /// `reconnectDelay` waits the shared backoff's steps between reconnects; tests pass their own.
-    init(_ chat: SquaddThreadChat, session: URLSession = .shared,
+    /// `liveActivities` follows an agent thread's turns on the Lock Screen; a room's has none.
+    init(_ chat: SquaddThreadChat, session: URLSession = .shared, liveActivities: (any SquaddLiveActivityDriving)? = nil,
          reconnectDelay: @escaping ChatStreamReconnectDelay = ChatStreamReconnectBackoff.standardDelay) {
         self.chat = chat
+        // shortcut: a room's turns show no Live Activity (the companion's are per agent); add one if rooms need it.
+        self.liveActivities = chat.room == nil ? liveActivities : nil
         mentions = chat.room?.mentions
         client = SquaddCompanionClient(server: chat.server, token: chat.token, session: session)
         self.reconnectDelay = reconnectDelay
@@ -430,7 +436,8 @@ final class SquaddChatTurnCoordinator {
             throw SquaddError.status(404)
         }
         let task = try await client.fork(threadId: chat.threadId, through: messageID, botId: chat.botId)
-        return SquaddThreadChat(server: chat.server, token: chat.token, botId: chat.botId, threadId: task.threadId, title: task.title)
+        return SquaddThreadChat(server: chat.server, token: chat.token, botId: chat.botId, threadId: task.threadId, title: task.title,
+                                botName: chat.botName)
     }
 
     // MARK: Versions and reactions (#19)
@@ -655,9 +662,18 @@ final class SquaddChatTurnCoordinator {
             if mine != queued { queued = mine }
         case .runtimeError(let threadId, let message) where threadId == chat.threadId:
             delegate?.streamCoordinatorDidReceiveErrorMessage(message)
+        case .requestOpened(let threadId, let isQuestion) where threadId == chat.threadId:
+            showActivity(ask: isQuestion ? "question" : "approval")
+        case .requestResolved(let threadId) where threadId == chat.threadId:
+            if activeStreamID != nil { showActivity(ask: nil) }
         default:
             break
         }
+    }
+
+    private func showActivity(ask: String?) {
+        liveActivities?.show(SquaddActivityBot(botId: chat.botId, name: chat.botName ?? String(localized: "Agent"),
+                                               threadId: chat.threadId, server: chat.server), ask: ask)
     }
 
     private func beginTurn() {
@@ -668,6 +684,7 @@ final class SquaddChatTurnCoordinator {
         joinedMidReply = false
         activeRunStartedAt = Date()
         activeStreamID = "squadd:\(chat.threadId):\(UUID().uuidString)"
+        showActivity(ask: nil)
         delegate?.hermesTurnDidStart(prompt: nil)
         delegate?.streamCoordinatorDidStartConnection(isReplay: false)
     }
@@ -685,6 +702,7 @@ final class SquaddChatTurnCoordinator {
         activeRunStartedAt = nil
         streamingItemID = nil
         runningTurnID = nil
+        liveActivities?.end(botId: chat.botId)
         joinedMidReply = false
         delegate?.streamCoordinatorStreamingAssistantMessageID = nil
         if ending == .completed { delegate?.streamCoordinatorDidCompleteCurrentResponse(needsTranscriptRefresh: false) }

@@ -54,18 +54,24 @@ import UserNotifications
         guard await requestAuthorization() else { throw Failure.permissionDenied }
         let token = try await deviceToken()
         try await client.registerPush(token: token, environment: environment, pairing: SquaddPush.pairingTag(for: server))
+        SquaddLiveActivities.shared.sync()
     }
 
+    /// Push off here: no notification, and no Live Activity the computer starts or updates.
     func disable(for server: URL) async throws {
         guard let client = clients()[server] else { return }
         try await client.unregisterPush()
+        try await client.unregisterActivity()
     }
 
     /// Removing or signing out of a server: best effort, since the user already threw the server away. Runs
     /// before its device token is deleted, which it needs.
     func forget(server: URL) async {
         guard let client = clients()[server] else { return }
-        do { try await client.unregisterPush() } catch {
+        do {
+            try await client.unregisterPush()
+            try await client.unregisterActivity()
+        } catch {
             Self.logger.error("Push unregister failed: \(String(describing: error), privacy: .public)")
         }
     }

@@ -395,8 +395,11 @@ final class SquaddAgentListModel {
 
     private func publish() {
         rooms = roomList.map { SquaddRoomSection(room: $0, bots: bots) }
-        phase = .loaded(bots.map(SquaddAgentSection.init(bot:)))
-        guard !isShowingCache, let cache else { return }
+        let sections = bots.map(SquaddAgentSection.init(bot:))
+        phase = .loaded(sections)
+        guard !isShowingCache else { return }
+        BotWidgetPublisher.shared.publish(sections, squaddServer: client.server)
+        guard let cache else { return }
         do {
             try CacheStore.cacheSquaddBots(bots, serverURL: client.server, in: cache)
         } catch {

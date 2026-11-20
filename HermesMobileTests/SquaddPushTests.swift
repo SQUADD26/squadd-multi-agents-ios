@@ -33,8 +33,8 @@ final class SquaddPushTests: XCTestCase {
         try await enabled
         await registrar.forget(server: server)
 
-        XCTAssertEqual(requests.map(\.method), ["PUT", "DELETE"])
-        XCTAssertEqual(requests.map(\.path), ["/api/push/device", "/api/push/device"])
+        XCTAssertEqual(requests.map(\.method), ["PUT", "DELETE", "DELETE"])
+        XCTAssertEqual(requests.map(\.path), ["/api/push/device", "/api/push/device", "/api/push/activity"])
         let body = try XCTUnwrap(requests.first?.body)
         XCTAssertEqual(body["platform"], "apns")
         XCTAssertEqual(body["token"], "ab01")

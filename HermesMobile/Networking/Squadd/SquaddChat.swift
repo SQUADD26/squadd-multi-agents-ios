@@ -183,6 +183,9 @@ enum SquaddFrame: Equatable {
     case queued([String: [SquaddQueuedMessage]])
     /// The turn failed with words for the person.
     case runtimeError(threadId: String, message: String)
+    /// The agent waits on the person: `question` for a question, else an approval.
+    case requestOpened(threadId: String, isQuestion: Bool)
+    case requestResolved(threadId: String)
     case ignored
 
     static func decode(_ data: String) -> SquaddFrame {
@@ -211,6 +214,8 @@ enum SquaddFrame: Equatable {
             case "runtime.error":
                 guard let message = event.message, !message.isEmpty else { return .ignored }
                 return .runtimeError(threadId: threadId, message: message)
+            case "request.opened": return .requestOpened(threadId: threadId, isQuestion: event.requestType == "question")
+            case "request.resolved": return .requestResolved(threadId: threadId)
             default: return .ignored
             }
         case "bot.queued":
@@ -241,6 +246,7 @@ enum SquaddFrame: Equatable {
         let delta: String?
         let ok: Bool?
         let message: String?
+        let requestType: String?
     }
 }
 
