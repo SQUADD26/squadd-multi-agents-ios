@@ -341,10 +341,10 @@ final class SquaddChatTests: XCTestCase {
         let bots = try JSONDecoder().decode(SquaddBotList.self, from: Self.fixture("bots.json")).bots
         let chats = SquaddThreadChat.all(in: bots.map(SquaddAgentSection.init(bot:)), server: server, token: "device-token")
 
-        XCTAssertEqual(chats.map(\.title), ["File a bug about the login screen", "Weekly menu", "hi", "New thread"])
+        XCTAssertEqual(chats.map(\.title), ["File a bug about the login screen", "Weekly menu", "hi"])
         XCTAssertEqual(ChatShortcutNavigation.chat(atPosition: 3, in: chats)?.botId, bots[1].id, "⌘3 opens Pesto's second thread")
         XCTAssertEqual(ChatShortcutNavigation.adjacentChat(offset: 1, from: chats[1].id, in: chats), chats[2])
-        XCTAssertEqual(ChatShortcutNavigation.adjacentChat(offset: 1, from: chats[3].id, in: chats), chats[0], "Next wraps")
+        XCTAssertEqual(ChatShortcutNavigation.adjacentChat(offset: 1, from: chats[2].id, in: chats), chats[0], "Next wraps")
     }
 
     func testDraftsStayWithTheirServerAndThread() async {

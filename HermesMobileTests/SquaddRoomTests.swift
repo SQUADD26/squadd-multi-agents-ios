@@ -263,7 +263,7 @@ class SquaddRoomPhotoTestCase: XCTestCase {
     }
 
     /// The photo folder, with the recorded room answering through `URLSession.shared`; skips outside photo runs.
-    func photoDir() throws -> URL {
+    func photoDir(bots: String = "room-bots.json") throws -> URL {
         let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
         try XCTSkipIf(path == nil, "Only for photo runs")
         let dir = URL(fileURLWithPath: path!)
@@ -272,7 +272,7 @@ class SquaddRoomPhotoTestCase: XCTestCase {
         SquaddHTTPFixture.handler = { request in
             let path = request.url?.path ?? ""
             Self.served.append(path)
-            if path == "/api/bots" { return (200, Self.fixture("room-bots.json")) }
+            if path == "/api/bots" { return (200, Self.fixture(bots)) }
             // A busy room queues a send (`room-send-queued.json`, recorded).
             if request.httpMethod == "POST", path.hasSuffix("/messages") { return (202, Self.fixture("room-send-queued.json")) }
             if path.hasSuffix("/messages") { return (200, Self.fixture("room-messages.json")) }
@@ -292,13 +292,16 @@ class SquaddRoomPhotoTestCase: XCTestCase {
     }
 
     /// Shows `view` in the class's one window (made on the first shot) and writes `<name>.png` once it has drawn.
-    fileprivate final func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: () -> Bool) async throws {
+    fileprivate final func shoot<V: View>(_ name: String, _ view: V, dir: URL, height: CGFloat = 874,
+                                          style: UIUserInterfaceStyle = .unspecified, until ready: () -> Bool) async throws {
         if window == nil {
             let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
             window = UIWindow(windowScene: scene)
             window?.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
             window?.makeKeyAndVisible()
         }
+        window?.frame = CGRect(x: 0, y: 0, width: 402, height: height)
+        window?.overrideUserInterfaceStyle = style
         let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         window?.rootViewController = UIHostingController(rootView: view.modelContainer(container))
@@ -403,4 +406,78 @@ final class SquaddRoomQueuePhotoTests: SquaddRoomPhotoTestCase {
             continuity.model?.queuedPromptMessages.isEmpty == false
         }
     }
+}
+
+/// The home lists what the desktop lists (`bots-roberto.json`: Roberto's eleven agents and six channels):
+/// the lead agent first, and no thread still on its factory title, which has no message yet.
+@MainActor
+final class SquaddHomeListTests: XCTestCase {
+    override func tearDown() {
+        SquaddChatFixture.reset()
+        super.tearDown()
+    }
+
+    func testLeadAgentFirstAndNoUntitledThreads() async throws {
+        SquaddChatFixture.handler = { _ in .reply(200, SquaddRoomPhotoTestCase.fixture("bots-roberto.json")) }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [SquaddChatFixture.self]
+        let client = SquaddCompanionClient(server: URL(string: "http://192.0.2.10:8811")!, token: "device-token",
+                                           session: URLSession(configuration: configuration))
+        let model = SquaddAgentListModel(client: client, onUnpaired: {})
+
+        await model.load()
+
+        guard case .loaded(let sections) = model.phase else { return XCTFail("the agents load") }
+        XCTAssertEqual(sections.first?.name, "Friday", "the lead agent heads Direct Messages")
+        XCTAssertEqual(sections.dropFirst().first?.name, "Copywriter", "the others keep the computer's order")
+        let titles = sections.flatMap { $0.threads + $0.folders.flatMap(\.threads) + $0.archived }.map(\.title)
+            + model.rooms.flatMap(\.threads).map(\.title)
+        XCTAssertFalse(titles.contains { $0 == "New thread" || $0 == "New task" || $0 == nil }, "no row reads New thread")
+        XCTAssertTrue(titles.contains("Problems to look at"))
+    }
+}
+
+/// The home with Roberto's agents and channels (`FOTO_DIR`): Channels, then Direct Messages, at the default
+/// text size and at the largest accessibility size, where no name breaks inside a word. One photo per class,
+/// so each stays under 3 s; the window is tall enough for all eleven agents.
+class SquaddHomeListPhotoTestCase: SquaddRoomPhotoTestCase {
+    fileprivate final func shootList(_ name: String, size: DynamicTypeSize = .large, height: CGFloat,
+                                     start: SquaddHomeStart? = nil, style: UIUserInterfaceStyle = .dark) async throws {
+        let dir = try photoDir(bots: "bots-roberto.json")
+        // Roberto's iPhone is in Italian; the test run is pinned to English, so this photo reads it.lproj.
+        let italian = try XCTUnwrap(Bundle.main.path(forResource: "it", ofType: "lproj").flatMap(Bundle.init(path:)))
+        ItalianMainBundle.italian = italian
+        object_setClass(Bundle.main, ItalianMainBundle.self)
+        let formatterLocale = SessionRelativeDateFormatter.shared.locale
+        SessionRelativeDateFormatter.shared.locale = Locale(identifier: "it_IT")
+        defer {
+            object_setClass(Bundle.main, Bundle.self)
+            SessionRelativeDateFormatter.shared.locale = formatterLocale
+        }
+        try await shoot(name, SquaddServerHome(authManager: try manager(), server: server, pendingThread: .constant(nil), start: start)
+            .environment(\.dynamicTypeSize, size).environment(\.locale, Locale(identifier: "it_IT")),
+                        dir: dir, height: height, style: style) { Self.served.contains("/api/bots") }
+    }
+}
+
+/// `Bundle.main` answering every localized string from one language's `.lproj`, for one photo.
+private final class ItalianMainBundle: Bundle {
+    nonisolated(unsafe) static var italian: Bundle?
+
+    override func localizedString(forKey key: String, value: String?, table tableName: String?) -> String {
+        Self.italian?.localizedString(forKey: key, value: value, table: tableName)
+            ?? super.localizedString(forKey: key, value: value, table: tableName)
+    }
+}
+
+final class SquaddHomeListDefaultPhotoTests: SquaddHomeListPhotoTestCase {
+    func testPhotoHomeListDefault() async throws { try await shootList("l1-home-default", height: 1900) }
+}
+
+final class SquaddHomeListLargestTextPhotoTests: SquaddHomeListPhotoTestCase {
+    func testPhotoHomeListLargestText() async throws { try await shootList("l2-home-ax5", size: .accessibility5, height: 2700) }
+}
+
+final class SquaddHomeListOpenAgentPhotoTests: SquaddHomeListPhotoTestCase {
+    func testPhotoHomeListOpenAgent() async throws { try await shootList("l3-home-agent-open", height: 1900, start: .showArchived, style: .light) }
 }

@@ -87,9 +87,13 @@ struct SquaddBot: Codable, Equatable, Identifiable {
     let modelSelection: SquaddModelSelection?
     /// The agent's folders in their saved order (`PATCH /api/bots/:id/projects/order`).
     var projects: [SquaddProject]
+    /// The desktop's lead agent (Friday), first under Direct Messages.
+    var chiefOfStaff: Bool?
+    /// The mascot color the desktop draws the agent in (`green`, `chrome`, …).
+    var color: String?
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, title, threadId, unread, busy, createdAt, tasks, description, soul, avatarUrl, modelSelection, projects
+        case id, name, title, threadId, unread, busy, createdAt, tasks, description, soul, avatarUrl, modelSelection, projects, chiefOfStaff, color
     }
 
     init(id: String, name: String?, title: String? = nil, threadId: String? = nil, unread: Bool? = nil,
@@ -125,6 +129,8 @@ struct SquaddBot: Codable, Equatable, Identifiable {
         soul = try? container.decodeIfPresent(String.self, forKey: .soul)
         avatarUrl = try? container.decodeIfPresent(String.self, forKey: .avatarUrl)
         modelSelection = try? container.decodeIfPresent(SquaddModelSelection.self, forKey: .modelSelection)
+        chiefOfStaff = try? container.decodeIfPresent(Bool.self, forKey: .chiefOfStaff)
+        color = try? container.decodeIfPresent(String.self, forKey: .color)
     }
 }
 
