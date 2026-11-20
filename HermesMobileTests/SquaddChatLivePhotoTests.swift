@@ -41,14 +41,12 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         let thread = try XCTUnwrap(bot.tasks.first)
         note("agent \(bot.name ?? bot.id), thread \(thread.threadId)")
         let chat = SquaddThreadChat(server: server, token: token, botId: bot.id, threadId: thread.threadId,
-                                    title: thread.title ?? bot.name)
+                                    title: thread.title.flatMap { $0.isEmpty ? nil : $0 } ?? bot.name)
         let continuity = ChatContinuity()
-        // Pushed, as `SquaddServerHome` opens it: the chat loads once its navigation appearance completes.
-        let window = try show(NavigationStack(path: .constant([chat])) {
-            Color.clear.navigationDestination(for: SquaddThreadChat.self) { chat in
-                ChatView(session: SessionSummary(sessionId: chat.threadId, title: chat.title), server: server,
-                         onAPIError: { _ in }, continuity: continuity, squaddThread: chat)
-            }
+        // Pushed once the list shows, as a tap in `SquaddServerHome` does: the chat loads when its push completes.
+        let window = try show(PushedChat(chat: chat) { chat in
+            ChatView(session: SessionSummary(sessionId: chat.threadId, title: chat.title), server: server,
+                     onAPIError: { _ in }, continuity: continuity, squaddThread: chat)
         })
         defer { window.isHidden = true }
 
@@ -129,5 +127,20 @@ final class SquaddChatLivePhotoTests: XCTestCase {
             window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
         }
         try XCTUnwrap(image.pngData()).write(to: folder.appendingPathComponent("\(name).png"))
+    }
+}
+
+/// A navigation stack that pushes `chat` after it first appears.
+private struct PushedChat<Chat: View>: View {
+    let chat: SquaddThreadChat
+    @ViewBuilder let destination: (SquaddThreadChat) -> Chat
+    @State private var path: [SquaddThreadChat] = []
+
+    var body: some View {
+        NavigationStack(path: $path) {
+            Color.clear
+                .navigationDestination(for: SquaddThreadChat.self, destination: destination)
+                .onAppear { if path.isEmpty { path = [chat] } }
+        }
     }
 }
