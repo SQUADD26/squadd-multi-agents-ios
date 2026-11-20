@@ -240,6 +240,44 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         XCTAssertFalse(askedAgain, "the saved grant let the tool run without a card")
     }
 
+    /// #15: the agent asks a question with options, the card shows above the composer, a tap answers it on the
+    /// companion and the card leaves; the run then goes on. Log `squadd-question-log.txt`.
+    func testPhotographALiveQuestion() async throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let directory = environment["BRAND_PHOTOS_DIR"],
+              let token = environment["SQUADD_LIVE_TOKEN"], !token.isEmpty,
+              environment["SQUADD_LIVE_URL"] != nil || environment["SQUADD_LIVE_LOOKUP"] != nil else {
+            throw XCTSkip("Live photos only: a photo branch's workflow with a companion in the secrets.")
+        }
+        let folder = URL(fileURLWithPath: directory, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var log: [String] = []
+        let started = Date()
+        func note(_ line: String) { log.append(String(format: "%6.2fs  ", Date().timeIntervalSince(started)) + line) }
+        defer { try? log.joined(separator: "\n").write(to: folder.appendingPathComponent("squadd-question-log.txt"), atomically: true, encoding: .utf8) }
+
+        let (window, model, _) = try await openLiveChat(environment, token: token, folder: folder, note: note)
+        defer { window.isHidden = true }
+        let turn = try XCTUnwrap(model.squaddTurn)
+        let sending = Task { await model.send("Ask me a color") }
+        let question = try await settle(seconds: 60) { ChatView.squaddQuestion(in: model) }
+        let prompt = question?.prompt
+        note("card: \(prompt.map { "\($0.question) / \($0.choices) / typed reply \($0.allowsTypedResponse)" } ?? "none")")
+        try await readyPhoto(of: window).write(to: folder.appendingPathComponent("15-b-live-question.png"))
+
+        let answered = await turn.answerQuestion(prompt?.choices.last ?? "")
+        note("answered: \(answered), error: \(turn.questionError ?? "none"), card after: \(turn.pendingQuestion == nil ? "gone" : "still there")")
+        note("send outcome: \(await sending.value)")
+        let finished = try await settle(seconds: 60) { model.activeStreamID == nil && model.messages.last?.role == "assistant" ? true : nil }
+        note("run finished: \(finished == true), last: \(model.messages.last?.content?.prefix(80) ?? "none")")
+        try await readyPhoto(of: window).write(to: folder.appendingPathComponent("15-c-live-after-answer.png"))
+
+        XCTAssertNotNil(question, "the companion's question showed")
+        XCTAssertTrue(answered)
+        XCTAssertNil(turn.pendingQuestion)
+        XCTAssertEqual(finished, true, "the run went on after the answer")
+    }
+
     /// Finds the companion through the tunnel, pushes the first agent thread's chat, and waits for it to load.
     private func openLiveChat(_ environment: [String: String], token: String, folder: URL,
                               note: (String) -> Void) async throws -> (UIWindow, ChatViewModel, SquaddThreadChat) {
