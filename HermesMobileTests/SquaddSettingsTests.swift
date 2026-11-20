@@ -8,7 +8,7 @@ import XCTest
 /// fake Anthropic and OpenRouter keys set on the desktop).
 @MainActor
 final class SquaddSettingsTests: XCTestCase {
-    private let recorder = Recorder()
+    private let recorder = SquaddRequestRecorder()
     private var requests: [URLRequest] { recorder.requests }
     private var bodies: [[String: String]] { recorder.bodies }
     private var unpaired = 0
@@ -154,7 +154,7 @@ final class SquaddSettingsTests: XCTestCase {
 }
 
 /// What the fixture saw, written from URLSession's thread and read by the test after each await.
-private final class Recorder: @unchecked Sendable {
+final class SquaddRequestRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var _requests: [URLRequest] = []
     private var _bodies: [[String: String]] = []
@@ -191,6 +191,7 @@ final class SquaddSettingsPhotoTests: XCTestCase {
         let recordings: [String: String] = [
             "/api/config": "settings-config.json", "/api/instances": "settings-instances.json",
             "/api/bots": "bots.json", "/api/team-memory": "settings-memory-added.json",
+            "/api/connectors/catalog": "connectors-catalog.json", "/api/connectors/connected": "connectors-connected.json",
         ]
         SquaddHTTPFixture.handler = { request in
             let path = request.url!.path
@@ -221,9 +222,11 @@ final class SquaddSettingsPhotoTests: XCTestCase {
         }
         try await shoot("f6-team-memory", NavigationStack { SquaddTeamMemoryPage(model: model) }, dir: dir) { model.memoryPhase == .loaded }
         try await shoot("f7-memory-editor", SquaddMemoryEditor(model: model, entry: model.memory.first), dir: dir) { true }
+        let connectors = SquaddConnectorsPage(client: model.client, onUnpaired: {})
+        try await shoot("f8-connected-apps", NavigationStack { connectors }, dir: dir) { true }
     }
 
-    /// Hosts `view` in a window of the app's scene, waits for `ready`, and writes `<name>.png`.
+    /// Hosts `view` in a window of the app's scene, waits for `ready` and a still screen, and writes `<name>.png`.
     private func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: @escaping @MainActor () -> Bool) async throws {
         let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
@@ -234,17 +237,6 @@ final class SquaddSettingsPhotoTests: XCTestCase {
         window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
         window.makeKeyAndVisible()
         self.window = window
-        let landed = expectation(description: "\(name) landed")
-        func check(_ remaining: Int) {
-            if ready() || remaining == 0 { landed.fulfill(); return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { MainActor.assumeIsolated { check(remaining - 1) } }
-        }
-        check(100)
-        await fulfillment(of: [landed], timeout: 10)
-        try await Task.sleep(for: .seconds(1)) // test-wait: lets the reply draw before the shot; a photo for review, never an assertion
-        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
-            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-        }
-        try XCTUnwrap(image.pngData()).write(to: dir.appendingPathComponent("\(name).png"))
+        try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
     }
 }

@@ -1,6 +1,124 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Message ${agent} on ${applicationName}": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "راسل ${agent} على ${applicationName}"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${agent} auf ${applicationName} eine Nachricht senden"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Message ${agent} on ${applicationName}"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviar mensaje a ${agent} en ${applicationName}"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "در ${applicationName} به ${agent} پیام بده"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Envoyer un message à ${agent} sur ${applicationName}"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "שלח הודעה ל-${agent} ב-${applicationName}"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scrivi un messaggio a ${agent} su ${applicationName}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName}で${agent}にメッセージを送る"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName}에서 ${agent}에게 메시지 보내기"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stuur ${agent} een bericht in ${applicationName}"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wyślij wiadomość do ${agent} w ${applicationName}"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enviar mensagem para ${agent} no ${applicationName}"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Отправить сообщение ${agent} в ${applicationName}"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} üzerinden ${agent} ajanına mesaj gönder"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} پر ${agent} کو پیغام بھیجیں"
+          }
+        },
+        "zh-HK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 ${applicationName} 傳送訊息給 ${agent}"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 ${applicationName} 上给 ${agent} 发消息"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 ${applicationName} 傳送訊息給 ${agent}"
+          }
+        }
+      }
+    },
     "New ${applicationName} chat": {
       "localizations": {
         "ar": {
@@ -827,6 +945,124 @@
         }
       }
     },
+    "Open ${agent} in ${applicationName}": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "افتح ${agent} في ${applicationName}"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${agent} in ${applicationName} öffnen"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open ${agent} in ${applicationName}"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir ${agent} en ${applicationName}"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${agent} را در ${applicationName} باز کن"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir ${agent} dans ${applicationName}"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "פתח את ${agent} ב-${applicationName}"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apri ${agent} in ${applicationName}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName}で${agent}を開く"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName}에서 ${agent} 열기"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open ${agent} in ${applicationName}"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Otwórz ${agent} w ${applicationName}"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Abrir ${agent} no ${applicationName}"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Открыть ${agent} в ${applicationName}"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${agent} ajanını ${applicationName} içinde aç"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} میں ${agent} کھولیں"
+          }
+        },
+        "zh-HK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 ${applicationName} 開啟 ${agent}"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 ${applicationName} 中打开 ${agent}"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 ${applicationName} 開啟 ${agent}"
+          }
+        }
+      }
+    },
     "Start a ${applicationName} chat with content": {
       "localizations": {
         "ar": {
@@ -1295,6 +1531,124 @@
           "stringUnit": {
             "state": "translated",
             "value": "在 ${applicationName} 中開始語音聊天"
+          }
+        }
+      }
+    },
+    "Write to ${agent} in ${applicationName}": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اكتب إلى ${agent} في ${applicationName}"
+          }
+        },
+        "de": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In ${applicationName} an ${agent} schreiben"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Write to ${agent} in ${applicationName}"
+          }
+        },
+        "es": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escribir a ${agent} en ${applicationName}"
+          }
+        },
+        "fa": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "در ${applicationName} به ${agent} بنویس"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Écrire à ${agent} dans ${applicationName}"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "כתוב ל-${agent} ב-${applicationName}"
+          }
+        },
+        "it": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scrivi a ${agent} in ${applicationName}"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName}で${agent}にメッセージを書く"
+          }
+        },
+        "ko": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName}에서 ${agent}에게 쓰기"
+          }
+        },
+        "nl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Schrijf naar ${agent} in ${applicationName}"
+          }
+        },
+        "pl": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Napisz do ${agent} w ${applicationName}"
+          }
+        },
+        "pt-BR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Escrever para ${agent} no ${applicationName}"
+          }
+        },
+        "ru": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Написать ${agent} в ${applicationName}"
+          }
+        },
+        "tr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} içinde ${agent} ajanına yaz"
+          }
+        },
+        "ur": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "${applicationName} میں ${agent} کو لکھیں"
+          }
+        },
+        "zh-HK": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 ${applicationName} 傳訊息給 ${agent}"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 ${applicationName} 中给 ${agent} 写消息"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 ${applicationName} 傳訊息給 ${agent}"
           }
         }
       }
