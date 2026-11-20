@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Onboarding's one page (#1540): "Add your server" opens the Add Server sheet, and "I don't
-/// have one yet" the setup pages.
+/// Onboarding's first page (#1540): "Add your server" opens the Add Server sheet, and "I don't
+/// have one yet" the setup pages. The Squadd build asks to install Squadd Multi-Agents on the
+/// computer, and its button opens the pairing screen.
 struct OnboardingWelcomePage: View {
     let addServer: () -> Void
     let setUp: () -> Void
@@ -32,7 +33,7 @@ struct OnboardingWelcomePage: View {
     private var actions: some View {
         VStack(spacing: 8) {
             Button(action: addServer) {
-                Text("Add your server")
+                Text(HermesBackends.isEnabled ? LocalizedStringKey("Add your server") : "Scan the QR Code")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(OnboardingPrimaryButtonStyle())
@@ -112,27 +113,49 @@ struct OnboardingWelcomePage: View {
                 Spacer(minLength: 32)
 
                 VStack(alignment: .leading, spacing: 12) {
-                    Text("Control your Hermes agent from iPhone or iPad.")
-                        .font(AppFont.fixed(size: dynamicTypeSize.isAccessibilitySize ? 27 : 31, weight: .bold))
-                        .foregroundStyle(.white)
-                        .lineLimit(3)
-                        .minimumScaleFactor(0.86)
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    Text("Connect to your self-hosted server over a private network, such as Tailscale or NetBird.")
-                        .font(AppFont.subheadline())
-                        .foregroundStyle(.white.opacity(0.58))
-                        .fixedSize(horizontal: false, vertical: true)
-
-                    HStack(spacing: 8) {
-                        HeroBadge(systemImage: "lock.shield.fill", title: String(localized: "Password protected"))
-                        HeroBadge(systemImage: "network", title: String(localized: "Private network ready"))
-                    }
+                    if HermesBackends.isEnabled { hermesCopy } else { squaddCopy }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 28)
                 .padding(.bottom, 16)
             }
+        }
+    }
+
+    private var title: Font {
+        AppFont.fixed(size: dynamicTypeSize.isAccessibilitySize ? 27 : 31, weight: .bold)
+    }
+
+    /// Install on the computer, then scan the QR code it shows: the second step is the button.
+    @ViewBuilder private var squaddCopy: some View {
+        Text("Install Squadd Multi-Agents on your computer.")
+            .font(AppFont.title(weight: .bold))
+            .foregroundStyle(.white)
+            .fixedSize(horizontal: false, vertical: true)
+            .accessibilityAddTraits(.isHeader)
+
+        Text("Your agents run there. Open it, go to Remote access and start pairing, then scan the QR code it shows with this iPhone.")
+            .font(AppFont.subheadline())
+            .foregroundStyle(.white.opacity(0.58))
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    @ViewBuilder private var hermesCopy: some View {
+        Text("Control your Hermes agent from iPhone or iPad.")
+            .font(title)
+            .foregroundStyle(.white)
+            .lineLimit(3)
+            .minimumScaleFactor(0.86)
+            .fixedSize(horizontal: false, vertical: true)
+
+        Text("Connect to your self-hosted server over a private network, such as Tailscale or NetBird.")
+            .font(AppFont.subheadline())
+            .foregroundStyle(.white.opacity(0.58))
+            .fixedSize(horizontal: false, vertical: true)
+
+        HStack(spacing: 8) {
+            HeroBadge(systemImage: "lock.shield.fill", title: String(localized: "Password protected"))
+            HeroBadge(systemImage: "network", title: String(localized: "Private network ready"))
         }
     }
 }

@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import HermesMobile
 
@@ -40,6 +41,11 @@ final class OnboardingFlowTests: XCTestCase {
         let next = OnboardingFlowPolicy.page(after: OnboardingFlowPolicy.agentPromptPageIndex)
         XCTAssertEqual(next, 1)
         XCTAssertNil(OnboardingFlowPolicy.page(after: 1))
+    }
+
+    func testTheSquaddBuildsWelcomeButtonOpensPairing() {
+        XCTAssertEqual(OnboardingFlowPolicy.welcomeDestination(backendsEnabled: false), .pairing)
+        XCTAssertEqual(OnboardingFlowPolicy.welcomeDestination(backendsEnabled: true), .addServer)
     }
 
     func testCopyReminderFollowsThePromptShown() {
@@ -157,5 +163,47 @@ final class OnboardingFlowTests: XCTestCase {
             XCTAssertTrue(prompt.contains(rule), "Missing safety rule: \(rule)")
         }
         XCTAssertFalse(prompt.contains("--insecure"))
+    }
+}
+
+/// The Squadd build's first launch (#10): install on the computer, then the pairing screen its
+/// button opens, in the same stack. Runs only for photos, from pr-ios.yml's FOTO_DIR.
+@MainActor
+final class SquaddOnboardingPhotoTests: XCTestCase {
+    private var window: UIWindow?
+
+    override func tearDown() {
+        HermesBackends.isEnabled = true
+        window?.isHidden = true
+        super.tearDown()
+    }
+
+    func testPhotoInstallThenScan() async throws {
+        let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
+        try XCTSkipIf(path == nil, "Only for photo runs")
+        let dir = URL(fileURLWithPath: path!)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        HermesBackends.isEnabled = false
+        let keychain = InMemoryKeychainStore()
+        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(),
+                                  serverRegistry: ServerRegistry.inMemory(keychain: keychain),
+                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
+
+        try await shoot("10-a-install", OnboardingView(authManager: manager), dir: dir)
+        try await shoot("10-b-install-largest-text", OnboardingView(authManager: manager)
+            .environment(\.dynamicTypeSize, .accessibility3), dir: dir)
+
+        try await shoot("10-c-scan", OnboardingView(authManager: manager, pairing: true), dir: dir)
+    }
+
+    private func shoot(_ name: String, _ view: some View, dir: URL) async throws {
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        window?.isHidden = true
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+        window.rootViewController = UIHostingController(rootView: view)
+        window.makeKeyAndVisible()
+        self.window = window
+        try await readyPhoto(of: window).write(to: dir.appendingPathComponent("\(name).png"))
     }
 }
