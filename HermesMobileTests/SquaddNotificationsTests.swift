@@ -52,11 +52,11 @@ final class SquaddNotificationsTests: XCTestCase {
         SquaddChatFixture.stream(Data(try frames(upTo: "\"kind\":\"notify\"").utf8))
         await waitUntil("the list is in") { model.items.count == 3 }
 
-        // A room's mention is shown but not read: the app can't open rooms yet.
+        // A room's mention reads the room's thread, as the desktop does when it opens it.
         let room = try JSONDecoder().decode(SquaddNotification.self, from: JSONEncoder().encode(
-            ["id": "room-mention", "kind": "mention", "botId": botId, "threadId": threadId, "groupId": "a-room"]))
+            ["id": "room-mention", "kind": "mention", "botId": botId, "threadId": "room-thread", "groupId": "a-room"]))
         try await model.markRead(room)
-        XCTAssertNil(marked, "nothing is marked read on the computer for a room")
+        XCTAssertEqual(marked?.url?.path, "/api/groups/a-room/read", "a room's mention is read in its room")
 
         // Tapped here: the desktop's own read of the conversation.
         try await model.markRead(XCTUnwrap(model.items.last))

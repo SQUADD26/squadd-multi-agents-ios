@@ -57,6 +57,16 @@ final class SquaddThreadLinkTests: XCTestCase {
         XCTAssertNil(SquaddThreadLink(threadID: "deleted").row(in: sections))
     }
 
+    func testARoomThreadsLinkOpensTheRoomsChat() throws {
+        let list = try JSONDecoder().decode(SquaddBotList.self, from: Self.fixture("room-bots.json"))
+        let rooms = [SquaddRoomSection(room: try XCTUnwrap(list.rooms.first), bots: list.bots)]
+        let server = URL(string: "https://studio.example")!
+
+        let chat = SquaddThreadLink(threadID: "3449dd67-5ed2-4ec0-b6f3-9cb333c1c166").roomChat(in: rooms, server: server, token: "t")
+        XCTAssertEqual(chat?.room?.id, "78af5832-09e9-4e71-93ee-d7c5ed66d5e7", "the room's thread opens in the room")
+        XCTAssertNil(SquaddThreadLink(threadID: "e0196fb1-7f3b-44b7-93a0-e7b1e93f7af1").roomChat(in: rooms, server: server, token: "t"))
+    }
+
     func testOpenAgentOffersTheActiveComputersAgentsAndOpensTheChosenOnesChat() async throws {
         SquaddHTTPFixture.handler = { _ in (200, try! Self.fixture("bots.json")) }
         let keychain = InMemoryKeychainStore()

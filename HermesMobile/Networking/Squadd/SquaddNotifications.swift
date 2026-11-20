@@ -17,9 +17,8 @@ struct SquaddNotification: Decodable, Equatable, Identifiable {
     /// Set when the conversation is a room's.
     let groupId: String?
 
-    /// An agent's conversation, which a tap opens and reads. A room's is shown but not touched until the
-    /// app has rooms: reading it would mark it read on the desktop without the person seeing it.
-    var opensHere: Bool { threadId != nil && botId != nil && groupId == nil }
+    /// A conversation a tap opens and reads: an agent's thread, or a room's.
+    var opensHere: Bool { threadId != nil && (botId != nil || groupId != nil) }
 
     private enum CodingKeys: String, CodingKey { case id, at, read, kind, botId, botName, threadId, title, body, groupId }
 
@@ -49,10 +48,14 @@ extension SquaddCompanionClient {
             .compactMap(\.value) ?? []
     }
 
-    /// Marks an agent's conversation read the way opening it on the desktop does: the computer marks
-    /// its notifications read and tells every open app with a `notifications.read` frame.
+    /// Marks a conversation read the way opening it on the desktop does: the computer marks its
+    /// notifications read and tells every open app with a `notifications.read` frame.
     func markRead(_ notification: SquaddNotification) async throws {
-        guard notification.opensHere, let threadId = notification.threadId, let botId = notification.botId else { return }
-        _ = try await call("POST", "api/bots/\(Self.segment(botId))/read", body: ["threadId": threadId])
+        guard let threadId = notification.threadId else { return }
+        if let roomId = notification.groupId {
+            _ = try await call("POST", "api/groups/\(Self.segment(roomId))/read", body: ["threadId": threadId])
+        } else if let botId = notification.botId {
+            _ = try await call("POST", "api/bots/\(Self.segment(botId))/read", body: ["threadId": threadId])
+        }
     }
 }

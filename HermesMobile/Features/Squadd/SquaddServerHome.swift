@@ -620,6 +620,11 @@ struct SquaddServerHome: View {
         guard let link = pendingThread, link.server.map({ SquaddThreadLink.sameServer($0.absoluteString, server.absoluteString) }) ?? true,
               case .loaded(let sections) = model?.phase else { return }
         pendingThread = nil
+        if let chat = link.roomChat(in: model?.rooms ?? [], server: server, token: token) {
+            withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(link.threadID, anchor: .center) }
+            path = [chat]
+            return
+        }
         guard let row = link.row(in: sections) else {
             linkedRow = nil
             isLinkedThreadMissing = true
