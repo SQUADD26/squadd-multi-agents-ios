@@ -64,6 +64,8 @@ struct SettingsServerPage: View {
                 WebuiServerSections(authManager: authManager, model: webui)
             } else if let server = activeHermesServer {
                 hermesSections(server: server)
+            } else if isActive, account.kind == .squadd, let server {
+                SquaddServerSections(authManager: authManager, server: server)
             } else {
                 inactiveServerSection
             }
