@@ -7,14 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		5D3100000000000000000015 /* SquaddLiveActivityTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D3100000000000000000004 /* SquaddLiveActivityTests.swift */; };
+		5D3100000000000000000014 /* SquaddBotLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D3100000000000000000003 /* SquaddBotLiveActivityWidget.swift */; };
+		5D3100000000000000000013 /* SquaddLiveActivities.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D3100000000000000000002 /* SquaddLiveActivities.swift */; };
+		5D3100000000000000000011 /* SquaddBotActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D3100000000000000000001 /* SquaddBotActivity.swift */; };
+		5D3100000000000000000012 /* SquaddBotActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D3100000000000000000001 /* SquaddBotActivity.swift */; };
 		5D0A30000000000000000041 /* SquaddPushTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A30000000000000000040 /* SquaddPushTests.swift */; };
 		5D0A30000000000000000031 /* SquaddPushSettingsPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A30000000000000000030 /* SquaddPushSettingsPage.swift */; };
 		5D0A30000000000000000021 /* SquaddPushRegistrar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A30000000000000000020 /* SquaddPushRegistrar.swift */; };
 		5D0A30000000000000000011 /* SquaddPush.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A30000000000000000010 /* SquaddPush.swift */; };
 		A15740000000000000000002 /* AppIcon.icon in Resources */ = {isa = PBXBuildFile; fileRef = A15740000000000000000001 /* AppIcon.icon */; };
-		D14090000000000000000014 /* ProviderLimitsWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D14090000000000000000003 /* ProviderLimitsWidget.swift */; };
 		D14090000000000000000011 /* ProviderLimitsSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = D14090000000000000000001 /* ProviderLimitsSnapshot.swift */; };
-		D14090000000000000000012 /* ProviderLimitsSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = D14090000000000000000001 /* ProviderLimitsSnapshot.swift */; };
 		D14090000000000000000013 /* ProviderLimitsPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = D14090000000000000000002 /* ProviderLimitsPublisher.swift */; };
 		D14090000000000000000015 /* ProviderLimitsSnapshotTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D14090000000000000000004 /* ProviderLimitsSnapshotTests.swift */; };
 		D16430000000000000000011 /* BotWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16430000000000000000001 /* BotWidgetSnapshot.swift */; };
@@ -23,6 +26,7 @@
 		D16430000000000000000014 /* BotWidgetIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16430000000000000000002 /* BotWidgetIntent.swift */; };
 		D16430000000000000000015 /* BotWidgetPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16430000000000000000003 /* BotWidgetPublisher.swift */; };
 		D16430000000000000000016 /* BotWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16430000000000000000004 /* BotWidget.swift */; };
+		5D3100000000000000000016 /* BotWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16430000000000000000004 /* BotWidget.swift */; };
 		D16430000000000000000017 /* BotWidgetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16430000000000000000005 /* BotWidgetTests.swift */; };
 		E1582000000000000000A009 /* HermesPluginCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1582000000000000000A010 /* HermesPluginCatalog.swift */; };
 		E1582000000000000000A011 /* PluginInstallSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1582000000000000000A012 /* PluginInstallSheet.swift */; };
@@ -841,12 +845,15 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		5D3100000000000000000004 /* SquaddLiveActivityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddLiveActivityTests.swift; sourceTree = "<group>"; };
+		5D3100000000000000000003 /* SquaddBotLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddBotLiveActivityWidget.swift; sourceTree = "<group>"; };
+		5D3100000000000000000002 /* SquaddLiveActivities.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddLiveActivities.swift; sourceTree = "<group>"; };
+		5D3100000000000000000001 /* SquaddBotActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddBotActivity.swift; sourceTree = "<group>"; };
 		5D0A30000000000000000040 /* SquaddPushTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddPushTests.swift; sourceTree = "<group>"; };
 		5D0A30000000000000000030 /* SquaddPushSettingsPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddPushSettingsPage.swift"; sourceTree = "<group>"; };
 		5D0A30000000000000000020 /* SquaddPushRegistrar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddPushRegistrar.swift; sourceTree = "<group>"; };
 		5D0A30000000000000000010 /* SquaddPush.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddPush.swift"; sourceTree = "<group>"; };
 		A15740000000000000000001 /* AppIcon.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = AppIcon.icon; sourceTree = "<group>"; };
-		D14090000000000000000003 /* ProviderLimitsWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderLimitsWidget.swift; sourceTree = "<group>"; };
 		D14090000000000000000001 /* ProviderLimitsSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderLimitsSnapshot.swift; sourceTree = "<group>"; };
 		D14090000000000000000002 /* ProviderLimitsPublisher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderLimitsPublisher.swift; sourceTree = "<group>"; };
 		D14090000000000000000004 /* ProviderLimitsSnapshotTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderLimitsSnapshotTests.swift; sourceTree = "<group>"; };
@@ -1984,6 +1991,7 @@
 				5D0ADE280000000000000600 /* SquaddSettingsTests.swift */,
 				5D2200000000000000000003 /* SquaddAgentEditorTests.swift */,
 				5D0A30000000000000000040 /* SquaddPushTests.swift */,
+				5D3100000000000000000004 /* SquaddLiveActivityTests.swift */,
 				5D0B11000000000000000003 /* SquaddChatTests.swift */,
 				32A1E0000000000000000004 /* SquaddNotificationsTests.swift */,
 				5D0B21000000000000000003 /* SquaddRoomTests.swift */,
@@ -2611,6 +2619,8 @@
 			isa = PBXGroup;
 			children = (
 				A04500000000000000000010 /* AgentRunActivityAttributes.swift */,
+				5D3100000000000000000002 /* SquaddLiveActivities.swift */,
+				5D3100000000000000000001 /* SquaddBotActivity.swift */,
 				A04500000000000000000011 /* HermesDeepLink.swift */,
 				A04500000000000000000012 /* AgentLiveActivityManager.swift */,
 			);
@@ -2649,7 +2659,7 @@
 			isa = PBXGroup;
 			children = (
 				A04500000000000000000013 /* AgentRunLiveActivityWidget.swift */,
-				D14090000000000000000003 /* ProviderLimitsWidget.swift */,
+				5D3100000000000000000003 /* SquaddBotLiveActivityWidget.swift */,
 				D16430000000000000000004 /* BotWidget.swift */,
 				A04500000000000000000022 /* Resources */,
 			);
@@ -3097,6 +3107,9 @@
 				C0DE88500000000000000005 /* AppLockWindow.swift in Sources */,
 				1A2B3C4D5E6F700000000300 /* ServerAccount.swift in Sources */,
 				A04500000000000000000001 /* AgentRunActivityAttributes.swift in Sources */,
+				5D3100000000000000000013 /* SquaddLiveActivities.swift in Sources */,
+				5D3100000000000000000011 /* SquaddBotActivity.swift in Sources */,
+				5D3100000000000000000016 /* BotWidget.swift in Sources */,
 				A04500000000000000000002 /* HermesDeepLink.swift in Sources */,
 				D14090000000000000000011 /* ProviderLimitsSnapshot.swift in Sources */,
 				D14090000000000000000013 /* ProviderLimitsPublisher.swift in Sources */,
@@ -3493,6 +3506,7 @@
 				5D0ADE280000000000000601 /* SquaddSettingsTests.swift in Sources */,
 				5D2200000000000000000103 /* SquaddAgentEditorTests.swift in Sources */,
 				5D0A30000000000000000041 /* SquaddPushTests.swift in Sources */,
+				5D3100000000000000000015 /* SquaddLiveActivityTests.swift in Sources */,
 				5D0B11000000000000000103 /* SquaddChatTests.swift in Sources */,
 				32A1E0000000000000001004 /* SquaddNotificationsTests.swift in Sources */,
 				5D0B21000000000000000103 /* SquaddRoomTests.swift in Sources */,
@@ -3730,10 +3744,10 @@
 			buildActionMask = 2147483647;
 			files = (
 				A04500000000000000000004 /* AgentRunActivityAttributes.swift in Sources */,
+				5D3100000000000000000012 /* SquaddBotActivity.swift in Sources */,
 				A04500000000000000000005 /* HermesDeepLink.swift in Sources */,
-				D14090000000000000000012 /* ProviderLimitsSnapshot.swift in Sources */,
 				A04500000000000000000006 /* AgentRunLiveActivityWidget.swift in Sources */,
-				D14090000000000000000014 /* ProviderLimitsWidget.swift in Sources */,
+				5D3100000000000000000014 /* SquaddBotLiveActivityWidget.swift in Sources */,
 				C0030000000000000000F003 /* HermesBackends.swift in Sources */,
 				D16430000000000000000012 /* BotWidgetSnapshot.swift in Sources */,
 				D16430000000000000000014 /* BotWidgetIntent.swift in Sources */,

@@ -189,6 +189,16 @@ struct ContentView: View {
         pendingLinks.hermesUsage = nil
         pendingLinks.botWidget = nil
         pendingSquaddThread = nil
+        // A Bot widget slot of a Squadd computer names the agent's own chat (#31).
+        if let slot = BotWidgetDestination(url: url),
+           let account = authManager.servers.first(where: {
+               $0.kind == .squadd && URL(string: $0.urlString).map(BotHistoryCache.Scope.key) == slot.serverKey
+           }),
+           let server = URL(string: account.urlString) {
+            pendingSquaddThread = SquaddThreadLink(threadID: slot.profile, server: server)
+            if authManager.state.server != server { switchServer(account) }
+            return
+        }
         // A Squadd thread link opens on the computer it names (or the active Squadd server),
         // switching to it first; its home takes the link once the agents are loaded.
         if let link = SquaddThreadLink(url: url) {

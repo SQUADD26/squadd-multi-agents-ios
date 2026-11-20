@@ -675,7 +675,8 @@ struct SquaddServerHome: View {
             section.threadID == link.threadID || (section.threads + section.archived).contains { $0.id == link.threadID }
         }) {
             let title = (section.threads + section.archived).first { $0.id == link.threadID }?.title ?? section.name
-            path = [SquaddThreadChat(server: server, token: token, botId: section.id, threadId: link.threadID, title: title)]
+            path = [SquaddThreadChat(server: server, token: token, botId: section.id, threadId: link.threadID, title: title,
+                                     botName: section.name)]
         }
     }
 

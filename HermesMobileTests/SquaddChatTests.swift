@@ -160,7 +160,8 @@ final class SquaddChatTests: XCTestCase {
             }
         }
         SquaddChatFixture.didHold = { if $0.url?.path == "/api/events" { opened.fulfill() } }
-        let (model, coordinator) = makeChat(bot: resumeBot, thread: resumeThread, reconnectDelay: { _ in })
+        let activities = ActivityRecorder()
+        let (model, coordinator) = makeChat(bot: resumeBot, thread: resumeThread, liveActivities: activities, reconnectDelay: { _ in })
         await model.loadMessages()
         await fulfillment(of: [opened, reloaded], timeout: 5)
         await waitUntil("the thread shows before the turn's frames come") { !model.messages.isEmpty }
@@ -178,6 +179,7 @@ final class SquaddChatTests: XCTestCase {
         await waitUntil("the reply goes on as working") { model.activeStreamID != nil }
         XCTAssertNil(coordinator.latestRunEnding, "a lost resume is not a failed turn")
         XCTAssertEqual(Self.streamedText(model) ?? "", "", "no reply with its beginning missing")
+        XCTAssertEqual(activities.ended, [], "the Lock Screen card stays through a lost resume")
 
         turnEnded = true
         reloaded = reads("the turn's end reloads the thread")
@@ -185,6 +187,36 @@ final class SquaddChatTests: XCTestCase {
         await fulfillment(of: [reloaded], timeout: 5)
         await waitUntil("the stored reply comes when the turn ends") { model.activeStreamID == nil && model.messages.last?.content == reply }
         XCTAssertEqual(model.messages.filter { $0.content == reply }.count, 1)
+    }
+
+    func testALostResumeAfterTheTurnEndedEndsTheLockScreenCard() async throws {
+        let cut = try Self.text("resume-cut.sse")
+        let stale = try Self.text("resume-stale.sse").replacingOccurrences(of: "5c85f42b:189", with: "5c85f42b:54")
+        let thread = resumeThread
+        var turnEnded = false
+        var opened = expectation(description: "the stream opens")
+        SquaddChatFixture.handler = { request in
+            switch request.url?.path {
+            case "/api/threads/\(thread)/messages":
+                return .reply(200, try! Self.fixture(turnEnded ? "resume-thread-after.json" : "resume-thread-before.json"))
+            default: return .hold
+            }
+        }
+        SquaddChatFixture.didHold = { if $0.url?.path == "/api/events" { opened.fulfill() } }
+        let activities = ActivityRecorder()
+        let (model, _) = makeChat(bot: resumeBot, thread: resumeThread, liveActivities: activities, reconnectDelay: { _ in })
+        await model.loadMessages()
+        await fulfillment(of: [opened], timeout: 5)
+        await waitUntil("the thread shows before the turn's frames come") { !model.messages.isEmpty }
+        opened = expectation(description: "the stream reopens on its own")
+        SquaddChatFixture.stream(Data(cut.utf8), finish: true)
+        await fulfillment(of: [opened], timeout: 5)
+
+        // The turn ended while its frames were lost: the stored transcript has its last reply.
+        turnEnded = true
+        SquaddChatFixture.stream(Data(stale.utf8))
+
+        await waitUntil("the stored reply ends the card") { activities.ended == [self.resumeBot] }
     }
 
     func testRefusedSendGoesBackToTheComposerWithTheReason() async throws {
@@ -1164,6 +1196,7 @@ final class SquaddChatTests: XCTestCase {
     private func makeChat(server: URL? = nil, bot: String? = nil, thread: String? = nil, retrying: XCTestExpectation? = nil,
                           copies: (any ChatDraftAttachmentStoring)? = nil,
                           listen: (@MainActor (Data) throws -> any ListenAudioPlaying)? = nil,
+                          liveActivities: (any SquaddLiveActivityDriving)? = nil,
                           reconnectDelay: @escaping ChatStreamReconnectDelay = { _ in try await Task.sleep(for: .seconds(3600)) })
         -> (ChatViewModel, SquaddChatTurnCoordinator) {
         let configuration = URLSessionConfiguration.ephemeral
@@ -1172,6 +1205,7 @@ final class SquaddChatTests: XCTestCase {
         let threadId = thread ?? threadId
         let chat = SquaddThreadChat(server: server, token: "device-token", botId: bot ?? botId, threadId: threadId, title: "Prova")
         let coordinator = SquaddChatTurnCoordinator(chat, session: URLSession(configuration: configuration),
+                                                    liveActivities: liveActivities,
                                                     reconnectDelay: { delay in
                                                         retrying?.fulfill()
                                                         try await reconnectDelay(delay)
