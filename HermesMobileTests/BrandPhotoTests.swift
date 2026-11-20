@@ -41,10 +41,10 @@ final class BrandPhotoTests: XCTestCase {
 }
 
 
-/// The window's PNG once `ready` holds and the picture then stays the same for three frames 0.1 s
-/// apart, at most `limit` seconds (a never-ending animation gets its photo at the limit). A screen
-/// still loading can sit still too, so a shot that waits on a reply passes `ready`. Waits with
-/// `Task.sleep`, which lets the screen's own async work run. Photos only, never an assertion.
+/// The window's PNG once `ready` holds and two renders 33 ms apart are the same picture, at most
+/// `limit` seconds (a never-ending animation gets its photo at the limit). A screen still loading
+/// can sit still too, so a shot that waits on a reply passes `ready`. Waits with `Task.sleep`,
+/// which lets the screen's own async work run. Photos only, never an assertion.
 /// The frames it compares are drawn at 1x, about a sixth of the cost; the photo at the screen's scale.
 @MainActor
 func readyPhoto(of window: UIWindow, until ready: () -> Bool = { true }, limit: Duration = .seconds(3)) async throws -> Data {
@@ -55,13 +55,13 @@ func readyPhoto(of window: UIWindow, until ready: () -> Bool = { true }, limit: 
     }
     let preview = UIGraphicsImageRenderer(bounds: window.bounds, format: small)
     let pixels = { (image: UIImage) in image.cgImage?.dataProvider?.data as Data? }
-    var last = draw(preview), same = 0
+    var last = draw(preview), still = false
     let end = ContinuousClock.now + limit
-    while same < 3, ContinuousClock.now < end {
-        // test-wait: a photo, not a check; lets the next frame draw before comparing it with the last one
-        try await Task.sleep(for: .milliseconds(100))
+    while !still, ContinuousClock.now < end {
+        // test-wait: a photo, not a check; two display frames for the next one to draw before comparing
+        try await Task.sleep(for: .milliseconds(33))
         let now = draw(preview)
-        same = ready() && pixels(now) == pixels(last) ? same + 1 : 0
+        still = ready() && pixels(now) == pixels(last)
         last = now
     }
     return try XCTUnwrap(draw(UIGraphicsImageRenderer(bounds: window.bounds)).pngData())
