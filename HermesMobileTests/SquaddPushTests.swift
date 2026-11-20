@@ -75,6 +75,23 @@ final class SquaddPushTests: XCTestCase {
         XCTAssertNil(router.pendingDeepLink, "a push from a computer this iPhone doesn't know opens nothing")
     }
 
+    /// The thread link carries what is waiting there, so the chat opens the approval card, not just the thread.
+    func testTappedPushTellsTheThreadWhichCardToOpen() throws {
+        let router = AppIntentRouter()
+        var approval = try Self.recordedPush()
+        var omb = try XCTUnwrap(approval["omb"] as? [String: Any])
+        omb["kind"] = "approval"
+        approval["omb"] = omb
+
+        for (userInfo, kind) in [(try Self.recordedPush(), "done"), (approval, "approval")] {
+            router.pendingDeepLink = nil
+            XCTAssertTrue(SquaddPush.openTapped(userInfo: userInfo, servers: [account(server)], router: router))
+            let link = try XCTUnwrap(router.pendingDeepLink.flatMap(SquaddThreadLink.init(url:)))
+            XCTAssertEqual(link.kind, kind)
+            XCTAssertEqual(link.pinned(to: server).kind, kind, "the home that takes the link keeps the card")
+        }
+    }
+
     /// The hermex-push relay accepts only Hermex's bundle IDs, so this build can never register there (ADR 0004).
     func testThisBuildCannotRegisterWithTheHermexRelay() {
         XCTAssertNil(PushBuildIdentity(bundle: .main))
@@ -212,6 +229,18 @@ final class SquaddPushPhotoTests: XCTestCase {
         XCTAssertEqual(queued.server, sender)
         try await shoot("n2-tap-opens-thread", dir: dir) { manager.state == .loggedIn(server: sender) }
         XCTAssertEqual(manager.state, .loggedIn(server: sender))
+    }
+
+    /// Readies the simulator for the recorded push the photo job sends with `simctl push`: notification permission
+    /// (the job taps Allow on the system alert) and the sender paired in the app's own Keychain, so the tap opens its
+    /// thread. Skipped unless `PUSH_REAL` is set (`TEST_RUNNER_PUSH_REAL`).
+    func testPrepareTheSimulatorForARealPush() async throws {
+        try XCTSkipIf(ProcessInfo.processInfo.environment["PUSH_REAL"] == nil, "Only for the push photo job")
+        let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
+        XCTAssertTrue(granted)
+        let manager = AuthManager()
+        do { try manager.addSquaddServer(address: sender, token: "token-sender") } catch AuthManager.SquaddAddError.alreadyConfigured {}
+        XCTAssertTrue(manager.servers.contains { $0.id == sender.absoluteString && $0.kind == .squadd })
     }
 
     private func host<V: View>(_ view: V) throws {

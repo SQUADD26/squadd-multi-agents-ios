@@ -95,7 +95,7 @@ enum SquaddPush {
 
     /// The thread a tapped push opens, on the server that sent it (`ContentView` switches there first).
     static func threadLink(_ payload: SquaddPushPayload, server: URL) -> SquaddThreadLink {
-        SquaddThreadLink(threadID: payload.threadId, botID: payload.botId, server: server)
+        SquaddThreadLink(threadID: payload.threadId, botID: payload.botId, server: server, kind: payload.kind)
     }
 
     /// The configured Squadd server a push names, or nil when none of them sent it.
