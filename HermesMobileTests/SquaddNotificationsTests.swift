@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import HermesMobile
 
@@ -69,6 +70,53 @@ final class SquaddNotificationsTests: XCTestCase {
         await waitUntil("the read frame lands") { other.unreadCount == 0 }
     }
 
+    func testTheHomeFollowsTheComputersNotificationsOnlyWhileInFront() async throws {
+        let listed = expectation(description: "the home read the list")
+        listed.assertForOverFulfill = false
+        let loaded = expectation(description: "the home read its agents")
+        loaded.assertForOverFulfill = false
+        SquaddChatFixture.handler = { request in
+            switch request.url?.path {
+            case "/api/bots": loaded.fulfill(); return .reply(200, try! Self.fixture("bots.json"))
+            case "/api/notifications": listed.fulfill(); return .reply(200, try! Self.fixture("notifications-before.json"))
+            case "/api/events": return .hold
+            default: return .reply(404, Data())
+            }
+        }
+        var streams = 0
+        SquaddChatFixture.didHold = { request in if request.url?.path == "/api/events" { streams += 1 } }
+        URLProtocol.registerClass(SquaddChatFixture.self)
+        defer { URLProtocol.unregisterClass(SquaddChatFixture.self) }
+        let keychain = InMemoryKeychainStore()
+        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(),
+                                  serverRegistry: ServerRegistry.inMemory(keychain: keychain),
+                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
+        try manager.addSquaddServer(address: server, token: "device-token")
+        let scene = PhaseHolder()
+        let window = UIWindow(windowScene: try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first))
+        window.overrideUserInterfaceStyle = .dark
+        window.rootViewController = UIHostingController(rootView: PhaseHost(holder: scene) {
+            SquaddServerHome(authManager: manager, server: server, pendingThread: .constant(nil))
+        })
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+
+        // In the background the home reads its agents but opens no stream.
+        await fulfillment(of: [loaded], timeout: 5)
+        for _ in 0..<20 { await Task.yield() }
+        XCTAssertEqual(streams, 0)
+
+        let opened = expectation(description: "the stream opened in front")
+        SquaddChatFixture.didHold = { request in if request.url?.path == "/api/events" { opened.fulfill() } }
+        scene.phase = .active
+        await fulfillment(of: [opened], timeout: 5)
+        SquaddChatFixture.stream(Data(try frames(upTo: "\"kind\":\"notify\"").utf8))
+        await fulfillment(of: [listed], timeout: 5)
+        if let folder = ProcessInfo.processInfo.environment["FOTO_DIR"] {
+            try await readyPhoto(of: window).write(to: URL(fileURLWithPath: folder).appendingPathComponent("32-home-bell-unread.png"))
+        }
+    }
+
     // MARK: - Helpers
 
     private func makeModel() -> SquaddNotificationsModel {
@@ -118,4 +166,16 @@ final class SquaddNotificationsTests: XCTestCase {
         try Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .appendingPathComponent("Fixtures/Squadd/\(name)"))
     }
+}
+
+@MainActor @Observable
+private final class PhaseHolder {
+    var phase: ScenePhase = .background
+}
+
+/// Hands its content the scene phase the test sets, as the system does for the app's scene.
+private struct PhaseHost<Content: View>: View {
+    let holder: PhaseHolder
+    @ViewBuilder let content: () -> Content
+    var body: some View { content().environment(\.scenePhase, holder.phase) }
 }
