@@ -108,6 +108,15 @@ final class SquaddVersionsTests: XCTestCase {
 
     // MARK: - Helpers
 
+    /// Every accessibility element under `root`, as VoiceOver walks them: containers opened, leaves kept.
+    static func accessibilityElements(in root: NSObject) -> [NSObject] {
+        let children: [NSObject] = (root.accessibilityElements as? [NSObject])
+            ?? (0..<max(0, root.accessibilityElementCount())).compactMap { root.accessibilityElement(at: $0) as? NSObject }
+        let views = (root as? UIView)?.subviews ?? []
+        let leaf = root.isAccessibilityElement ? [root] : []
+        return leaf + (children + (children.isEmpty ? views : [])).flatMap(accessibilityElements(in:))
+    }
+
     /// The React submenu, as the message's long-press menu shows it.
     static func reactionMenu(ofRow rowID: String, in squadd: SquaddChatTurnCoordinator) -> ChatMessageActionItem? {
         let item = ChatMessageActionItem.squaddReactions(ofRow: rowID, in: squadd, isEnabled: true)
@@ -195,14 +204,30 @@ final class SquaddVersionsPhotoTests: XCTestCase {
         let model = try await settle { continuity.model?.messages.contains { $0.messageId == SquaddVersionsTests.editedPrompt } == true ? continuity.model : nil }
         let squadd = try XCTUnwrap(model.squaddTurn)
         try await readyPhoto(of: window).write(to: dir.appendingPathComponent("19-a-version-2-of-2.png"))
+        try assertOnePicker(in: window, reads: "2 of 2")
 
         await squadd.showVersion(-1, ofRow: SquaddVersionsTests.editedPrompt)
         XCTAssertTrue(model.messages.contains { $0.messageId == SquaddVersionsTests.firstPrompt }, "back on the first version")
         try await readyPhoto(of: window).write(to: dir.appendingPathComponent("19-b-version-1-of-2.png"))
+        try assertOnePicker(in: window, reads: "1 of 2")
 
         await squadd.toggleReaction("❤️", onRow: SquaddVersionsTests.firstReply)
         XCTAssertNotNil(squadd.marks[SquaddVersionsTests.firstReply])
         try await readyPhoto(of: window).write(to: dir.appendingPathComponent("19-c-reaction.png"))
+    }
+        try assertOnePicker(in: window, reads: "1 of 2")
+    }
+
+    /// VoiceOver's view of the chat: the picker is one adjustable element, its arrows no elements of
+    /// their own, and the reply under it, with reactions and no versions, adds no second one.
+    private func assertOnePicker(in window: UIWindow, reads value: String, line: UInt = #line) throws {
+        window.layoutIfNeeded()
+        let elements = SquaddVersionsTests.accessibilityElements(in: window)
+        let pickers = elements.filter { $0.accessibilityLabel == String(localized: "Version") }
+        XCTAssertEqual(pickers.count, 1, "found: \(elements.compactMap(\.accessibilityLabel))", line: line)
+        let picker = try XCTUnwrap(pickers.first, line: line)
+        XCTAssertEqual(picker.accessibilityValue, value, line: line)
+        XCTAssertTrue(picker.accessibilityTraits.contains(.adjustable), line: line)
     }
 
     /// The chat's model once `value` gives it, within 10 s: the view makes it as it appears.
