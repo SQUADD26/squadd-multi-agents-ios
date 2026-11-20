@@ -2091,6 +2091,7 @@ final class ChatViewModel {
     /// `prepareInitialMessageLoad` already sent instead of sending another.
     func loadMessages(modelContext: ModelContext? = nil, usesInitialPrefetch: Bool = false) async {
         if let squaddTurn {
+            if let modelContext { squaddTurn.cache = modelContext }
             isLoading = messages.isEmpty
             defer { isLoading = false }
             await squaddTurn.activate()
@@ -9943,6 +9944,13 @@ extension ChatViewModel: SquaddChatTurnDelegate {
         transcriptRevision &+= 1
         hasOlderMessages = hasOlder
         streamingAssistantMessageID = nil
+        isViewingCachedData = false
+    }
+
+    func squaddShowCached(_ messages: [ChatMessage]) {
+        squaddReplaceTranscript(messages, hasOlder: false)
+        isViewingCachedData = true
+        errorMessage = nil
     }
 
     func squaddPrependOlder(_ messages: [ChatMessage], hasOlder: Bool) {
