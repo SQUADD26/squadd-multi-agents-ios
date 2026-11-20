@@ -217,7 +217,7 @@ final class SquaddPairingPhotoTests: XCTestCase {
 
     /// Hosts `view` in a window of the app's scene, waits for `ready` and the frames after it, and
     /// writes `<name>.png`.
-    private func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: @escaping @MainActor () -> Bool) async throws {
+    func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: @escaping @MainActor () -> Bool) async throws {
         let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)

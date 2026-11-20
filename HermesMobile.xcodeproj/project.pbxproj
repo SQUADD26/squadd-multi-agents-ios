@@ -118,6 +118,7 @@
 		5D0A08000000000000000101 /* SquaddPairingInvite.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A08000000000000000001 /* SquaddPairingInvite.swift */; };
 		5D0A08000000000000000102 /* SquaddPairView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A08000000000000000002 /* SquaddPairView.swift */; };
 		5D0A08000000000000000103 /* SquaddPairingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A08000000000000000003 /* SquaddPairingTests.swift */; };
+		5D0A08000000000000000104 /* SquaddPairingLiveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A08000000000000000004 /* SquaddPairingLiveTests.swift */; };
 		5D0ADD000000000000000107 /* SquaddCompanionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADD000000000000000007 /* SquaddCompanionTests.swift */; };
 		5D0ADE280000000000000601 /* SquaddSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000000600 /* SquaddSettingsTests.swift */; };
 		5D2200000000000000000103 /* SquaddAgentEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D2200000000000000000003 /* SquaddAgentEditorTests.swift */; };
@@ -901,6 +902,7 @@
 		5D0A08000000000000000001 /* SquaddPairingInvite.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddPairingInvite.swift"; sourceTree = "<group>"; };
 		5D0A08000000000000000002 /* SquaddPairView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddPairView.swift"; sourceTree = "<group>"; };
 		5D0A08000000000000000003 /* SquaddPairingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddPairingTests.swift; sourceTree = "<group>"; };
+		5D0A08000000000000000004 /* SquaddPairingLiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddPairingLiveTests.swift; sourceTree = "<group>"; };
 		5D0ADD000000000000000007 /* SquaddCompanionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddCompanionTests.swift; sourceTree = "<group>"; };
 		5D0ADE280000000000000600 /* SquaddSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddSettingsTests.swift; sourceTree = "<group>"; };
 		5D2200000000000000000003 /* SquaddAgentEditorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddAgentEditorTests.swift; sourceTree = "<group>"; };
@@ -1904,6 +1906,7 @@
 				B5A100000000000000000061 /* AuthManagerStateTests.swift */,
 				5D0ADD000000000000000007 /* SquaddCompanionTests.swift */,
 				5D0A08000000000000000003 /* SquaddPairingTests.swift */,
+				5D0A08000000000000000004 /* SquaddPairingLiveTests.swift */,
 				5D0ADE280000000000000600 /* SquaddSettingsTests.swift */,
 				5D2200000000000000000003 /* SquaddAgentEditorTests.swift */,
 				B5A1000000000000000FA002 /* TestHostStateGuard.swift */,
@@ -3354,6 +3357,7 @@
 				A760F1A70000000000000001 /* HermesAgentFixtureTests.swift in Sources */,
 				5D0ADD000000000000000107 /* SquaddCompanionTests.swift in Sources */,
 				5D0A08000000000000000103 /* SquaddPairingTests.swift in Sources */,
+				5D0A08000000000000000104 /* SquaddPairingLiveTests.swift in Sources */,
 				5D0ADE280000000000000601 /* SquaddSettingsTests.swift in Sources */,
 				5D2200000000000000000103 /* SquaddAgentEditorTests.swift in Sources */,
 				A1213000000000000000A005 /* MoveToHermesTransferTests.swift in Sources */,
