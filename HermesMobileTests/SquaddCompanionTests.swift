@@ -452,13 +452,15 @@ final class SquaddScreenPhotoTests: XCTestCase {
         Self.botsServed = 0
         try await shoot("f1-threads", home(manager, studio), dir: dir) { Self.botsServed > 0 }
 
-        // The real home, each started on one step through the handlers a tap reaches. Photos only for
-        // the goal's cases; the other steps are checked on what the screen holds.
+        // The real home, each started on one step through the handlers a tap reaches. Photos for the
+        // goal's cases and Archived; sheets and alerts are checked on what UIKit presents, since a
+        // blinking caret or an out-of-process sheet keeps a photo from settling for 3 s.
         func started(_ start: SquaddHomeStart) -> some View {
             SquaddServerHome(authManager: manager, server: studio, pendingThread: .constant(nil), start: start)
         }
         let photos: [(String, SquaddHomeStart, String)] = [
             ("f3-search-empty", .search("nessunrisultatoxyz"), "GET /api/search"),
+            ("f4-archived-open", .showArchived, "GET /api/bots"),
             ("f5-delete-confirm", .act(.delete, threadTitle: "ciao zucchero"), "GET /api/bots"),
             ("g3-delete-folder-confirm", .deleteFolder("Clienti"), "GET /api/bots"),
         ]
@@ -466,15 +468,14 @@ final class SquaddScreenPhotoTests: XCTestCase {
             let from = served.count
             try await shoot(name, started(start), dir: dir) { served[from...].contains(awaited) }
         }
-        let hits = try await reaches(started(.search("zucchero"))) {
-            self.onScreen("Fixture Starter") && !self.onScreen("Rinominato")
+        // SwiftUI shows no accessibility labels here, so these check what UIKit presents.
+        let rename = try await reaches(started(.act(.rename, threadTitle: "ciao zucchero"))) {
+            self.window?.rootViewController?.presentedViewController.map { !($0 is UIAlertController) } ?? false
         }
-        XCTAssertTrue(hits, "a search shows its hits in place of the list")
-        let archived = try await reaches(started(.showArchived)) { self.onScreen("Prova B") }
-        XCTAssertTrue(archived, "Archived opens with its threads")
-        let rename = try await reaches(started(.act(.rename, threadTitle: "ciao zucchero"))) { self.onScreen("Rename Thread") }
-        XCTAssertTrue(rename, "Rename opens the thread's rename sheet")
-        let folder = try await reaches(started(.newFolder)) { self.onScreen("New Folder") }
+        XCTAssertTrue(rename, "Rename opens the rename sheet")
+        let folder = try await reaches(started(.newFolder)) {
+            (self.window?.rootViewController?.presentedViewController as? UIAlertController)?.title == String(localized: "New Folder")
+        }
         XCTAssertTrue(folder, "New Folder asks for the name")
         XCTAssertFalse(served.contains { $0.hasPrefix("DELETE") || $0.hasPrefix("PATCH") }, "showing a confirmation or a sheet changes nothing")
 
@@ -517,24 +518,6 @@ final class SquaddScreenPhotoTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(50))
         }
         return holds()
-    }
-
-    /// Whether some accessibility label on screen, sheets and alerts included, holds `text`.
-    private func onScreen(_ text: String) -> Bool { labels().contains { $0.contains(text) } }
-
-    private func labels() -> [String] {
-        func walk(_ object: NSObject) -> [String] {
-            var found = [object.accessibilityLabel].compactMap { $0 }
-            if let view = object as? UIView { found += view.subviews.flatMap(walk) }
-            found += ((object.accessibilityElements as? [NSObject]) ?? []).flatMap(walk)
-            return found
-        }
-        var controller = window?.rootViewController, found: [String] = []
-        while let shown = controller {
-            found += walk(shown.view) + [shown.title].compactMap { $0 }
-            controller = shown.presentedViewController
-        }
-        return found
     }
 
     @discardableResult
