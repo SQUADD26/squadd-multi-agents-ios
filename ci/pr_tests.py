@@ -9,9 +9,11 @@ Reads the PR's changed paths on stdin and selects test classes from HermesMobile
 - LocalizationCatalogTests when the String Catalog changes.
 Nothing selected prints nothing: the PR still builds and checks the catalog. The full suite runs at night.
 With `--rosso` (a `rosso/*` branch, which only shows that a test fails without its change) it selects just the
-non-photo classes of the changed test files.
+non-photo classes of the changed test files. `--test` keeps the classes that assert (no `Photo` in the name), for
+the check that decides the PR's green; `--foto` keeps the classes that take photos (`is_photo`), for the photo job
+after it. A test that asserts and also takes a photo is in both.
 
-    git diff --name-only BASE...HEAD | python3 ci/pr_tests.py [--rosso]
+    git diff --name-only BASE...HEAD | python3 ci/pr_tests.py [--rosso | --test | --foto]
 """
 
 import re
@@ -30,7 +32,14 @@ def classes(text):
     return [(m.group(1), text[m.start():found[i + 1].start() if i + 1 < len(found) else len(text)]) for i, m in enumerate(found)]
 
 
-def select(changed, tests=TESTS, red=False):
+def is_photo(name, body):
+    """A class that takes photos: named so, or reading FOTO_DIR / BRAND_PHOTOS_DIR in its own code. The doc
+    comment above the next class falls at the end of `body` and doesn't count."""
+    own = re.sub(r"(?:\n[ \t]*(?://[^\n]*|@\w+)?)*\s*\Z", "", body)
+    return "Photo" in name or bool(PHOTO.search(own))
+
+
+def select(changed, tests=TESTS, red=False, part=None):
     changed = [Path(p) for p in changed if p.strip()]
     names = {p.stem for p in changed if p.suffix == ".swift" and p.parts[:1] != ("HermesMobileTests",)}
     picked = set()
@@ -42,12 +51,15 @@ def select(changed, tests=TESTS, red=False):
                 if rel in changed and not PHOTO.search(body):
                     picked.add(name)
             elif whole or (PHOTO.search(body) and any(re.search(rf"\b{re.escape(n)}\b", body) for n in names)):
-                picked.add(name)
-    if not red and any(p.name == "Localizable.xcstrings" for p in changed):
+                if part is None or (part == "test" and "Photo" not in name) or (part == "foto" and is_photo(name, body)):
+                    picked.add(name)
+    if not red and part != "foto" and any(p.name == "Localizable.xcstrings" for p in changed):
         picked.add("LocalizationCatalogTests")
     return sorted(picked)
 
 
 if __name__ == "__main__":
-    for name in select(sys.stdin.read().splitlines(), red="--rosso" in sys.argv[1:]):
+    args = sys.argv[1:]
+    part = "test" if "--test" in args else "foto" if "--foto" in args else None
+    for name in select(sys.stdin.read().splitlines(), red="--rosso" in args, part=part):
         print(f"-only-testing:HermesMobileTests/{name}")
