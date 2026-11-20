@@ -370,7 +370,7 @@ final class SquaddScreenPhotoTests: XCTestCase {
             ("f4-archived-open", .showArchived, "GET /api/bots"),
             ("f5-delete-confirm", .act(.delete, threadTitle: "ciao zucchero"), "GET /api/bots"),
             ("f6-rename", .act(.rename, threadTitle: "ciao zucchero"), "GET /api/bots"),
-            ("f7-export-share", .act(.export, threadTitle: "ciao zucchero"), "GET /api/threads/\(sugarThread)/export"),
+            ("f7-export-share", .act(.export, threadTitle: "ciao zucchero"), "GET /api/threads/efb8fa96-47ef-4968-bb13-ce9aacada117/export"),
         ]
         for (name, start, awaited) in steps {
             let from = served.count
