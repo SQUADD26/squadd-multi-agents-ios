@@ -1,6 +1,6 @@
-  1.06s  agent Fixture Starter, thread c2aa848e-5971-41fc-9105-f597766e71f1
-  2.62s  sent: started, reply: hello from fake claude
-  3.30s  edited: true, reply: hello from fake claude, picker: 2/2
-  4.17s  back: true, new version on screen: false, picker: 1/2
-  4.84s  ❤️ on: true, mine: ["❤️"]
-  5.47s  ❤️ off: true, error: none
+  1.05s  agent Fixture Starter, thread c2aa848e-5971-41fc-9105-f597766e71f1
+  2.54s  sent: started, reply: hello from fake claude
+  3.04s  edited: true, reply: hello from fake claude, picker: 2/2
+  4.12s  back: true, new version on screen: false, picker: 1/2
+  4.69s  ❤️ on: true, mine: ["❤️"]
+  5.26s  ❤️ off: true, error: none
