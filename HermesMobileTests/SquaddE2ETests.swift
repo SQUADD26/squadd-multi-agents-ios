@@ -18,9 +18,9 @@ final class SquaddE2ETests: XCTestCase {
     }
 
     private func hex(_ text: Any?) -> Data {
-        let text = text as! String
-        return Data(stride(from: 0, to: text.count, by: 2).map {
-            UInt8(text[text.index(text.startIndex, offsetBy: $0)..<text.index(text.startIndex, offsetBy: $0 + 2)], radix: 16)!
+        let digits = Array((text as! String).utf8)
+        return Data(stride(from: 0, to: digits.count, by: 2).map {
+            UInt8(String(decoding: digits[$0..<$0 + 2], as: UTF8.self), radix: 16)!
         })
     }
 
