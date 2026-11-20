@@ -449,6 +449,9 @@ final class SquaddScreenPhotoTests: XCTestCase {
                                   serverRegistry: ServerRegistry.inMemory(keychain: keychain),
                                   hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
         try add(studio, name: "Mac Studio", initials: "MS", color: "#2E7D32", token: "token-a", to: manager)
+        // Sheets and alerts land without their slide, so each photo is ready as soon as it is drawn.
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(true) }
         Self.botsServed = 0
         try await shoot("f1-threads", home(manager, studio), dir: dir) { Self.botsServed > 0 }
 
