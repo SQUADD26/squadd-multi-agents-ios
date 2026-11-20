@@ -80,8 +80,7 @@ final class SquaddPairingTests: XCTestCase {
         XCTAssertEqual(typed.server, computer, "typed and scanned reach one server in the list")
         XCTAssertEqual(typed.credential, "409706")
         XCTAssertEqual(SquaddPairingInvite(typedAddress: "127.0.0.1:18810", code: "409-706")?.credential, "409706")
-        // A server's twelve-symbol code, five digits, or no address are not a computer's pairing.
-        XCTAssertNil(SquaddPairingInvite(typedAddress: "127.0.0.1:18810", code: "7KQ2-M9XD-H4TP"))
+        // Five digits, or no address, are no pairing.
         XCTAssertNil(SquaddPairingInvite(typedAddress: "127.0.0.1:18810", code: "40970"))
         XCTAssertNil(SquaddPairingInvite(typedAddress: "", code: "409706"))
         // A link the desktop would never print: no port, a path, a short credential, another scheme.
@@ -115,12 +114,31 @@ final class SquaddPairingTests: XCTestCase {
         XCTAssertEqual(manager.state, .loggedIn(server: computer))
     }
 
+    /// A VPS or Cloud with no companion: the desktop's QR is its own `/pair#code=` page, and its code twelve symbols.
+    func testServerQRAndTwelveSymbolCodePairAServerOrCloud() throws {
+        let vps = URL(string: "https://vps.example.com")!
+        let page = try XCTUnwrap(SquaddPairingInvite(url: URL(string: "https://vps.example.com/pair#code=RPXB-WCD6-C6Y7")!))
+        XCTAssertEqual(page.server, vps)
+        XCTAssertEqual(page.credential, "RPXB-WCD6-C6Y7")
+        XCTAssertEqual(SquaddPairingInvite(url: URL(string: "openmausbot://pair?address=https%3A%2F%2Fvps.example.com&code=rpxbwcd6c6y7")!)?.credential,
+                       "RPXB-WCD6-C6Y7")
+        let typed = try XCTUnwrap(SquaddPairingInvite(typedAddress: "vps.example.com", code: "rpxb wcd6 c6y7"))
+        XCTAssertEqual(typed.server, vps, "a name without a port is https")
+        XCTAssertEqual(typed.credential, "RPXB-WCD6-C6Y7")
+        XCTAssertNil(SquaddPairingInvite(url: URL(string: "https://vps.example.com/other#code=RPXB-WCD6-C6Y7")!))
+        XCTAssertNil(SquaddPairingInvite(url: URL(string: "https://vps.example.com/pair#code=NOT-A-CODE")!))
+        XCTAssertEqual(try SquaddPairingInvite.scanned("https://vps.example.com/pair#code=RPXB-WCD6-C6Y7").get().server, vps)
+        let relayOnly = "openmausbot://pair?address=relay-only.invalid%3A443&token=omb_pair_" + String(repeating: "A", count: 43)
+        XCTAssertEqual(SquaddPairingInvite.scanned(relayOnly), .failure(.relayOnly), "a name that never resolves is no route")
+        XCTAssertEqual(SquaddPairingInvite.scanned("https://example.com/menu"), .failure(.notAPairingCode))
+    }
+
     func testEachRefusalSaysWhatToDoAndAddsNothing() async throws {
         let manager = makeManager(keychain: InMemoryKeychainStore())
         var messages: Set<String> = []
         for (fixture, code) in [("code-expired.json", "pairing_not_open"), ("qr-used.json", "pairing_not_open"),
                                 ("code-wrong.json", "pairing_code_wrong"), ("too-many.json", "pairing_too_many"),
-                                ("device-limit.json", "pairing_device_limit")] {
+                                ("device-limit.json", "pairing_device_limit"), ("qr-only.json", "pairing_qr_only")] {
             SquaddHTTPFixture.handler = { _ in (401, try! Self.fixture(fixture)) }
             do {
                 try await manager.pairSquadd(SquaddPairingInvite(server: computer, credential: "409706"), deviceName: "iPhone", session: session)
@@ -131,9 +149,11 @@ final class SquaddPairingTests: XCTestCase {
             }
         }
         // The companion answers an expired and a used code alike: no pairing is open.
-        XCTAssertEqual(messages.count, 4, "expired and used share one message; the rest each have their own")
+        XCTAssertEqual(messages.count, 5, "expired and used share one message; the rest each have their own")
         XCTAssertEqual(squaddPairingFailure(SquaddError.pairing("pairing_new_reason")),
-                       String(localized: "The computer refused the code. Codes last two minutes and work once."))
+                       String(localized: "The computer refused the code. Codes work once and only for a few minutes: create a new one on the computer."))
+        XCTAssertFalse(messages.contains(squaddPairingFailure(SquaddError.pairing("pairing_new_reason"))),
+                       "every known refusal has its own message, not the catch-all")
         XCTAssertTrue(messages.contains { $0.contains("20") }, "the device limit names it")
         XCTAssertTrue(manager.servers.isEmpty)
     }
@@ -224,6 +244,11 @@ final class SquaddPairingPhotoTests: XCTestCase {
         reply = (401, try SquaddPairingTests.fixture("device-limit.json"))
         Self.served = 0
         try await shoot("c-device-limit", SquaddAddServerSheet(authManager: manager, invite: invite), dir: dir) { Self.served > 0 }
+
+        // f. A computer that takes only its QR code refused the typed code.
+        reply = (400, try SquaddPairingTests.fixture("qr-only.json"))
+        Self.served = 0
+        try await shoot("f-qr-only", SquaddAddServerSheet(authManager: manager, invite: invite), dir: dir) { Self.served > 0 }
 
         // e. The camera refused: the way to Settings, and the code below.
         try await shoot("e-camera-denied", NavigationStack {

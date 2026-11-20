@@ -2,9 +2,9 @@ import AVFoundation
 import SwiftUI
 import UIKit
 
-/// Pairs this iPhone with a computer running Squadd Multi-Agents (ADR 0003): the camera reads the QR
-/// code from the computer's Remote access screen, or the person types the address and six-digit
-/// code shown beside it. Without the camera (refused, restricted, or none) the code is the way in.
+/// Pairs this iPhone with a computer, server or Cloud running Squadd Multi-Agents (ADR 0003): the
+/// camera reads the QR code from its Pair a phone screen, or the person types the address and code
+/// shown beside it. Without the camera (refused, restricted, or none) the code is the way in.
 struct SquaddPairView: View {
     @Bindable var authManager: AuthManager
     /// From an `openmausbot://pair` link: paired as soon as the screen appears.
@@ -32,16 +32,17 @@ struct SquaddPairView: View {
                     }
                     .listRowInsets(EdgeInsets())
             } footer: {
-                Text("Open Remote access on your computer, start pairing, and point the camera at the QR code.")
+                Text("On the computer, open Settings → Phone & devices, choose Pair a phone, and point the camera at the QR code.")
             }
             Section {
-                TextField("Address", text: $address, prompt: Text(verbatim: "192.168.1.10:8810"))
+                TextField("Address", text: $address, prompt: Text(verbatim: "bots.example.com"))
                     .keyboardType(.URL)
                     .textContentType(.URL)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
-                TextField("Pairing code", text: $code, prompt: Text(verbatim: "123456"))
-                    .keyboardType(.numberPad)
+                TextField("Pairing code", text: $code, prompt: Text(verbatim: "7KQ2-M9XD-H4TP"))
+                    .textInputAutocapitalization(.characters)
+                    .autocorrectionDisabled()
                     .textContentType(.oneTimeCode)
                 Button("Pair") { pairTyped() }
                     .disabled(SquaddPairingInvite(typedAddress: address, code: code) == nil || isPairing)
@@ -51,7 +52,7 @@ struct SquaddPairView: View {
                 if let errorMessage {
                     Text(errorMessage).foregroundStyle(.red)
                 } else {
-                    Text("The computer shows the address and the six-digit code under the QR code.")
+                    Text("On the computer, the address and the code are under the QR code. If you don’t see them, open “Having trouble?” under it.")
                 }
             }
             #if DEBUG
@@ -73,11 +74,10 @@ struct SquaddPairView: View {
         if Self.hasCamera, camera == .authorized {
             SquaddQRScanner { scanned in
                 guard !isPairing else { return }
-                guard let url = URL(string: scanned), let invite = SquaddPairingInvite(url: url) else {
-                    errorMessage = String(localized: "That QR code isn’t a Squadd Multi-Agents pairing code.")
-                    return
+                switch SquaddPairingInvite.scanned(scanned) {
+                case .success(let invite): pair(invite)
+                case .failure(let refusal): errorMessage = squaddScanRefusal(refusal)
                 }
-                pair(invite)
             }
             .accessibilityLabel("QR code scanner")
         } else if Self.hasCamera, camera == .notDetermined {
@@ -85,7 +85,7 @@ struct SquaddPairView: View {
         } else {
             VStack(spacing: 12) {
                 Image(systemName: "camera.fill").font(.title).foregroundStyle(.secondary)
-                Text("The camera is off or unavailable. Enter the address and code the computer shows instead.")
+                Text("The camera is off or unavailable. Enter the address and code from under the QR code on the computer; if you don’t see them, open “Having trouble?” there.")
                     .multilineTextAlignment(.center)
                 if camera == .denied {
                     Button("Open Settings") {
