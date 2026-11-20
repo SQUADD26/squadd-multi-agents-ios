@@ -869,7 +869,7 @@ struct ChatView: View {
             uploadsAttachmentsOnSend: isHermesSession,
             onCancelAttachmentUpload: viewModel.isSendingAttachments ? { viewModel.cancelAttachmentUpload() } : nil,
             hermesTranscriber: hermesTranscriber,
-            dictatesOnDevice: isSquaddThread
+            dictatesOnDevice: viewModel.dictatesOnDevice
         )
         // The composer flips wholesale with the transcript under the RTL
         // toggle (#259): input, placeholder, and chrome mirror together.

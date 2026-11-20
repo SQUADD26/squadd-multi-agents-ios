@@ -492,6 +492,15 @@ final class SquaddChatTests: XCTestCase {
 
     /// Listen reads a reply in the computer's voice: `prepare` splits it into utterances, `speak`
     /// voices each, and they play as one track. Leaving the app stops it.
+    /// #25: a Squadd chat's composer dictates on the phone only; other chats keep their choice.
+    func testOnlyASquaddChatDictatesOnThePhoneAlone() {
+        let (squadd, _) = makeChat()
+        let webui = ChatViewModel(session: SessionSummary(sessionId: "webui-session", title: "Prova"), server: server)
+
+        XCTAssertTrue(squadd.dictatesOnDevice)
+        XCTAssertFalse(webui.dictatesOnDevice)
+    }
+
     func testListenSpeaksEachPreparedUtteranceAsOneTrackAndStopsInTheBackground() async throws {
         let reply = "## Fatto\n\nHo letto il file e ho trovato **tre** punti."
         var prepared: String?

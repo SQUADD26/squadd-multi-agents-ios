@@ -6930,6 +6930,10 @@ final class ChatViewModel {
         }
     }
 
+    /// A Squadd chat dictates with the phone's speech recognition only (#25): the companion has
+    /// no transcription route, and the words never leave the phone.
+    var dictatesOnDevice: Bool { squaddTurn != nil }
+
     /// A Squadd chat's Listen stops when the app leaves the screen or a call comes in (#25);
     /// other chats keep playing behind the Lock Screen (#1352).
     func stopSquaddListening() {

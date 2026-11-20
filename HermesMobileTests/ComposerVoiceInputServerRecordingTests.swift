@@ -23,6 +23,51 @@ final class ComposerVoiceInputServerRecordingTests: APIClientTestCase {
         XCTAssertFalse(recorder.isRecording)
     }
 
+    /// #25, the composer's wiring for a Squadd chat (`dictatesOnDevice`): with a stored server-first
+    /// preference and the phone's recognizer missing, no clip is recorded and no request leaves;
+    /// with it present, dictation that has begun stops when the app leaves the screen.
+    func testOnDevicePhoneDictationSendsNothingAndStopsInTheBackground() async {
+        var requests = 0
+        let server = makeClient { request in
+            requests += 1
+            return apiTestJSONResponse(#"{"ok":true,"transcript":"words"}"#, for: request)
+        }
+        let recorder = DictationTestRecorder()
+        let noRecognizer = ComposerVoiceInputController(
+            speechRecognizerFactory: { _ in nil }, microphonePermission: { true },
+            serverRecorder: recorder, mayRecord: { true })
+        (noRecognizer.transcribe, noRecognizer.providerPreference) = ComposerSTTProviderPolicy.dictation(
+            onDeviceOnly: true, transcriber: server.dictationTranscriber, stored: .serverFirst)
+        await noRecognizer.toggle(draft: DictationTestDraft("Ciao") { _ in XCTFail("No words without the phone's recognizer") })
+        XCTAssertEqual(recorder.starts, 0, "no clip for a server")
+        XCTAssertEqual(requests, 0)
+        XCTAssertEqual(noRecognizer.state, .idle)
+
+        var authorize: CheckedContinuation<SFSpeechRecognizerAuthorizationStatus, Never>?
+        let asked = expectation(description: "the phone asks for speech recognition")
+        var engines = 0
+        let candidates = ComposerSpeechLocalePolicy.candidates(current: .current, preferredLanguages: Locale.preferredLanguages)
+        let onPhone = ComposerVoiceInputController(
+            speechRecognizerFactory: { _ in PhoneRecognizer() }, supportedLocales: { Set(candidates) },
+            audioEngineFactory: { engines += 1; return AVAudioEngine() }, microphonePermission: { true },
+            speechAuthorization: { await withCheckedContinuation { authorize = $0; asked.fulfill() } },
+            serverRecorder: recorder, mayRecord: { true })
+        (onPhone.transcribe, onPhone.providerPreference) = ComposerSTTProviderPolicy.dictation(
+            onDeviceOnly: true, transcriber: server.dictationTranscriber, stored: .serverFirst)
+        let started = Task { await onPhone.toggle(draft: DictationTestDraft("Ciao") { _ in }) }
+        await fulfillment(of: [asked], timeout: 2)
+        XCTAssertEqual(onPhone.state, .requestingPermission, "dictation began on the phone")
+
+        onPhone.suspend()
+        authorize?.resume(returning: .authorized)
+        await started.value
+
+        XCTAssertEqual(onPhone.state, .idle, "the background stopped it")
+        XCTAssertEqual(engines, 0, "the microphone never opened")
+        XCTAssertEqual(recorder.starts, 0)
+        XCTAssertEqual(requests, 0)
+    }
+
     func testInterruptedRecordingRetainsClipUntilUnlockedAndTranscribesOnce() async throws {
         let previousIdlePolicy = UIApplication.shared.isIdleTimerDisabled
         UIApplication.shared.isIdleTimerDisabled = false
@@ -426,5 +471,14 @@ private extension ComposerVoiceInputController {
             draftState: { ComposerVoiceDraftState(text: draft.text, selection: draft.selection) },
             updateDraft: draft.write
         )
+    }
+}
+
+/// A phone that recognizes speech on device; these tests stop before it is asked to listen.
+private final class PhoneRecognizer: ComposerSpeechRecognizing {
+    let supportsOnDeviceRecognition = true
+    func recognitionTask(with request: SFSpeechRecognitionRequest,
+                         resultHandler: @escaping (SFSpeechRecognitionResult?, (any Error)?) -> Void) -> SFSpeechRecognitionTask {
+        preconditionFailure("dictation stopped before it listened")
     }
 }
