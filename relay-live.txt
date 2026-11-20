@@ -1,0 +1,2 @@
+paired on attempt 1 as https://h-d0c823d0dda2e56c8e30f3d9fc324a57.e2e.invalid
+agents through the relay with the device's own keys: ["Squadd"]
