@@ -179,6 +179,67 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         XCTAssertNotNil(compacted, "the compaction marker shows")
     }
 
+    /// #14: the agent asks to run a shell command, the card shows above the composer, Allow once goes
+    /// to the companion and the card leaves; the run then goes on. Log `squadd-approval-log.txt`.
+    func testPhotographALiveApproval() async throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let directory = environment["BRAND_PHOTOS_DIR"],
+              let token = environment["SQUADD_LIVE_TOKEN"], !token.isEmpty,
+              environment["SQUADD_LIVE_URL"] != nil || environment["SQUADD_LIVE_LOOKUP"] != nil else {
+            throw XCTSkip("Live photos only: a photo branch's workflow with a companion in the secrets.")
+        }
+        let folder = URL(fileURLWithPath: directory, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var log: [String] = []
+        let started = Date()
+        func note(_ line: String) { log.append(String(format: "%6.2fs  ", Date().timeIntervalSince(started)) + line) }
+        defer { try? log.joined(separator: "\n").write(to: folder.appendingPathComponent("squadd-approval-log.txt"), atomically: true, encoding: .utf8) }
+
+        let (window, model, _) = try await openLiveChat(environment, token: token, folder: folder, note: note)
+        defer { window.isHidden = true }
+        let turn = try XCTUnwrap(model.squaddTurn)
+        let sending = Task { await model.send("Run echo hi") }
+        let approval = try await settle(seconds: 60) { turn.pendingApproval }
+        note("card: \(approval.map { "\($0.card.title ?? "?") / \($0.card.subtitle ?? "?") / \($0.content.choices)" } ?? "none")")
+        try await readyPhoto(of: window).write(to: folder.appendingPathComponent("14-b-live-approval.png"))
+
+        let answered = await turn.answerApproval(.once)
+        note("answered: \(answered), error: \(turn.approvalError ?? "none"), card after: \(turn.pendingApproval == nil ? "gone" : "still there")")
+        note("send outcome: \(await sending.value)")
+        let finished = try await settle(seconds: 60) { model.activeStreamID == nil && model.messages.last?.role == "assistant" ? true : nil }
+        note("run finished: \(finished == true), last: \(model.messages.last?.content?.prefix(80) ?? "none")")
+        try await readyPhoto(of: window).write(to: folder.appendingPathComponent("14-c-live-after-allow.png"))
+
+        // Always allow: the card offers it where the computer gives a grant key (a read-only MCP tool here); once
+        // chosen, the same request runs on the next turn without a card.
+        let again = Task { await model.send("Read the notes") }
+        let grantable = try await settle(seconds: 60) { turn.pendingApproval?.content.choices.contains(.always) == true ? turn.pendingApproval : nil }
+        note("second card: \(grantable.map { "\($0.card.subtitle ?? "?") / \($0.content.choices) / key \($0.card.allowKey ?? "none")" } ?? "none")")
+        try await readyPhoto(of: window).write(to: folder.appendingPathComponent("14-d-live-always-allow.png"))
+        let always = await turn.answerApproval(.always)
+        note("always: \(always), error: \(turn.approvalError ?? "none"), card after: \(turn.pendingApproval == nil ? "gone" : "still there")")
+        note("send outcome: \(await again.value)")
+        _ = try await settle(seconds: 60) { model.activeStreamID == nil ? true : nil }
+
+        let rows = model.messages.count
+        let third = Task { await model.send("Read the notes once more") }
+        var askedAgain = false
+        let thirdDone = try await settle(seconds: 60) { () -> Bool? in
+            if turn.pendingApproval != nil { askedAgain = true }
+            return model.activeStreamID == nil && model.messages.count > rows + 1 && model.messages.last?.role == "assistant" ? true : nil
+        }
+        note("third run: \(await third.value), finished \(thirdDone == true), asked again: \(askedAgain), last: \(model.messages.last?.content?.prefix(80) ?? "none")")
+        try await readyPhoto(of: window).write(to: folder.appendingPathComponent("14-e-live-granted-run.png"))
+
+        XCTAssertNotNil(approval, "the companion's card showed")
+        XCTAssertTrue(answered)
+        XCTAssertEqual(finished, true, "the run went on after Allow")
+        XCTAssertNotNil(grantable, "the companion offered Always allow")
+        XCTAssertTrue(always)
+        XCTAssertEqual(thirdDone, true)
+        XCTAssertFalse(askedAgain, "the saved grant let the tool run without a card")
+    }
+
     /// Finds the companion through the tunnel, pushes the first agent thread's chat, and waits for it to load.
     private func openLiveChat(_ environment: [String: String], token: String, folder: URL,
                               note: (String) -> Void) async throws -> (UIWindow, ChatViewModel, SquaddThreadChat) {

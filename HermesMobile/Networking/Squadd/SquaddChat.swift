@@ -28,6 +28,8 @@ struct SquaddMessage: Decodable, Equatable {
     /// Files the computer attached to the row itself, such as a bot's voice note (#23). A person's
     /// files ride in `text` as tags (`SquaddAttachmentTags`).
     let attachments: [Attachment]
+    /// An `options` row's card: an approval or a question the agent waits on (#14, #15).
+    let card: SquaddCard?
 
     struct Author: Decodable, Equatable {
         let botId: String?
@@ -43,12 +45,13 @@ struct SquaddMessage: Decodable, Equatable {
         let bytes: Int?
     }
 
-    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, from, parentId, reactions, reaction, attachments, compaction }
+    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, from, parentId, reactions, reaction, attachments, compaction, card }
     private struct Compaction: Decodable { let summary: String? }
 
     init(id: String, role: String?, kind: String? = "text", text: String?, at: Double? = nil,
          itemId: String? = nil, sendId: String? = nil, from: Author? = nil, parentId: String? = nil,
-         reactions: [SquaddReaction] = [], reaction: String? = nil, attachments: [Attachment] = []) {
+         reactions: [SquaddReaction] = [], reaction: String? = nil, attachments: [Attachment] = [],
+         card: SquaddCard? = nil) {
         self.id = id
         self.role = role
         self.kind = kind
@@ -62,6 +65,7 @@ struct SquaddMessage: Decodable, Equatable {
         self.reactions = reactions
         self.reaction = reaction
         self.attachments = attachments
+        self.card = card
     }
 
     init(from decoder: Decoder) throws {
@@ -81,6 +85,7 @@ struct SquaddMessage: Decodable, Equatable {
         attachments = (try? container.decodeIfPresent([SquaddLossy<Attachment>].self, forKey: .attachments))?
             .compactMap(\.value) ?? []
         compactionSummary = (try? container.decodeIfPresent(Compaction.self, forKey: .compaction))?.summary
+        card = try? container.decodeIfPresent(SquaddCard.self, forKey: .card)
     }
 
     /// A version of a typed message: the rows an edit puts side by side.
@@ -111,6 +116,69 @@ struct SquaddMessage: Decodable, Equatable {
         return ChatMessage(role: isBot ? "assistant" : "user", content: parsed.text,
                            timestamp: at.map { $0 / 1000 }, messageId: id, name: namesAuthor && isBot ? from?.name : nil,
                            attachments: files.isEmpty ? nil : files)
+    }
+}
+
+/// The card of an `options` row (`OptionCardData`, `phone-protocol/src/wire.ts`): what the chat needs to
+/// show and answer a live approval or question. Unknown fields are ignored; a field that doesn't decode is nil.
+struct SquaddCard: Decodable, Equatable {
+    let title: String?
+    let subtitle: String?
+    let options: [String]
+    /// The id `respond` answers; nil on a card that isn't a live ask.
+    let requestId: String?
+    /// `permission` (an approval) or `question`.
+    let requestType: String?
+    let tool: String?
+    /// A grant "always allow" remembers for this bot (`POST /api/bots/:id/always-allow`).
+    let allowKey: String?
+    /// The engine can remember an allow for the rest of its session (`always: true`).
+    let allowSession: Bool?
+    /// The verdict, once someone answered: here, on the desktop or another phone.
+    let answered: String?
+    let dismissed: Bool?
+    let expired: Bool?
+    let stopped: Bool?
+
+    private enum CodingKeys: String, CodingKey {
+        case title, subtitle, options, requestId, requestType, tool, allowKey, allowSession, answered, dismissed, expired, stopped
+    }
+
+    init(title: String? = nil, subtitle: String? = nil, options: [String] = [], requestId: String?, requestType: String?,
+         tool: String? = nil, allowKey: String? = nil, allowSession: Bool? = nil, answered: String? = nil) {
+        self.title = title
+        self.subtitle = subtitle
+        self.options = options
+        self.requestId = requestId
+        self.requestType = requestType
+        self.tool = tool
+        self.allowKey = allowKey
+        self.allowSession = allowSession
+        self.answered = answered
+        dismissed = nil
+        expired = nil
+        stopped = nil
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        title = try? container.decodeIfPresent(String.self, forKey: .title)
+        subtitle = try? container.decodeIfPresent(String.self, forKey: .subtitle)
+        options = (try? container.decodeIfPresent([String].self, forKey: .options)) ?? []
+        requestId = try? container.decodeIfPresent(String.self, forKey: .requestId)
+        requestType = try? container.decodeIfPresent(String.self, forKey: .requestType)
+        tool = try? container.decodeIfPresent(String.self, forKey: .tool)
+        allowKey = try? container.decodeIfPresent(String.self, forKey: .allowKey)
+        allowSession = try? container.decodeIfPresent(Bool.self, forKey: .allowSession)
+        answered = try? container.decodeIfPresent(String.self, forKey: .answered)
+        dismissed = try? container.decodeIfPresent(Bool.self, forKey: .dismissed)
+        expired = try? container.decodeIfPresent(Bool.self, forKey: .expired)
+        stopped = try? container.decodeIfPresent(Bool.self, forKey: .stopped)
+    }
+
+    /// Still waiting for an answer: a live ask nobody answered, dismissed, let expire or stopped.
+    var isOpen: Bool {
+        requestId != nil && answered == nil && dismissed != true && expired != true && stopped != true
     }
 }
 
@@ -427,6 +495,27 @@ extension SquaddCompanionClient {
         var request = URLRequest(url: server.appendingPathComponent(path))
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         return request
+    }
+}
+
+// MARK: - Approvals and questions (#14, #15)
+
+extension SquaddCompanionClient {
+    /// Answers a card's live ask: `behavior` is `allow`, `deny` or `answer` (with `message`). `always`
+    /// asks the engine to remember an allow for its session, on a card with `allowSession`. The card's
+    /// own `message.patch` follows on the event stream.
+    func respond(threadId: String, requestId: String, behavior: String, always: Bool = false,
+                 message: String? = nil) async throws {
+        var body: [String: Any] = ["requestId": requestId, "behavior": behavior]
+        if always { body["always"] = true }
+        body["message"] = message
+        _ = try await call("POST", "api/threads/\(threadId)/respond", body: body)
+    }
+
+    /// Remembers `allowKey` as a standing grant for the bot. Only for a card still waiting with that
+    /// key: it answers nothing by itself, so an `allow` follows.
+    func alwaysAllow(botId: String, threadId: String, allowKey: String) async throws {
+        _ = try await call("POST", "api/bots/\(botId)/always-allow", body: ["threadId": threadId, "allowKey": allowKey])
     }
 }
 

@@ -1,3 +1,4 @@
+import SwiftUI
 import SwiftData
 import XCTest
 import UIKit
@@ -557,6 +558,86 @@ final class SquaddChatTests: XCTestCase {
         XCTAssertEqual(offline.messages.map(\.messageId), saved)
     }
 
+    // MARK: Approvals (#14), against a shell approval recorded from a real companion (origin/dev 961cb8133)
+
+    private let approvalBot = "65f42659-c570-4b77-abec-5f2e1d43e9f5"
+    private let approvalThread = "c68d3fac-e54a-4658-8a2a-26b15fbe47e5"
+
+    /// The waiting card shows above the composer with the choices it allows; each choice reaches
+    /// the companion as the desktop sends it, and the card leaves once the computer took it.
+    func testApprovalChoicesReachTheCompanionAndTheCardLeaves() async throws {
+        let page = String(decoding: try Self.fixture("thread-approval-open.json"), as: UTF8.self)
+            .replacingOccurrences(of: #""allowSession":true"#, with: #""allowSession":true,"allowKey":"shell:echo hi""#)
+        let bot = approvalBot, thread = approvalThread
+        let requestId = "a83c560b-98f7-44c5-8e05-1e17e60e5d6d"
+        for (choice, expected) in [(ApprovalChoice.once, ["allow"]), (.session, ["allow+always"]),
+                                   (.always, ["always-allow", "allow"]), (.deny, ["deny"])] {
+            var asked: [String] = []
+            var answer: [String: Any] = [:]
+            SquaddChatFixture.handler = { request in
+                switch (request.httpMethod, request.url?.path) {
+                case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, Data(page.utf8))
+                case ("GET", _): return .hold
+                case ("POST", "/api/bots/\(bot)/always-allow"):
+                    XCTAssertEqual(try? Self.json(request)["allowKey"] as? String, "shell:echo hi")
+                    asked.append("always-allow")
+                    return .reply(200, Data(#"{"bot":{}}"#.utf8))
+                case ("POST", "/api/threads/\(thread)/respond"):
+                    answer = (try? Self.json(request)) ?? [:]
+                    asked.append((answer["behavior"] as? String ?? "") + (answer["always"] as? Bool == true ? "+always" : ""))
+                    return .reply(200, Data(#"{"ok":true,"outcome":"allowed-once"}"#.utf8))
+                default: return .reply(404, Data())
+                }
+            }
+            let (model, coordinator) = makeChat(bot: bot, thread: thread)
+            await model.loadMessages()
+            let approval = try XCTUnwrap(ChatView.squaddApproval(in: model), "the recorded card waits in the chat's request slot")
+            XCTAssertEqual(approval.content.choices, [.once, .session, .always, .deny])
+            XCTAssertEqual(approval.content.command, "echo hi")
+
+            let answered = await coordinator.answerApproval(choice)
+            XCTAssertTrue(answered)
+            XCTAssertEqual(asked, expected, "\(choice)")
+            XCTAssertEqual(answer["requestId"] as? String, requestId)
+            XCTAssertNil(coordinator.pendingApproval, "the card leaves once the computer took the answer")
+            coordinator.stop()
+        }
+    }
+
+    /// Answered on the desktop, the card leaves the phone when its patch arrives; a refused answer
+    /// keeps it, with the reason.
+    func testApprovalAnsweredOnTheDesktopLeavesThePhone() async throws {
+        let events = try Self.text("events-approval.sse")
+        let thread = approvalThread
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, Data(#"{"messages":[],"hasMore":false}"#.utf8))
+            case ("GET", _): return .hold
+            case ("POST", "/api/threads/\(thread)/respond"): return .reply(409, Data(#"{"error":"no pending request"}"#.utf8))
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, coordinator) = makeChat(bot: approvalBot, thread: thread)
+        await model.loadMessages()
+        let resolved = try XCTUnwrap(events.range(of: "id: 1cda109b:182")).lowerBound
+        SquaddChatFixture.stream(Data(events[..<resolved].utf8))
+        await waitUntil("the card shows") { coordinator.pendingApproval != nil }
+        XCTAssertEqual(coordinator.pendingApproval?.content.choices, [.once, .session, .deny])
+
+        let answered = await coordinator.answerApproval(.once)
+        XCTAssertFalse(answered)
+        XCTAssertNotNil(coordinator.approvalError)
+        XCTAssertNotNil(coordinator.pendingApproval, "a refused answer keeps the card")
+
+        SquaddChatFixture.stream(Data(events[resolved...].utf8))
+        await waitUntil("the desktop's answer takes the card away") { coordinator.pendingApproval == nil }
+    }
+
+    private nonisolated static func json(_ request: URLRequest) throws -> [String: Any] {
+        let body = try XCTUnwrap(request.httpBody ?? request.httpBodyStream.map(read))
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+    }
+
     // MARK: - Helpers
 
     /// The recorded frames between two `: app <step>` lines (from the start, or to the end, without one).
@@ -933,4 +1014,45 @@ private final class ListenPlayerSpy: ListenAudioPlaying {
 private struct ListenSessionSpy: ListenAudioSessionControlling {
     func activate() {}
     func deactivate() {}
+}
+
+/// The recorded shell approval above the composer (#14). Photos only, for photo runs (`FOTO_DIR`).
+@MainActor
+final class SquaddApprovalPhotoTests: XCTestCase {
+    override func tearDown() {
+        URLProtocol.unregisterClass(SquaddChatFixture.self)
+        SquaddChatFixture.reset()
+        super.tearDown()
+    }
+
+    func testPhotoApprovalCard() async throws {
+        let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
+        try XCTSkipIf(path == nil, "Only for photo runs")
+        let dir = URL(fileURLWithPath: path!)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let page = try Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+            .appendingPathComponent("Fixtures/Squadd/thread-approval-open.json"))
+        SquaddChatFixture.handler = { request in
+            request.url?.path.hasSuffix("/messages") == true ? .reply(200, page) : .hold
+        }
+        URLProtocol.registerClass(SquaddChatFixture.self)
+        let chat = SquaddThreadChat(server: URL(string: "http://192.0.2.10:8810")!, token: "device-token",
+                                    botId: "65f42659-c570-4b77-abec-5f2e1d43e9f5",
+                                    threadId: "c68d3fac-e54a-4658-8a2a-26b15fbe47e5", title: "Approval fixture")
+        let continuity = ChatContinuity()
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = UIHostingController(rootView: NavigationStack {
+            ChatView(session: chat.session, server: chat.server, onAPIError: { _ in }, continuity: continuity, squaddThread: chat)
+        })
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline, continuity.model?.squaddTurn?.pendingApproval == nil {
+            // test-wait: a photo, not a check; `ChatContinuity` isn't observable.
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        XCTAssertNotNil(continuity.model?.squaddTurn?.pendingApproval)
+        try await readyPhoto(of: window).write(to: dir.appendingPathComponent("14-a-approval-card.png"))
+    }
 }
