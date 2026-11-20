@@ -144,6 +144,7 @@ final class SquaddAgentPhotoTests: XCTestCase {
     // Replies served so far, counted on the fixture's thread: a shot waits for the reply its screen shows.
     nonisolated(unsafe) private static var botsServed = 0
     nonisolated(unsafe) private static var avatarsServed = 0
+    static var times = ""
 
     override func tearDown() {
         URLProtocol.unregisterClass(SquaddHTTPFixture.self)
@@ -234,6 +235,8 @@ final class SquaddAgentPhotoTests: XCTestCase {
 
     /// Hosts `view` in a window of the app's scene and writes `<name>.png` once it has drawn.
     private func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: () -> Bool = { true }) async throws {
+        let t0 = ContinuousClock.now
+        defer { Self.times += "\(name) total \(ContinuousClock.now - t0)\n"; try? Self.times.write(to: dir.appendingPathComponent("tempi.txt"), atomically: true, encoding: .utf8) }
         let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
@@ -243,6 +246,7 @@ final class SquaddAgentPhotoTests: XCTestCase {
         window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
         window.makeKeyAndVisible()
         self.window = window
+        Self.times += "\(name) setup \(ContinuousClock.now - t0)\n"
         try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
     }
 
