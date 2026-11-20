@@ -411,11 +411,7 @@ final class SquaddScreenPhotoTests: XCTestCase {
         }
         check(100)
         await fulfillment(of: [landed], timeout: 10)
-        try await Task.sleep(for: .seconds(1)) // test-wait: lets the reply draw before the shot; a photo for review, never an assertion
-        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
-            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-        }
-        try XCTUnwrap(image.pngData()).write(to: dir.appendingPathComponent("\(name).png"))
+        try await readyPhoto(of: window).write(to: dir.appendingPathComponent("\(name).png"))
     }
 
     private nonisolated static func fixture(_ name: String) throws -> Data {
