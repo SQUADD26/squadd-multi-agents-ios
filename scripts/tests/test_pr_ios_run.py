@@ -227,6 +227,15 @@ class LiveTests(unittest.TestCase):
         # #97: with parallel clones a failure has no line the grep keeps (D-216).
         self.assertIn("-parallel-testing-enabled NO", workflow)
 
+    def test_the_real_push_run_goes_to_its_own_branch_and_workflow(self):
+        # #30: the push recipe lived on a never-merged branch, six 30-minute hosted runs to find it (D-221).
+        branch = tool.live_branch("30", {"foto/30-push"}, "push")
+        self.assertEqual(branch, "foto/30-push-2")
+        workflow = tool.live_workflow("30", "the real push", branch, "", "", tool.PUSH_TEMPLATE)
+        self.assertIn("branches: ['foto/30-push-2']", workflow)
+        self.assertIn("runs-on: [squadd-multi-ios-senza-pr]", workflow)
+        self.assertIn("SquaddPushPhotoTests/testPrepareTheSimulatorForARealPush", workflow)
+
     def test_openmausbot_gets_a_worktree_with_its_own_packages_and_the_fake_engine_server(self):
         # #78: a linked node_modules missed packages, ERR_MODULE_NOT_FOUND (D-195); #94: node server/index.ts with
         # FAKE_CLAUDE_MODE ran the real engine, «Not logged in» (D-214).

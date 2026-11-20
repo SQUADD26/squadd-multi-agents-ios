@@ -252,6 +252,17 @@ final class SquaddPushPhotoTests: XCTestCase {
         XCTAssertTrue(manager.servers.contains { $0.id == sender.absoluteString && $0.kind == .squadd })
     }
 
+    /// The real-push run's first step (`scripts/pr-ios-run live <issue> --push`): notification permission, tapped on
+    /// the system alert by `ci/foto/tap_allow.py`, and the sender paired in the app's own Keychain for the tap to open.
+    func testPrepareTheSimulatorForARealPush() async throws {
+        try XCTSkipIf(ProcessInfo.processInfo.environment["PUSH_REAL"] == nil, "Only for the real-push run")
+        let granted = try await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge])
+        XCTAssertTrue(granted)
+        let manager = AuthManager()
+        do { try manager.addSquaddServer(address: sender, token: "token-sender") } catch AuthManager.SquaddAddError.alreadyConfigured {}
+        XCTAssertTrue(manager.servers.contains { $0.id == sender.absoluteString && $0.kind == .squadd })
+    }
+
     private func host<V: View>(_ view: V) throws {
         let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
