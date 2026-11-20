@@ -273,6 +273,8 @@ class SquaddRoomPhotoTestCase: XCTestCase {
             let path = request.url?.path ?? ""
             Self.served.append(path)
             if path == "/api/bots" { return (200, Self.fixture("room-bots.json")) }
+            // A busy room queues a send (`room-send-queued.json`, recorded).
+            if request.httpMethod == "POST", path.hasSuffix("/messages") { return (202, Self.fixture("room-send-queued.json")) }
             if path.hasSuffix("/messages") { return (200, Self.fixture("room-messages.json")) }
             return (404, Data())
         }
@@ -357,6 +359,33 @@ final class SquaddRoomChatPhotoTests: SquaddRoomPhotoTestCase {
 
         try await shoot("r4-room-chat-mention", NavigationStack { ChatView(squaddThread: chat) }, dir: dir) {
             Self.served.contains { $0.hasSuffix("/messages") }
+        }
+    }
+}
+
+/// A busy room's queued message (`FOTO_DIR`): the pending bubble with Remove and Copy.
+final class SquaddRoomQueuePhotoTests: SquaddRoomPhotoTestCase {
+    func testPhotoRoomQueuedRemove() async throws {
+        let dir = try photoDir()
+        let list = try JSONDecoder().decode(SquaddBotList.self, from: Self.fixture("room-bots.json"))
+        let room = SquaddRoomSection(room: try XCTUnwrap(list.rooms.first), bots: list.bots)
+        let thread = try XCTUnwrap(room.threads.first { $0.title?.hasPrefix("@Scrittura") == true })
+        let chat = SquaddThreadChat(room: room, thread: thread, server: server, token: "device-token")
+        let continuity = ChatContinuity()
+        // Sends once the chat has loaded, as a person typing into the busy room would.
+        let sending = Task { @MainActor in
+            while continuity.model.map({ $0.isLoading || $0.messages.isEmpty }) ?? true {
+                // test-wait: a photo, not a check; the chat loads its recorded transcript.
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+            _ = await continuity.model?.send("@Ricerche e poi i prezzi")
+        }
+        defer { sending.cancel() }
+
+        try await shoot("r6-room-queued-remove", NavigationStack {
+            ChatView(session: chat.session, server: chat.server, onAPIError: { _ in }, continuity: continuity, squaddThread: chat)
+        }, dir: dir) {
+            continuity.model?.queuedPromptMessages.isEmpty == false
         }
     }
 }
