@@ -35,6 +35,8 @@ struct KeychainStore: KeychainStoring {
         case screenHolds = "screen_holds"
         // Per-server device token a Squadd companion returned from `POST /api/pair`.
         case squaddDeviceToken = "squadd_device_token"
+        // Per-server JSON of a Squadd computer's routes and name (`SquaddRouteBook`), from its pairing.
+        case squaddRoutes = "squadd_routes"
     }
 
     private let keychain: Keychain

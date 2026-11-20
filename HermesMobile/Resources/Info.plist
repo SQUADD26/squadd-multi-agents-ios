@@ -117,8 +117,12 @@
 			</dict>
 		</dict>
 	</dict>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_openmausbot._tcp</string>
+	</array>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>Squadd Multi-Agents connects to your Squadd server on your local network to load bots and chat.</string>
+	<string>Squadd Multi-Agents looks for your paired computer on this Wi-Fi, so it connects at home without an address to type.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Squadd Multi-Agents needs microphone access to dictate text into the message composer.</string>
 	<key>NSCameraUsageDescription</key>

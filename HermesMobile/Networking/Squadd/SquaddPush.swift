@@ -27,7 +27,7 @@ extension SquaddCompanionClient {
     }
 
     private func pushRequest(_ method: String) -> URLRequest {
-        var request = URLRequest(url: server.appendingPathComponent("api/push/device"))
+        var request = URLRequest(url: base.appendingPathComponent("api/push/device"))
         request.httpMethod = method
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         return request

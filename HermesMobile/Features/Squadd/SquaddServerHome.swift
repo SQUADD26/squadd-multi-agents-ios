@@ -38,9 +38,11 @@ struct SquaddServerHome: View {
     /// The row a thread link pointed at, marked until the next link.
     @State private var linkedRow: String?
     @State private var isLinkedThreadMissing = false
+    @Environment(\.scenePhase) private var scenePhase
     /// Made once in `.task`, not in `init`, so a pass of the parent reads no Keychain.
     @State private var model: SquaddAgentListModel?
     @State private var client: SquaddCompanionClient?
+    @State private var finder: SquaddRouteFinder?
     @State private var editingAgent: SquaddBot?
     @State private var isCreatingAgent = false
     @State private var isShowingSettings = false
@@ -67,6 +69,7 @@ struct SquaddServerHome: View {
                     if let hits = model?.searchHits {
                         SquaddSearchResults(hits: hits, query: searchText)
                     } else {
+                        routeRow
                         rows
                     }
                 }
@@ -96,6 +99,11 @@ struct SquaddServerHome: View {
                     onUnpaired: { [weak authManager, server] in authManager?.squaddUnpaired(server: server) }
                 )
             }
+            let finder = finder ?? SquaddRouteFinder(server: server, book: authManager.squaddRoutes(for: server))
+            self.finder = finder
+            let model = model
+            // The agents load over the route just found, then follow it while the home is on screen.
+            await finder.find()
             await model?.load()
             // Siri and Shortcuts offer this server's agents once they are known (`OpenSquaddAgentIntent`).
             HermexShortcuts.updateAppShortcutParameters()
@@ -103,12 +111,19 @@ struct SquaddServerHome: View {
                 hasStarted = true
                 begin(start)
             }
+            await finder.follow { await model?.load() }
         }
         // Debounced: a new query cancels the one waiting.
         .task(id: searchText) {
             if !searchText.isEmpty { try? await Task.sleep(for: .milliseconds(300)) }
             guard !Task.isCancelled, let model else { return }
             if await !model.search(searchText) { toast.show(.failure(String(localized: "Couldn’t search the computer."))) }
+        }
+        // Present for Squadd while the app is in front; leaving cancels the pings (`SquaddPresence`).
+        .task(id: scenePhase == .active) {
+            guard scenePhase == .active, let token = authManager.squaddToken(for: server) else { return }
+            let client = SquaddCompanionClient(server: server, token: token)
+            await SquaddPresence.keepAlive { try await client.presenceActive() }
         }
         .sheet(isPresented: $isShowingSettings) {
             NavigationStack {
@@ -164,6 +179,40 @@ struct SquaddServerHome: View {
                 onChange: { Task { await model?.load() } },
                 onUnpaired: { [weak authManager, server] in authManager?.squaddUnpaired(server: server) }
             )
+        }
+    }
+
+    /// How the iPhone reaches the computer right now (#9): over the internet, through the tailnet, or on
+    /// this Wi-Fi.
+    @ViewBuilder
+    private var routeRow: some View {
+        if let finder {
+            Label {
+                switch finder.status {
+                case .connected(.hosted): Text("Connected over the internet")
+                case .connected(.tailnet): Text("Connected through Tailscale")
+                case .connected(.lan), .connected(.bonjour): Text("Connected on this Wi-Fi")
+                case .finding: Text("Finding the computer…")
+                case .unreachable: Text("Can't reach the computer.")
+                }
+            } icon: {
+                Image(systemName: finder.route.map(Self.symbol)
+                      ?? (finder.status == .unreachable ? "wifi.exclamationmark" : "antenna.radiowaves.left.and.right"))
+            }
+            .font(AppFont.footnote())
+            .foregroundStyle(.secondary)
+            .accessibilityElement(children: .combine)
+            .padding(.horizontal, 24)
+            .padding(.top, 8)
+            .sessionsScreenListRow()
+        }
+    }
+
+    private static func symbol(_ route: SquaddEndpoint) -> String {
+        switch route.kind {
+        case .hosted: "globe"
+        case .tailnet: "point.3.connected.trianglepath.dotted"
+        case .lan, .bonjour: "wifi"
         }
     }
 

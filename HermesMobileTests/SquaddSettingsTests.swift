@@ -202,41 +202,38 @@ final class SquaddSettingsPhotoTests: XCTestCase {
                 .appendingPathComponent("Fixtures/Squadd/\(name)")))
         }
         URLProtocol.registerClass(SquaddHTTPFixture.self)
-        let keychain = InMemoryKeychainStore()
-        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(),
-                                  serverRegistry: ServerRegistry.inMemory(keychain: keychain),
-                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
-        try manager.addSquaddServer(address: studio, token: "token-a")
-        let account = try XCTUnwrap(manager.activeServer)
         let model = SquaddSettingsModel(client: SquaddCompanionClient(server: studio, token: "token-a"), onUnpaired: {})
 
-        try await shoot("f1-server-page", NavigationStack {
-            SettingsServerPage(authManager: manager, account: account, onDefaultProfileSelected: { _ in })
-        }, dir: dir) { true }
-        try await shoot("f2-engines", NavigationStack { SquaddEnginesPage(model: model) }, dir: dir) { model.enginesPhase == .loaded }
-        try await shoot("f3-keys", NavigationStack { SquaddKeysPage(model: model) }, dir: dir) { model.keysPhase == .loaded }
-        try await shoot("f4-agents", NavigationStack { SquaddAgentsToolsPage(model: model) }, dir: dir) { model.agentsPhase == .loaded }
-        let agent = try XCTUnwrap(model.agents.first)
-        try await shoot("f5-agent-tools", NavigationStack { SquaddAgentToolsPage(model: model, agent: agent) }, dir: dir) {
-            model.tools[agent.id]?.phase == .loaded
-        }
-        try await shoot("f6-team-memory", NavigationStack { SquaddTeamMemoryPage(model: model) }, dir: dir) { model.memoryPhase == .loaded }
-        try await shoot("f7-memory-editor", SquaddMemoryEditor(model: model, entry: model.memory.first), dir: dir) { true }
-        let connectors = SquaddConnectorsPage(client: model.client, onUnpaired: {})
-        try await shoot("f8-connected-apps", NavigationStack { connectors }, dir: dir) { true }
-    }
-
-    /// Hosts `view` in a window of the app's scene, waits for `ready` and a still screen, and writes `<name>.png`.
-    private func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: @escaping @MainActor () -> Bool) async throws {
         let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        window?.isHidden = true
         let window = UIWindow(windowScene: scene)
         window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
-        window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
+        let host = UIHostingController(rootView: AnyView(EmptyView()))
+        window.rootViewController = host
         window.makeKeyAndVisible()
         self.window = window
-        try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
+        // One window for every photo: each screen replaces the last one, waits for `ready` and a still screen.
+        func shoot<V: View>(_ name: String, _ view: V, until ready: @escaping @MainActor () -> Bool) async throws {
+            host.rootView = AnyView(view.modelContainer(container))
+            try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
+        }
+
+        // Every screen's data before the first photo: each page then opens already loaded and stills sooner.
+        async let engines: Void = model.loadEngines()
+        async let keys: Void = model.loadKeys()
+        async let memory: Void = model.loadMemory()
+        _ = await (engines, keys, memory, model.loadAgents())
+        let agent = try XCTUnwrap(model.agents.first)
+        await model.loadTools(for: agent)
+
+        try await shoot("f2-engines", NavigationStack { SquaddEnginesPage(model: model) }) { model.enginesPhase == .loaded }
+        try await shoot("f3-keys", NavigationStack { SquaddKeysPage(model: model) }) { model.keysPhase == .loaded }
+        try await shoot("f5-agent-tools", NavigationStack { SquaddAgentToolsPage(model: model, agent: agent) }) {
+            model.tools[agent.id]?.phase == .loaded
+        }
+        try await shoot("f6-team-memory", NavigationStack { SquaddTeamMemoryPage(model: model) }) { model.memoryPhase == .loaded }
+        try await shoot("f7-memory-editor", SquaddMemoryEditor(model: model, entry: model.memory.first)) { true }
+        try await shoot("f8-connected-apps", NavigationStack { SquaddConnectorsPage(client: model.client, onUnpaired: {}) }) { true }
     }
 }

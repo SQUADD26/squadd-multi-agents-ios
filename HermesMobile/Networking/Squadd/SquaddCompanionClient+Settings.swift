@@ -51,7 +51,7 @@ extension SquaddCompanionClient {
 
     /// `pathAndQuery` is relative to the server and already escaped. `body` is JSON, `NSNull()` for a null.
     func call(_ method: String, _ pathAndQuery: String, body: [String: Any]? = nil) async throws -> Data {
-        guard let url = URL(string: pathAndQuery, relativeTo: server.appendingPathComponent("/")) else {
+        guard let url = URL(string: pathAndQuery, relativeTo: base.appendingPathComponent("/")) else {
             throw SquaddError.invalidResponse
         }
         var request = URLRequest(url: url.absoluteURL)
