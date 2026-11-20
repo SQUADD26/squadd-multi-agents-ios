@@ -42,7 +42,8 @@
     }
    ],
    "projects": [],
-   "avatarUrl": null
+   "avatarUrl": null,
+   "color": "yellow"
   },
   {
    "id": "79592321-f680-5f54-8dc5-a32ba2a9a335",
@@ -86,7 +87,8 @@
     }
    ],
    "projects": [],
-   "avatarUrl": null
+   "avatarUrl": null,
+   "color": "purple"
   },
   {
    "id": "8fc0654c-0b83-5143-8d76-961587c5d221",
@@ -122,7 +124,8 @@
     }
    ],
    "projects": [],
-   "avatarUrl": null
+   "avatarUrl": null,
+   "color": "teal"
   },
   {
    "id": "de0b7723-45aa-503b-b53d-b09dbde64427",
@@ -174,7 +177,8 @@
     }
    ],
    "projects": [],
-   "avatarUrl": null
+   "avatarUrl": null,
+   "color": "red"
   },
   {
    "id": "20b52ea8-32f5-5a1c-aa6b-dabb49966035",
@@ -210,7 +214,8 @@
     }
    ],
    "projects": [],
-   "avatarUrl": null
+   "avatarUrl": null,
+   "color": "orange"
   },
   {
    "id": "0959fe42-cf75-5513-b6c4-30b6a6ab86f2",
@@ -263,7 +268,8 @@
    ],
    "projects": [],
    "avatarUrl": null,
-   "chiefOfStaff": true
+   "chiefOfStaff": true,
+   "color": "chrome"
   },
   {
    "id": "4d2a85a4-097c-50ce-91e3-4dd5be1ca2d6",
@@ -299,7 +305,8 @@
     }
    ],
    "projects": [],
-   "avatarUrl": null
+   "avatarUrl": null,
+   "color": "orange"
   },
   {
    "id": "d0bb0346-cef3-5240-939d-f4960208921c",
@@ -335,7 +342,8 @@
     }
    ],
    "projects": [],
-   "avatarUrl": null
+   "avatarUrl": null,
+   "color": "red"
   },
   {
    "id": "41380615-6778-5624-a431-487231b06d81",
@@ -371,7 +379,8 @@
     }
    ],
    "projects": [],
-   "avatarUrl": null
+   "avatarUrl": null,
+   "color": "yellow"
   },
   {
    "id": "19d0920d-ff8b-5387-814d-9abd286acd5e",
@@ -399,7 +408,8 @@
     }
    ],
    "projects": [],
-   "avatarUrl": null
+   "avatarUrl": null,
+   "color": "green"
   },
   {
    "id": "d09213b3-ba0c-543b-b607-bc9839e0da09",
@@ -435,7 +445,8 @@
     }
    ],
    "projects": [],
-   "avatarUrl": null
+   "avatarUrl": null,
+   "color": "blue"
   }
  ],
  "groups": [

@@ -910,7 +910,7 @@ private struct SquaddAgentRow: View {
     private var identity: some View {
         HStack(spacing: 10) {
             if let client {
-                SquaddAgentAvatar(client: client, path: section.bot.avatarUrl, name: section.name)
+                SquaddAgentAvatar(client: client, path: section.bot.avatarUrl, name: section.name, color: section.bot.color)
             }
             SquaddRowName(name: section.name, isUnread: section.isUnread)
             if section.bot.chiefOfStaff == true {

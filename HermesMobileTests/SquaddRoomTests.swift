@@ -444,8 +444,29 @@ class SquaddHomeListPhotoTestCase: SquaddRoomPhotoTestCase {
     fileprivate final func shootList(_ name: String, size: DynamicTypeSize = .large, height: CGFloat,
                                      start: SquaddHomeStart? = nil, style: UIUserInterfaceStyle = .dark) async throws {
         let dir = try photoDir(bots: "bots-roberto.json")
+        // Roberto's iPhone is in Italian; the test run is pinned to English, so this photo reads it.lproj.
+        let italian = try XCTUnwrap(Bundle.main.path(forResource: "it", ofType: "lproj").flatMap(Bundle.init(path:)))
+        ItalianMainBundle.italian = italian
+        object_setClass(Bundle.main, ItalianMainBundle.self)
+        let formatterLocale = SessionRelativeDateFormatter.shared.locale
+        SessionRelativeDateFormatter.shared.locale = Locale(identifier: "it_IT")
+        defer {
+            object_setClass(Bundle.main, Bundle.self)
+            SessionRelativeDateFormatter.shared.locale = formatterLocale
+        }
         try await shoot(name, SquaddServerHome(authManager: try manager(), server: server, pendingThread: .constant(nil), start: start)
-            .environment(\.dynamicTypeSize, size), dir: dir, height: height, style: style) { Self.served.contains("/api/bots") }
+            .environment(\.dynamicTypeSize, size).environment(\.locale, Locale(identifier: "it_IT")),
+                        dir: dir, height: height, style: style) { Self.served.contains("/api/bots") }
+    }
+}
+
+/// `Bundle.main` answering every localized string from one language's `.lproj`, for one photo.
+private final class ItalianMainBundle: Bundle {
+    nonisolated(unsafe) static var italian: Bundle?
+
+    override func localizedString(forKey key: String, value: String?, table tableName: String?) -> String {
+        Self.italian?.localizedString(forKey: key, value: value, table: tableName)
+            ?? super.localizedString(forKey: key, value: value, table: tableName)
     }
 }
 
