@@ -7,7 +7,8 @@ no job going, so a lone run still splits its tests over two simulators. Used as 
     shell: python3 ci/pr_sims.py bash --noprofile --norc -eo pipefail {0}
 
 It runs the step with TWO emptied when it cannot borrow. A lock on the shared simulator, held until the step
-ends, keeps two borrowers apart.
+ends, keeps two borrowers apart. The step runs in its own recorded process group (ci/pr_group.py), killed when
+the step ends, so a cancelled job's xcodebuild never outlives it.
 """
 
 import fcntl
@@ -15,6 +16,8 @@ import os
 import subprocess
 import sys
 from pathlib import Path
+
+import pr_group
 
 
 def other_runner_busy():
@@ -38,7 +41,7 @@ def main(cmd):
     shared = os.environ["TWO"]
     borrowed = not other_runner_busy() and borrow(shared)
     print(f"Simulators: {os.environ['ONE']}" + (f" and {shared} (shared)" if borrowed else " (the other runner has a job)"))
-    return subprocess.run(cmd, env={**os.environ, "TWO": shared if borrowed else ""}).returncode
+    return pr_group.run("tests", cmd, {**os.environ, "TWO": shared if borrowed else ""}, kill_at_end=True)
 
 
 if __name__ == "__main__":
