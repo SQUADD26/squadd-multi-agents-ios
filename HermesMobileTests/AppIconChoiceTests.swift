@@ -8,6 +8,6 @@ final class AppIconChoiceTests: XCTestCase {
         for choice in AppIconChoice.allCases {
             XCTAssertEqual(AppIconChoice.resolved(from: choice.alternateIconName), choice)
         }
-        XCTAssertNotEqual(AppIconChoice.resolved(from: "UnknownIcon"), .system)
+        XCTAssertNotEqual(AppIconChoice.resolved(from: "UnknownIcon"), .system, "rosso")
     }
 }
