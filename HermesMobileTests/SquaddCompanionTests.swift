@@ -685,7 +685,7 @@ final class SquaddShareTests: XCTestCase {
 
         XCTAssertEqual(served.filter { $0.hasPrefix("POST") }, ["POST /api/bots/\(pesto)/tasks"], "one new thread, of the agent picked")
         XCTAssertEqual(routed, ["reservation-1"])
-        XCTAssertEqual(draft?.text, "Leggi questo appunto")
+        XCTAssertEqual(draft?.text, HermesShareDraft.composerDraft(from: "Leggi questo appunto"), "the words as a Hermes share puts them")
         XCTAssertEqual(draft?.attachments.map(\.name), ["appunto.txt"])
     }
 
