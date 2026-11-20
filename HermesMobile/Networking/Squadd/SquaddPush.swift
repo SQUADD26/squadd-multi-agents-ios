@@ -26,12 +26,58 @@ extension SquaddCompanionClient {
         _ = try await Self.send(pushRequest("DELETE"), session: session)
     }
 
-    private func pushRequest(_ method: String) -> URLRequest {
-        var request = URLRequest(url: base.appendingPathComponent("api/push/device"))
+    /// `PUT /api/push/activity`: replaces this iPhone's Live Activity registration here, so the computer
+    /// updates and ends the listed activities, and starts one with `startToken`, while the app is closed.
+    func registerActivity(_ registration: SquaddActivityRegistration) async throws {
+        var request = pushRequest("PUT", path: "api/push/activity")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(registration)
+        _ = try await Self.send(request, session: session)
+    }
+
+    /// `DELETE /api/push/activity`: the computer forgets this iPhone's Live Activity tokens.
+    func unregisterActivity() async throws {
+        _ = try await Self.send(pushRequest("DELETE", path: "api/push/activity"), session: session)
+    }
+
+    private func pushRequest(_ method: String, path: String = "api/push/device") -> URLRequest {
+        var request = URLRequest(url: base.appendingPathComponent(path))
         request.httpMethod = method
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         return request
     }
+}
+
+/// The body of `PUT /api/push/activity` (`PhoneActivityRegistration` in `phone-push.ts`). The words are
+/// this iPhone's, the companion fills in `{name}`; with `statuses` its pushes carry content state version 1.
+struct SquaddActivityRegistration: Encodable, Equatable {
+    struct Activity: Encodable, Equatable {
+        let botId: String
+        let token: String
+    }
+
+    struct Statuses: Encodable, Equatable {
+        let working: String
+        let needsYou: [String: String]
+    }
+
+    /// The companion's own cap (`MAX_ACTIVITIES`).
+    static let maxActivities = 10
+
+    let scheme = SquaddThreadLink.scheme
+    let headlines = ["needsYou": String(localized: "{name} needs you"), "working": String(localized: "{name} is working")]
+    let startToken: String?
+    let activities: [Activity]
+    let statuses = Statuses(working: SquaddBotActivityProps.status(ask: nil), needsYou: Dictionary(
+        uniqueKeysWithValues: ["approval", "question", "signIn", "other"].map { ($0, SquaddBotActivityProps.status(ask: $0)) }))
+
+    init(startToken: String?, activities: [Activity]) {
+        self.startToken = startToken
+        self.activities = Array(activities.prefix(Self.maxActivities))
+    }
+
+    /// Nothing for the computer to push to: the registration is deleted instead.
+    var isEmpty: Bool { startToken == nil && activities.isEmpty }
 }
 
 /// Every `/api/push/device` answer: `push` is `on`, `off` (the owner has not switched phone push on at the

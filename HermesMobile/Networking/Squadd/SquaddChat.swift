@@ -30,6 +30,8 @@ struct SquaddMessage: Decodable, Equatable {
     let attachments: [Attachment]
     /// An `options` row's card: an approval or a question the agent waits on (#14, #15).
     let card: SquaddCard?
+    /// A bot reply that closed its turn.
+    let turnTerminal: Bool?
 
     struct Author: Decodable, Equatable {
         let botId: String?
@@ -45,13 +47,13 @@ struct SquaddMessage: Decodable, Equatable {
         let bytes: Int?
     }
 
-    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, from, parentId, reactions, reaction, attachments, compaction, card }
+    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, from, parentId, reactions, reaction, attachments, compaction, card, turnTerminal }
     private struct Compaction: Decodable { let summary: String? }
 
     init(id: String, role: String?, kind: String? = "text", text: String?, at: Double? = nil,
          itemId: String? = nil, sendId: String? = nil, from: Author? = nil, parentId: String? = nil,
          reactions: [SquaddReaction] = [], reaction: String? = nil, attachments: [Attachment] = [],
-         card: SquaddCard? = nil) {
+         card: SquaddCard? = nil, turnTerminal: Bool? = nil) {
         self.id = id
         self.role = role
         self.kind = kind
@@ -66,6 +68,7 @@ struct SquaddMessage: Decodable, Equatable {
         self.reaction = reaction
         self.attachments = attachments
         self.card = card
+        self.turnTerminal = turnTerminal
     }
 
     init(from decoder: Decoder) throws {
@@ -86,6 +89,7 @@ struct SquaddMessage: Decodable, Equatable {
             .compactMap(\.value) ?? []
         compactionSummary = (try? container.decodeIfPresent(Compaction.self, forKey: .compaction))?.summary
         card = try? container.decodeIfPresent(SquaddCard.self, forKey: .card)
+        turnTerminal = try? container.decodeIfPresent(Bool.self, forKey: .turnTerminal)
     }
 
     /// A version of a typed message: the rows an edit puts side by side.
@@ -291,6 +295,9 @@ enum SquaddFrame: Equatable {
     case queued([String: [SquaddQueuedMessage]])
     /// The turn failed with words for the person.
     case runtimeError(threadId: String, message: String)
+    /// The agent waits on the person: `question` for a question, else an approval.
+    case requestOpened(threadId: String, isQuestion: Bool)
+    case requestResolved(threadId: String)
     /// A new entry for the computer's notification list.
     case notify(SquaddNotification)
     /// These notifications were read, here or on another app.
@@ -327,6 +334,8 @@ enum SquaddFrame: Equatable {
             case "runtime.error":
                 guard let message = event.message, !message.isEmpty else { return .ignored }
                 return .runtimeError(threadId: threadId, message: message)
+            case "request.opened": return .requestOpened(threadId: threadId, isQuestion: event.requestType == "question")
+            case "request.resolved": return .requestResolved(threadId: threadId)
             default: return .ignored
             }
         case "bot.queued":
@@ -359,6 +368,7 @@ enum SquaddFrame: Equatable {
         let delta: String?
         let ok: Bool?
         let message: String?
+        let requestType: String?
     }
 }
 

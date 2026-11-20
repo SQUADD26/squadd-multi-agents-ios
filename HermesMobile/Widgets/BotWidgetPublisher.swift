@@ -34,11 +34,89 @@ import WidgetKit
     /// dropping the server, and reloads the widget only when that changed something. A roster that
     /// arrives after its server was removed writes nothing, so it can't bring the rows back.
     func publish(_ profiles: [BotProfile], server: URL, connectionID: UUID) {
+        let key = BotHistoryCache.Scope.key(server)
+        write(profiles.prefix(BotWidgetSnapshot.maxBotsPerServer).map {
+            BotWidgetSnapshot.Bot(profile: $0.id, title: $0.name, avatar: Self.avatarName(serverKey: key, profile: $0, connectionID: connectionID))
+        }, server: server)
+    }
+
+    /// A Squadd computer's agents (#31), as its home last read them. A slot opens the agent's own chat,
+    /// so its `profile` is that thread's id (`ContentView` opens it as a `SquaddThreadLink`).
+    func publish(_ agents: [SquaddAgentSection], squaddServer server: URL) {
+        let key = BotHistoryCache.Scope.key(server)
+        write(agents.prefix(BotWidgetSnapshot.maxBotsPerServer).compactMap { agent in
+            agent.threadID.map { BotWidgetSnapshot.Bot(profile: $0, title: agent.name, avatar: Self.avatarName(serverKey: key, agent: agent)) }
+        }, server: server)
+    }
+
+    /// Renders the avatar of each Squadd agent a widget is configured for, the companion's image or
+    /// its initial, unless that avatar path already has its files, and deletes the server's other
+    /// avatar files. An image that fails to load renders nothing, so the slot keeps the fallback face
+    /// until the next read.
+    func renderAvatars(_ agents: [SquaddAgentSection], client: SquaddCompanionClient) async {
+        guard let file else { return }
+        let key = BotHistoryCache.Scope.key(client.server)
+        let generation = renderGenerations[key, default: 0] + 1
+        renderGenerations[key] = generation
+        // A failed lookup renders and deletes nothing, rather than reading as "no widgets".
+        guard let configured = await configuredBots(), renderGenerations[key] == generation else { return }
+        let wanted = Set(configured.filter { $0.serverKey == key }.map(\.profile))
+        var keep: Set<String> = []
+        var rendered = false
+        for agent in agents where agent.threadID.map(wanted.contains) == true {
+            let name = Self.avatarName(serverKey: key, agent: agent)
+            keep.insert(name)
+            guard ![false, true].allSatisfy({ FileManager.default.fileExists(atPath: file.avatarURL(name, dark: $0).path) }) else { continue }
+            var photo: UIImage?
+            if let path = agent.bot.avatarUrl {
+                guard let data = try? await client.avatarData(path: path), let image = UIImage(data: data) else { continue }
+                photo = image
+            }
+            guard renderGenerations[key] == generation else { return }
+            try? FileManager.default.createDirectory(at: file.avatarDirectory, withIntermediateDirectories: true)
+            for dark in [false, true] {
+                guard let data = Self.squaddAvatar(name: agent.name, photo: photo, dark: dark) else { continue }
+                rendered = (try? data.write(to: file.avatarURL(name, dark: dark), options: .atomic)) != nil || rendered
+            }
+        }
+        guard renderGenerations[key] == generation else { return }
+        let prefix = Self.avatarPrefix(serverKey: key)
+        for url in (try? FileManager.default.contentsOfDirectory(at: file.avatarDirectory, includingPropertiesForKeys: nil)) ?? []
+        where url.lastPathComponent.hasPrefix(prefix) && !keep.contains(where: { url.lastPathComponent.hasPrefix("\($0)-") }) {
+            try? FileManager.default.removeItem(at: url)
+        }
+        if rendered { reloadWidget() }
+    }
+
+    /// `<server key prefix>-<thread digest>-<avatar path digest>`: a new avatar always has a new path.
+    static func avatarName(serverKey: String, agent: SquaddAgentSection) -> String {
+        "\(avatarPrefix(serverKey: serverKey))\(profileDigest(agent.threadID ?? agent.id))-\(digest(agent.bot.avatarUrl ?? "initial", bytes: 4))"
+    }
+
+    /// The image, else the initial, as `SquaddAgentAvatar` draws them.
+    private static func squaddAvatar(name: String, photo: UIImage?, dark: Bool) -> Data? {
+        let size: CGFloat = 76
+        let renderer = ImageRenderer(content: ZStack {
+            if let photo {
+                Image(uiImage: photo).resizable().scaledToFill()
+            } else {
+                Circle().fill(Color.accentColor.opacity(0.18))
+                Text(verbatim: name.first.map { String($0).uppercased() } ?? "")
+                    .font(.system(size: size * 0.42, weight: .semibold))
+                    .foregroundStyle(Color.accentColor)
+            }
+        }
+        .frame(width: size, height: size)
+        .clipShape(Circle())
+        .environment(\.colorScheme, dark ? .dark : .light))
+        renderer.scale = 3
+        return renderer.uiImage?.pngData()
+    }
+
+    private func write(_ unsorted: [BotWidgetSnapshot.Bot], server: URL) {
         guard let file, let title = serverTitle(server) else { return }
         let key = BotHistoryCache.Scope.key(server)
-        let bots = profiles.prefix(BotWidgetSnapshot.maxBotsPerServer).map {
-            BotWidgetSnapshot.Bot(profile: $0.id, title: $0.name, avatar: Self.avatarName(serverKey: key, profile: $0, connectionID: connectionID))
-        }.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
+        let bots = unsorted.sorted { $0.title.localizedStandardCompare($1.title) == .orderedAscending }
         let current = file.read()
         var snapshot = current
         let entry = BotWidgetSnapshot.Server(serverKey: key, title: title, bots: bots)

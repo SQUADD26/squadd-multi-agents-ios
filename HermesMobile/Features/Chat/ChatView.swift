@@ -580,7 +580,7 @@ struct ChatView: View {
             draftAttachmentStore: resolvedDraftAttachmentStore,
             draftStore: self.draftStore,
             backend: hermesSession.map { .hermes(HermesChatTurnCoordinator($0)) }
-                ?? squaddThread.map { .squadd(SquaddChatTurnCoordinator($0)) } ?? .webui
+                ?? squaddThread.map { .squadd(SquaddChatTurnCoordinator($0, liveActivities: SquaddLiveActivities.shared)) } ?? .webui
         )
         model.hermesBotChatRoot = hermesSession?.botChatRoot
         model.hermesLineageRoot = hermesSession?.lineageRoot

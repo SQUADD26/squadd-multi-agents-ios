@@ -25,6 +25,7 @@ final class PushAppDelegate: NSObject, UIApplicationDelegate, UNUserNotification
         MXMetricManager.shared.add(diagnosticsLog)
         MainActor.assumeIsolated { PushRegistrar.shared?.refreshOnLaunch() }
         Task { @MainActor in await SquaddPushRegistrar.shared.refreshOnLaunch() }
+        MainActor.assumeIsolated { SquaddLiveActivities.shared.watch() }
         return true
     }
 

@@ -125,17 +125,21 @@ final class SquaddAgentListModel {
     @ObservationIgnored private let onUnpaired: () -> Void
     @ObservationIgnored private let cache: ModelContext?
     @ObservationIgnored private let retryDelay: ChatStreamReconnectDelay
+    @ObservationIgnored private let widgets: BotWidgetPublisher
     /// Reads again while the cached copy shows; ends with the first answer.
     @ObservationIgnored private(set) var retrying: Task<Void, Never>?
 
     /// `onUnpaired` runs when the companion refused the token. `cache` keeps the home under
     /// `client.server`; nil keeps nothing. `retryDelay` waits between reads of an offline home.
+    /// `widgets` gets each answer for the Bot widget.
     init(client: SquaddCompanionClient, cache: ModelContext? = nil,
          retryDelay: @escaping ChatStreamReconnectDelay = ChatStreamReconnectBackoff.standardDelay,
+         widgets: BotWidgetPublisher = .shared,
          onUnpaired: @escaping () -> Void) {
         self.client = client
         self.cache = cache
         self.retryDelay = retryDelay
+        self.widgets = widgets
         self.onUnpaired = onUnpaired
     }
 
@@ -396,8 +400,12 @@ final class SquaddAgentListModel {
 
     private func publish() {
         rooms = roomList.map { SquaddRoomSection(room: $0, bots: bots) }
-        phase = .loaded(bots.map(SquaddAgentSection.init(bot:)))
-        guard !isShowingCache, let cache else { return }
+        let sections = bots.map(SquaddAgentSection.init(bot:))
+        phase = .loaded(sections)
+        guard !isShowingCache else { return }
+        widgets.publish(sections, squaddServer: client.server)
+        Task { [client, widgets] in await widgets.renderAvatars(sections, client: client) }
+        guard let cache else { return }
         do {
             try CacheStore.cacheSquaddBots(bots, serverURL: client.server, in: cache)
         } catch {

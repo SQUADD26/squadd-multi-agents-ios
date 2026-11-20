@@ -24,7 +24,8 @@ struct SquaddThreadLink: Hashable {
 
     init?(url: URL) {
         guard let scheme = url.scheme?.lowercased(), scheme == Self.scheme || scheme == HermesDeepLink.scheme,
-              url.host?.lowercased() == Self.host,
+              // `chat` is how the companion's Live Activity pushes write it (`<scheme>://chat/<threadId>`).
+              [Self.host, "chat"].contains(url.host?.lowercased() ?? ""),
               let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else { return nil }
         let id = String(components.path.drop { $0 == "/" })
         // The desktop's own limit: up to 256 characters, no control characters; one path segment.
