@@ -240,3 +240,4 @@ final class SquaddSettingsPhotoTests: XCTestCase {
         try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
     }
 }
+// misura avvio

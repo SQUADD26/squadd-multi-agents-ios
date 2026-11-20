@@ -90,13 +90,15 @@ jobs:
           TWO: ${{ steps.sim.outputs.udid2 }}
         run: |
           set -euo pipefail
-          echo "::group::Tests of the touched files"
+          echo "::group::Tests of the touched files"; T0=$(python3 -c 'import time; print(f"{time.time():.2f}")')
           mkdir -p "${TEST_RUNNER_FOTO_DIR}"
           run() {
             nice -n 10 xcodebuild test-without-building -project HermesMobile.xcodeproj -scheme HermesMobile \
               -destination "platform=iOS Simulator,id=$1" -derivedDataPath "${DERIVED_DATA}" \
               -disableAutomaticPackageResolution -parallel-testing-enabled NO -collect-test-diagnostics never \
               -resultBundlePath "${RUNNER_TEMP}/$2.xcresult" $(cat "${RUNNER_TEMP}/$2.txt") \
+              | python3 -u -c 'import sys,time; [print(f"{time.time():.2f}", l, end="", flush=True) for l in sys.stdin]' \
+              | tee "${RUNNER_TEMP}/$2.raw" | cut -d" " -f2- \
               | grep -E "^Test (Case|Suite)|: error: -\[|\*\* TEST" | tee "${RUNNER_TEMP}/$2.log"
           }
           failed=0
@@ -113,6 +115,8 @@ jobs:
             done
             for pid in "${pids[@]}"; do wait "${pid}" || failed=1; done
             python3 ci/pr_split.py record "${TEST_TIMES}" "${RUNNER_TEMP}"/*.log
+            for half in one two; do [[ -f "${RUNNER_TEMP}/${half}.raw" ]] || continue; echo "== ${half} (step start ${T0})"
+              sed "/Selected tests' started/q" "${RUNNER_TEMP}/${half}.raw" | cut -c1-220; done
           else
             echo "No test touched."
           fi
