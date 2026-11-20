@@ -966,6 +966,7 @@ final class SquaddChatTests: XCTestCase {
             switch (request.httpMethod, request.url?.path) {
             case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, try! Self.fixture("thread-connector-open.json"))
             case ("POST", card + "/authorize"): return .reply(200, Data(#"{"url":"https://connect.composio.dev/link/fixture-gmail"}"#.utf8))
+            case ("GET", card + "/status"): return .reply(200, Data(#"{"connected":false}"#.utf8))
             case ("GET", _): return .hold
             default: return .reply(404, Data())
             }
@@ -988,7 +989,9 @@ final class SquaddChatTests: XCTestCase {
         await fulfillment(of: [closed], timeout: 3)
         XCTAssertEqual(opened, URL(string: "https://connect.composio.dev/link/fixture-gmail"))
         XCTAssertNil(coordinator.cardError, "the sheet opened and waits on the person")
+        // Closed here, so its status check can't reach the next test's fixture.
         sheet.cancel()
+        await sheet.value
     }
 
     /// A sheet that can't open says so on the card, and nothing asks the computer about a sign-in that never showed.
