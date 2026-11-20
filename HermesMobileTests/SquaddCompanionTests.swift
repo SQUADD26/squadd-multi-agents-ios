@@ -511,7 +511,8 @@ final class SquaddScreenPhotoTests: XCTestCase {
         window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
         let start = ContinuousClock.now
         try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
-        print("FOTO-TEMPO \(name) \(ContinuousClock.now - start)")
+        let line = Data("\(name) \(ContinuousClock.now - start)\n".utf8), log = dir.appendingPathComponent("tempi.txt")
+        if let handle = try? FileHandle(forWritingTo: log) { handle.seekToEndOfFile(); handle.write(line); try? handle.close() } else { try line.write(to: log) }
     }
 
     private nonisolated static func fixture(_ name: String) throws -> Data {
