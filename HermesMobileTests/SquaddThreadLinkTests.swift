@@ -165,7 +165,8 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         await missing.dismiss(animated: false)
         mark("dismissed")
         router.requestDeepLink(SquaddThreadLink(threadID: "t", server: URL(string: "http://other.tailnet.test:8810")!).url)
-        XCTAssertEqual(try await presentedAlert().title, String(localized: "Computer Not Paired"))
+        let unpaired = try await presentedAlert()
+        XCTAssertEqual(unpaired.title, String(localized: "Computer Not Paired"))
         mark("alert2")
         XCTAssertEqual(manager.state, .loggedIn(server: studio), "a link to an unpaired computer switches nothing")
     }
