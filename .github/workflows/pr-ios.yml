@@ -1,4 +1,4 @@
-# PR checks in under a minute, on Roberto's Mac (two runners, label `squadd-multi-ios-shared`): build every
+# PR checks in under a minute, on Roberto's Mac (two runners): build every
 # target, run the tests of the files the branch touches against dev (ci/pr_tests.py), keep their photos as the
 # `foto` artifact, check the String Catalog. Fast because the Mac keeps state between runs: each runner keeps
 # each branch's checkout and DerivedData (incremental build), and three simulators stay booted, one per runner and
@@ -7,8 +7,10 @@
 #
 # It runs on every push to a branch of this repo, so a PR to dev shows the result of its head commit, often before
 # it is opened; a push event also starts ~5 s sooner than a pull_request one. A branch with an open PR to dev runs
-# on either runner; any other branch (rosso/*, foto/*, an issue before its PR) only on runner 2 (label
-# `squadd-multi-ios-senza-pr`), so the trial runs never queue a PR. A rosso/* run only shows a test failing: it
+# on either runner (label `squadd-multi-ios-pr`); any other branch (rosso/*, foto/*, an issue before its PR) only
+# on runner 2 (`squadd-multi-ios-senza-pr`), so the trial runs never queue a PR. Runner 1 carries no other label:
+# a workflow still asking for the old `squadd-multi-ios-shared` (a branch that hasn't merged dev, the Foto live
+# ones) also lands on runner 2. A rosso/* run only shows a test failing: it
 # runs the touched test classes, without photos. The repo is public and the runner is
 # a real Mac: only people with write access push here, so fork PRs never reach it (they also need a maintainer's
 # approval in the repo settings). Pushes to dev, main and master are left to the nightly run. No secrets.
@@ -43,7 +45,7 @@ jobs:
           BRANCH: ${{ github.ref_name }}
         run: |
           prs=$(gh pr list -R "${GITHUB_REPOSITORY}" --head "${BRANCH}" --base dev --state open --json number --jq length)
-          label=squadd-multi-ios-senza-pr; [[ ${prs} != 0 ]] && label=squadd-multi-ios-shared
+          label=squadd-multi-ios-senza-pr; [[ ${prs} != 0 ]] && label=squadd-multi-ios-pr
           echo "Open PRs to dev: ${prs} -> ${label}"; echo "label=${label}" >> "$GITHUB_OUTPUT"
 
   prova:
