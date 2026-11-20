@@ -108,6 +108,14 @@ final class SquaddVersionsTests: XCTestCase {
 
     // MARK: - Helpers
 
+    /// SwiftUI builds its accessibility tree only while an assistive technology is on: turn it on for this
+    /// app, as AccessibilitySnapshot does, so a test reads what VoiceOver would.
+    static func turnOnAccessibility() throws {
+        let library = try XCTUnwrap(dlopen("/usr/lib/libAccessibility.dylib", RTLD_NOW))
+        let symbol = try XCTUnwrap(dlsym(library, "_AXSApplicationAccessibilitySetEnabled"))
+        unsafeBitCast(symbol, to: (@convention(c) (Bool) -> Void).self)(true)
+    }
+
     /// Every accessibility element under `root`, as VoiceOver walks them: containers opened, leaves kept.
     static func accessibilityElements(in root: NSObject) -> [NSObject] {
         let children: [NSObject] = (root.accessibilityElements as? [NSObject])
@@ -190,6 +198,7 @@ final class SquaddVersionsPhotoTests: XCTestCase {
             }
         }
         URLProtocol.registerClass(SquaddChatFixture.self)
+        try SquaddVersionsTests.turnOnAccessibility()
         let chat = SquaddThreadChat(server: SquaddVersionsTests.server, token: "device-token", botId: SquaddVersionsTests.botId,
                                     threadId: SquaddVersionsTests.threadId, title: "Prova")
         let continuity = ChatContinuity()
