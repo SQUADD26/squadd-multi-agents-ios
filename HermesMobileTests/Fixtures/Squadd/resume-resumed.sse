@@ -1,0 +1,458 @@
+data: {"kind":"hello","cursor":"5c85f42b:54","resumed":true}
+
+id: 5c85f42b:33
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgb0d-e","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:28.093Z","type":"content.delta","streamKind":"assistant_text","delta":" com","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":33}
+
+id: 5c85f42b:34
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgb2v-f","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:28.183Z","type":"content.delta","streamKind":"assistant_text","delta":"pani","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":34}
+
+id: 5c85f42b:35
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgb5d-g","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:28.273Z","type":"content.delta","streamKind":"assistant_text","delta":"on. ","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":35}
+
+id: 5c85f42b:36
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgb7v-h","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:28.363Z","type":"content.delta","streamKind":"assistant_text","delta":"Ecco","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":36}
+
+id: 5c85f42b:37
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgbad-i","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:28.453Z","type":"content.delta","streamKind":"assistant_text","delta":" una","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":37}
+
+id: 5c85f42b:38
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgbcv-j","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:28.543Z","type":"content.delta","streamKind":"assistant_text","delta":" ris","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":38}
+
+id: 5c85f42b:39
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgbfe-k","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:28.634Z","type":"content.delta","streamKind":"assistant_text","delta":"post","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":39}
+
+id: 5c85f42b:40
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgbhw-l","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:28.724Z","type":"content.delta","streamKind":"assistant_text","delta":"a lu","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":40}
+
+id: 5c85f42b:41
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgbke-m","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:28.814Z","type":"content.delta","streamKind":"assistant_text","delta":"nga,","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":41}
+
+id: 5c85f42b:42
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgbmw-n","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:28.904Z","type":"content.delta","streamKind":"assistant_text","delta":" scr","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":42}
+
+id: 5c85f42b:43
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgbpe-o","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:28.994Z","type":"content.delta","streamKind":"assistant_text","delta":"itta","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":43}
+
+id: 5c85f42b:44
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgbrw-p","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:29.084Z","type":"content.delta","streamKind":"assistant_text","delta":" pia","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":44}
+
+id: 5c85f42b:45
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgbue-q","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:29.174Z","type":"content.delta","streamKind":"assistant_text","delta":"no p","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":45}
+
+id: 5c85f42b:46
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgbwx-r","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:29.265Z","type":"content.delta","streamKind":"assistant_text","delta":"iano","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":46}
+
+id: 5c85f42b:47
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgbzf-s","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:29.355Z","type":"content.delta","streamKind":"assistant_text","delta":" dal","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":47}
+
+id: 5c85f42b:48
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgc1x-t","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:29.445Z","type":"content.delta","streamKind":"assistant_text","delta":" com","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":48}
+
+id: 5c85f42b:49
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgc4f-u","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:29.535Z","type":"content.delta","streamKind":"assistant_text","delta":"pani","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":49}
+
+id: 5c85f42b:50
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgc6x-v","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:29.625Z","type":"content.delta","streamKind":"assistant_text","delta":"on. ","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":50}
+
+id: 5c85f42b:51
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgc9f-w","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:29.715Z","type":"content.delta","streamKind":"assistant_text","delta":"Ecco","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":51}
+
+id: 5c85f42b:52
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgcbx-x","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:29.805Z","type":"content.delta","streamKind":"assistant_text","delta":" una","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":52}
+
+id: 5c85f42b:53
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgceg-y","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:29.896Z","type":"content.delta","streamKind":"assistant_text","delta":" ris","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":53}
+
+id: 5c85f42b:54
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgcgy-z","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:29.986Z","type":"content.delta","streamKind":"assistant_text","delta":"post","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":54}
+
+id: 5c85f42b:55
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgcjg-10","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:30.076Z","type":"content.delta","streamKind":"assistant_text","delta":"a lu","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":55}
+
+id: 5c85f42b:56
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgcly-11","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:30.166Z","type":"content.delta","streamKind":"assistant_text","delta":"nga,","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":56}
+
+id: 5c85f42b:57
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgcog-12","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:30.256Z","type":"content.delta","streamKind":"assistant_text","delta":" scr","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":57}
+
+id: 5c85f42b:58
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgcqy-13","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:30.346Z","type":"content.delta","streamKind":"assistant_text","delta":"itta","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":58}
+
+id: 5c85f42b:59
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgctg-14","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:30.436Z","type":"content.delta","streamKind":"assistant_text","delta":" pia","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":59}
+
+id: 5c85f42b:60
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgcvz-15","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:30.527Z","type":"content.delta","streamKind":"assistant_text","delta":"no p","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":60}
+
+id: 5c85f42b:61
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgcyh-16","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:30.617Z","type":"content.delta","streamKind":"assistant_text","delta":"iano","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":61}
+
+id: 5c85f42b:62
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgd0z-17","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:30.707Z","type":"content.delta","streamKind":"assistant_text","delta":" dal","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":62}
+
+id: 5c85f42b:63
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgd3h-18","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:30.797Z","type":"content.delta","streamKind":"assistant_text","delta":" com","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":63}
+
+id: 5c85f42b:64
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgd5z-19","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:30.887Z","type":"content.delta","streamKind":"assistant_text","delta":"pani","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":64}
+
+id: 5c85f42b:65
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgd8h-1a","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:30.977Z","type":"content.delta","streamKind":"assistant_text","delta":"on. ","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":65}
+
+id: 5c85f42b:66
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgday-1b","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:31.066Z","type":"content.delta","streamKind":"assistant_text","delta":"Ecco","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":66}
+
+id: 5c85f42b:67
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgddh-1c","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:31.157Z","type":"content.delta","streamKind":"assistant_text","delta":" una","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":67}
+
+id: 5c85f42b:68
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgdfz-1d","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:31.247Z","type":"content.delta","streamKind":"assistant_text","delta":" ris","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":68}
+
+id: 5c85f42b:69
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgdih-1e","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:31.337Z","type":"content.delta","streamKind":"assistant_text","delta":"post","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":69}
+
+id: 5c85f42b:70
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgdkz-1f","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:31.427Z","type":"content.delta","streamKind":"assistant_text","delta":"a lu","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":70}
+
+id: 5c85f42b:71
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgdnh-1g","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:31.517Z","type":"content.delta","streamKind":"assistant_text","delta":"nga,","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":71}
+
+id: 5c85f42b:72
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgdpz-1h","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:31.607Z","type":"content.delta","streamKind":"assistant_text","delta":" scr","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":72}
+
+id: 5c85f42b:73
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgdsh-1i","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:31.697Z","type":"content.delta","streamKind":"assistant_text","delta":"itta","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":73}
+
+id: 5c85f42b:74
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgdv0-1j","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:31.788Z","type":"content.delta","streamKind":"assistant_text","delta":" pia","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":74}
+
+id: 5c85f42b:75
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgdxi-1k","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:31.878Z","type":"content.delta","streamKind":"assistant_text","delta":"no p","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":75}
+
+id: 5c85f42b:76
+data: {"kind":"runtime","event":{"eventId":"ev-mwofge00-1l","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:31.968Z","type":"content.delta","streamKind":"assistant_text","delta":"iano","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":76}
+
+id: 5c85f42b:77
+data: {"kind":"runtime","event":{"eventId":"ev-mwofge2i-1m","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:32.058Z","type":"content.delta","streamKind":"assistant_text","delta":" dal","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":77}
+
+id: 5c85f42b:78
+data: {"kind":"runtime","event":{"eventId":"ev-mwofge50-1n","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:32.148Z","type":"content.delta","streamKind":"assistant_text","delta":" com","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":78}
+
+id: 5c85f42b:79
+data: {"kind":"runtime","event":{"eventId":"ev-mwofge7i-1o","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:32.238Z","type":"content.delta","streamKind":"assistant_text","delta":"pani","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":79}
+
+id: 5c85f42b:80
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgea1-1p","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:32.329Z","type":"content.delta","streamKind":"assistant_text","delta":"on. ","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":80}
+
+id: 5c85f42b:81
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgecj-1q","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:32.419Z","type":"content.delta","streamKind":"assistant_text","delta":"Ecco","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":81}
+
+id: 5c85f42b:82
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgef1-1r","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:32.509Z","type":"content.delta","streamKind":"assistant_text","delta":" una","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":82}
+
+id: 5c85f42b:83
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgehj-1s","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:32.599Z","type":"content.delta","streamKind":"assistant_text","delta":" ris","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":83}
+
+id: 5c85f42b:84
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgek1-1t","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:32.689Z","type":"content.delta","streamKind":"assistant_text","delta":"post","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":84}
+
+id: 5c85f42b:85
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgemj-1u","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:32.779Z","type":"content.delta","streamKind":"assistant_text","delta":"a lu","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":85}
+
+id: 5c85f42b:86
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgep2-1v","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:32.870Z","type":"content.delta","streamKind":"assistant_text","delta":"nga,","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":86}
+
+id: 5c85f42b:87
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgerk-1w","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:32.960Z","type":"content.delta","streamKind":"assistant_text","delta":" scr","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":87}
+
+id: 5c85f42b:88
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgeu2-1x","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:33.050Z","type":"content.delta","streamKind":"assistant_text","delta":"itta","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":88}
+
+id: 5c85f42b:89
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgewk-1y","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:33.140Z","type":"content.delta","streamKind":"assistant_text","delta":" pia","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":89}
+
+id: 5c85f42b:90
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgez2-1z","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:33.230Z","type":"content.delta","streamKind":"assistant_text","delta":"no p","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":90}
+
+id: 5c85f42b:91
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgf1k-20","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:33.320Z","type":"content.delta","streamKind":"assistant_text","delta":"iano","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":91}
+
+id: 5c85f42b:92
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgf43-21","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:33.411Z","type":"content.delta","streamKind":"assistant_text","delta":" dal","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":92}
+
+id: 5c85f42b:93
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgf6l-22","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:33.501Z","type":"content.delta","streamKind":"assistant_text","delta":" com","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":93}
+
+id: 5c85f42b:94
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgf93-23","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:33.591Z","type":"content.delta","streamKind":"assistant_text","delta":"pani","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":94}
+
+id: 5c85f42b:95
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgfbl-24","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:33.681Z","type":"content.delta","streamKind":"assistant_text","delta":"on. ","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":95}
+
+id: 5c85f42b:96
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgfe3-25","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:33.771Z","type":"content.delta","streamKind":"assistant_text","delta":"Ecco","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":96}
+
+id: 5c85f42b:97
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgfgm-26","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:33.862Z","type":"content.delta","streamKind":"assistant_text","delta":" una","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":97}
+
+id: 5c85f42b:98
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgfj4-27","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:33.952Z","type":"content.delta","streamKind":"assistant_text","delta":" ris","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":98}
+
+id: 5c85f42b:99
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgflm-28","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:34.042Z","type":"content.delta","streamKind":"assistant_text","delta":"post","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":99}
+
+id: 5c85f42b:100
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgfo4-29","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:34.132Z","type":"content.delta","streamKind":"assistant_text","delta":"a lu","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":100}
+
+id: 5c85f42b:101
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgfqm-2a","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:34.222Z","type":"content.delta","streamKind":"assistant_text","delta":"nga,","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":101}
+
+id: 5c85f42b:102
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgft4-2b","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:34.312Z","type":"content.delta","streamKind":"assistant_text","delta":" scr","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":102}
+
+id: 5c85f42b:103
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgfvm-2c","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:34.402Z","type":"content.delta","streamKind":"assistant_text","delta":"itta","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":103}
+
+id: 5c85f42b:104
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgfy5-2d","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:34.493Z","type":"content.delta","streamKind":"assistant_text","delta":" pia","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":104}
+
+id: 5c85f42b:105
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgg0n-2e","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:34.583Z","type":"content.delta","streamKind":"assistant_text","delta":"no p","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":105}
+
+id: 5c85f42b:106
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgg35-2f","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:34.673Z","type":"content.delta","streamKind":"assistant_text","delta":"iano","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":106}
+
+id: 5c85f42b:107
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgg5n-2g","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:34.763Z","type":"content.delta","streamKind":"assistant_text","delta":" dal","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":107}
+
+id: 5c85f42b:108
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgg85-2h","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:34.853Z","type":"content.delta","streamKind":"assistant_text","delta":" com","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":108}
+
+id: 5c85f42b:109
+data: {"kind":"runtime","event":{"eventId":"ev-mwofggao-2i","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:34.944Z","type":"content.delta","streamKind":"assistant_text","delta":"pani","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":109}
+
+id: 5c85f42b:110
+data: {"kind":"runtime","event":{"eventId":"ev-mwofggd6-2j","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:35.034Z","type":"content.delta","streamKind":"assistant_text","delta":"on. ","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":110}
+
+id: 5c85f42b:111
+data: {"kind":"runtime","event":{"eventId":"ev-mwofggfo-2k","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:35.124Z","type":"content.delta","streamKind":"assistant_text","delta":"Ecco","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":111}
+
+id: 5c85f42b:112
+data: {"kind":"runtime","event":{"eventId":"ev-mwofggi6-2l","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:35.214Z","type":"content.delta","streamKind":"assistant_text","delta":" una","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":112}
+
+id: 5c85f42b:113
+data: {"kind":"runtime","event":{"eventId":"ev-mwofggko-2m","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:35.304Z","type":"content.delta","streamKind":"assistant_text","delta":" ris","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":113}
+
+id: 5c85f42b:114
+data: {"kind":"runtime","event":{"eventId":"ev-mwofggn6-2n","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:35.394Z","type":"content.delta","streamKind":"assistant_text","delta":"post","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":114}
+
+id: 5c85f42b:115
+data: {"kind":"runtime","event":{"eventId":"ev-mwofggpo-2o","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:35.484Z","type":"content.delta","streamKind":"assistant_text","delta":"a lu","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":115}
+
+id: 5c85f42b:116
+data: {"kind":"runtime","event":{"eventId":"ev-mwofggs6-2p","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:35.574Z","type":"content.delta","streamKind":"assistant_text","delta":"nga,","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":116}
+
+id: 5c85f42b:117
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgguo-2q","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:35.664Z","type":"content.delta","streamKind":"assistant_text","delta":" scr","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":117}
+
+id: 5c85f42b:118
+data: {"kind":"runtime","event":{"eventId":"ev-mwofggx6-2r","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:35.754Z","type":"content.delta","streamKind":"assistant_text","delta":"itta","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":118}
+
+id: 5c85f42b:119
+data: {"kind":"runtime","event":{"eventId":"ev-mwofggzo-2s","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:35.844Z","type":"content.delta","streamKind":"assistant_text","delta":" pia","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":119}
+
+id: 5c85f42b:120
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgh26-2t","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:35.934Z","type":"content.delta","streamKind":"assistant_text","delta":"no p","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":120}
+
+id: 5c85f42b:121
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgh4p-2u","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:36.025Z","type":"content.delta","streamKind":"assistant_text","delta":"iano","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":121}
+
+id: 5c85f42b:122
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgh77-2v","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:36.115Z","type":"content.delta","streamKind":"assistant_text","delta":" dal","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":122}
+
+id: 5c85f42b:123
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgh9p-2w","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:36.205Z","type":"content.delta","streamKind":"assistant_text","delta":" com","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":123}
+
+id: 5c85f42b:124
+data: {"kind":"runtime","event":{"eventId":"ev-mwofghc7-2x","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:36.295Z","type":"content.delta","streamKind":"assistant_text","delta":"pani","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":124}
+
+id: 5c85f42b:125
+data: {"kind":"runtime","event":{"eventId":"ev-mwofghep-2y","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:36.385Z","type":"content.delta","streamKind":"assistant_text","delta":"on. ","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":125}
+
+id: 5c85f42b:126
+data: {"kind":"runtime","event":{"eventId":"ev-mwofghh7-2z","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:36.475Z","type":"content.delta","streamKind":"assistant_text","delta":"Ecco","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":126}
+
+id: 5c85f42b:127
+data: {"kind":"runtime","event":{"eventId":"ev-mwofghjo-30","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:36.564Z","type":"content.delta","streamKind":"assistant_text","delta":" una","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":127}
+
+id: 5c85f42b:128
+data: {"kind":"runtime","event":{"eventId":"ev-mwofghm7-31","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:36.655Z","type":"content.delta","streamKind":"assistant_text","delta":" ris","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":128}
+
+id: 5c85f42b:129
+data: {"kind":"runtime","event":{"eventId":"ev-mwofghop-32","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:36.745Z","type":"content.delta","streamKind":"assistant_text","delta":"post","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":129}
+
+id: 5c85f42b:130
+data: {"kind":"runtime","event":{"eventId":"ev-mwofghr7-33","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:36.835Z","type":"content.delta","streamKind":"assistant_text","delta":"a lu","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":130}
+
+id: 5c85f42b:131
+data: {"kind":"runtime","event":{"eventId":"ev-mwofghtp-34","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:36.925Z","type":"content.delta","streamKind":"assistant_text","delta":"nga,","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":131}
+
+id: 5c85f42b:132
+data: {"kind":"runtime","event":{"eventId":"ev-mwofghw7-35","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:37.015Z","type":"content.delta","streamKind":"assistant_text","delta":" scr","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":132}
+
+id: 5c85f42b:133
+data: {"kind":"runtime","event":{"eventId":"ev-mwofghyp-36","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:37.105Z","type":"content.delta","streamKind":"assistant_text","delta":"itta","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":133}
+
+id: 5c85f42b:134
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgi18-37","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:37.196Z","type":"content.delta","streamKind":"assistant_text","delta":" pia","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":134}
+
+id: 5c85f42b:135
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgi3q-38","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:37.286Z","type":"content.delta","streamKind":"assistant_text","delta":"no p","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":135}
+
+id: 5c85f42b:136
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgi68-39","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:37.376Z","type":"content.delta","streamKind":"assistant_text","delta":"iano","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":136}
+
+id: 5c85f42b:137
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgi8q-3a","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:37.466Z","type":"content.delta","streamKind":"assistant_text","delta":" dal","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":137}
+
+id: 5c85f42b:138
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgib8-3b","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:37.556Z","type":"content.delta","streamKind":"assistant_text","delta":" com","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":138}
+
+id: 5c85f42b:139
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgidq-3c","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:37.646Z","type":"content.delta","streamKind":"assistant_text","delta":"pani","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":139}
+
+id: 5c85f42b:140
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgig9-3d","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:37.737Z","type":"content.delta","streamKind":"assistant_text","delta":"on. ","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":140}
+
+id: 5c85f42b:141
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgiir-3e","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:37.827Z","type":"content.delta","streamKind":"assistant_text","delta":"Ecco","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":141}
+
+id: 5c85f42b:142
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgil9-3f","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:37.917Z","type":"content.delta","streamKind":"assistant_text","delta":" una","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":142}
+
+id: 5c85f42b:143
+data: {"kind":"runtime","event":{"eventId":"ev-mwofginr-3g","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:38.007Z","type":"content.delta","streamKind":"assistant_text","delta":" ris","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":143}
+
+id: 5c85f42b:144
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgiq9-3h","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:38.097Z","type":"content.delta","streamKind":"assistant_text","delta":"post","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":144}
+
+id: 5c85f42b:145
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgisr-3i","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:38.187Z","type":"content.delta","streamKind":"assistant_text","delta":"a lu","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":145}
+
+id: 5c85f42b:146
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgiva-3j","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:38.278Z","type":"content.delta","streamKind":"assistant_text","delta":"nga,","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":146}
+
+id: 5c85f42b:147
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgixs-3k","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:38.368Z","type":"content.delta","streamKind":"assistant_text","delta":" scr","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":147}
+
+id: 5c85f42b:148
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgj0a-3l","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:38.458Z","type":"content.delta","streamKind":"assistant_text","delta":"itta","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":148}
+
+id: 5c85f42b:149
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgj2s-3m","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:38.548Z","type":"content.delta","streamKind":"assistant_text","delta":" pia","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":149}
+
+id: 5c85f42b:150
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgj5a-3n","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:38.638Z","type":"content.delta","streamKind":"assistant_text","delta":"no p","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":150}
+
+id: 5c85f42b:151
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgj7s-3o","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:38.728Z","type":"content.delta","streamKind":"assistant_text","delta":"iano","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":151}
+
+id: 5c85f42b:152
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgjaa-3p","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:38.818Z","type":"content.delta","streamKind":"assistant_text","delta":" dal","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":152}
+
+id: 5c85f42b:153
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgjct-3q","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:38.909Z","type":"content.delta","streamKind":"assistant_text","delta":" com","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":153}
+
+id: 5c85f42b:154
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgjfb-3r","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:38.999Z","type":"content.delta","streamKind":"assistant_text","delta":"pani","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":154}
+
+id: 5c85f42b:155
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgjht-3s","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:39.089Z","type":"content.delta","streamKind":"assistant_text","delta":"on. ","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":155}
+
+id: 5c85f42b:156
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgjkb-3t","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:39.179Z","type":"content.delta","streamKind":"assistant_text","delta":"Ecco","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":156}
+
+id: 5c85f42b:157
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgjmu-3u","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:39.270Z","type":"content.delta","streamKind":"assistant_text","delta":" una","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":157}
+
+id: 5c85f42b:158
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgjpc-3v","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:39.360Z","type":"content.delta","streamKind":"assistant_text","delta":" ris","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":158}
+
+id: 5c85f42b:159
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgjru-3w","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:39.450Z","type":"content.delta","streamKind":"assistant_text","delta":"post","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":159}
+
+id: 5c85f42b:160
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgjuc-3x","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:39.540Z","type":"content.delta","streamKind":"assistant_text","delta":"a lu","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":160}
+
+id: 5c85f42b:161
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgjwu-3y","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:39.630Z","type":"content.delta","streamKind":"assistant_text","delta":"nga,","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":161}
+
+id: 5c85f42b:162
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgjzc-3z","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:39.720Z","type":"content.delta","streamKind":"assistant_text","delta":" scr","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":162}
+
+id: 5c85f42b:163
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgk1u-40","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:39.810Z","type":"content.delta","streamKind":"assistant_text","delta":"itta","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":163}
+
+id: 5c85f42b:164
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgk4d-41","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:39.901Z","type":"content.delta","streamKind":"assistant_text","delta":" pia","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":164}
+
+id: 5c85f42b:165
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgk6v-42","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:39.991Z","type":"content.delta","streamKind":"assistant_text","delta":"no p","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":165}
+
+id: 5c85f42b:166
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgk9d-43","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:40.081Z","type":"content.delta","streamKind":"assistant_text","delta":"iano","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":166}
+
+id: 5c85f42b:167
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgkbv-44","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:40.171Z","type":"content.delta","streamKind":"assistant_text","delta":" dal","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":167}
+
+id: 5c85f42b:168
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgked-45","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:40.261Z","type":"content.delta","streamKind":"assistant_text","delta":" com","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":168}
+
+id: 5c85f42b:169
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgkgw-46","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:40.352Z","type":"content.delta","streamKind":"assistant_text","delta":"pani","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":169}
+
+id: 5c85f42b:170
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgkje-47","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:40.442Z","type":"content.delta","streamKind":"assistant_text","delta":"on.","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":170}
+
+id: 5c85f42b:171
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgkje-48","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:40.442Z","type":"item.completed","itemType":"assistant_text","text":"Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion.","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":171}
+
+id: 5c85f42b:172
+data: {"kind":"message","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","message":{"id":"404e665a-82e8-4bf5-8d99-215546a3daba","at":1795145800444,"parentId":"4aaa8ba5-44c8-40fe-8bb5-6d3638021567","role":"bot","kind":"text","text":"Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion.","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","itemId":"text-b34cd818-1917-4211-be82-46de91f82564","requestMessageId":"4aaa8ba5-44c8-40fe-8bb5-6d3638021567"},"seq":172}
+
+id: 5c85f42b:173
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgkjg-49","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:40.444Z","type":"thread.token-usage.updated","input":12,"output":5,"cachedInput":2,"contextTokens":12,"providerInstanceId":"claude"},"seq":173}
+
+id: 5c85f42b:175
+data: {"kind":"bot","bot":{"id":"eef7d399-17ac-42e8-80f1-74818aa54d0f","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":false,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795145751969,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"working","busy":true,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","avatarUrl":null,"tasks":[{"threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","title":"Rispondimi a lungo, poi esco dall'app","createdAt":1795145751969,"updatedAt":1795145800444,"unread":false,"activity":"working","busy":true,"titleFromFirstMessage":true,"lastThreadOrderAt":1795145786247,"turnStartedAt":1795145786254,"cwd":"/tmp/openmausbot-verify-data/task-workspaces/eef7d399-17ac-42e8-80f1-74818aa54d0f/ae0770b2-1152-45a7-9d17-4053d27ea3a6","modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":175}
+
+id: 5c85f42b:176
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgkji-4a","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:40.446Z","type":"turn.completed","ok":true,"stopReason":"end_turn","cost":0.01,"usage":{"input":12,"output":5,"cachedInput":2},"providerInstanceId":"claude"},"seq":176}
+
+id: 5c85f42b:177
+data: {"kind":"message.patch","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","message":{"id":"404e665a-82e8-4bf5-8d99-215546a3daba","at":1795145800444,"parentId":"4aaa8ba5-44c8-40fe-8bb5-6d3638021567","role":"bot","kind":"text","text":"Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion.","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","itemId":"text-b34cd818-1917-4211-be82-46de91f82564","requestMessageId":"4aaa8ba5-44c8-40fe-8bb5-6d3638021567","turnTerminal":true,"turnCompletedAt":1795145800456},"seq":177}
+
+id: 5c85f42b:178
+data: {"kind":"message.patch","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","message":{"id":"404e665a-82e8-4bf5-8d99-215546a3daba","at":1795145800444,"parentId":"4aaa8ba5-44c8-40fe-8bb5-6d3638021567","role":"bot","kind":"text","text":"Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion.","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","itemId":"text-b34cd818-1917-4211-be82-46de91f82564","requestMessageId":"4aaa8ba5-44c8-40fe-8bb5-6d3638021567","turnTerminal":true,"turnCompletedAt":1795145800456,"turnSucceeded":true},"seq":178}
+
+id: 5c85f42b:180
+data: {"kind":"bot","bot":{"id":"eef7d399-17ac-42e8-80f1-74818aa54d0f","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":false,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795145751969,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"working","busy":true,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","avatarUrl":null,"tasks":[{"threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","title":"Rispondimi a lungo, poi esco dall'app","createdAt":1795145751969,"updatedAt":1795145800444,"unread":false,"activity":"working","busy":true,"titleFromFirstMessage":true,"lastThreadOrderAt":1795145800456,"turnStartedAt":1795145786254,"cwd":"/tmp/openmausbot-verify-data/task-workspaces/eef7d399-17ac-42e8-80f1-74818aa54d0f/ae0770b2-1152-45a7-9d17-4053d27ea3a6","usage":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01,"turns":1,"lastTurn":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01},"context":{"tokens":12,"window":1000000}},"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":180}
+
+id: 5c85f42b:182
+data: {"kind":"bot","bot":{"id":"eef7d399-17ac-42e8-80f1-74818aa54d0f","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":false,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795145751969,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"working","busy":true,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","avatarUrl":null,"tasks":[{"threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","title":"Rispondimi a lungo, poi esco dall'app","createdAt":1795145751969,"updatedAt":1795145800444,"unread":false,"activity":"working","busy":true,"titleFromFirstMessage":true,"lastThreadOrderAt":1795145800456,"turnStartedAt":1795145786254,"cwd":"/tmp/openmausbot-verify-data/task-workspaces/eef7d399-17ac-42e8-80f1-74818aa54d0f/ae0770b2-1152-45a7-9d17-4053d27ea3a6","usage":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01,"turns":1,"lastTurn":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01},"context":{"tokens":12,"window":1000000}},"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":182}
+
+id: 5c85f42b:183
+data: {"kind":"message","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","message":{"id":"fd202c29-5ef1-488e-ae50-24fd8738926d","at":1795145800459,"parentId":"404e665a-82e8-4bf5-8d99-215546a3daba","role":"bot","kind":"digest","text":"[digest] · no tool activity observed in this turn · reply: Ecco una risposta lunga, scritta piano piano dal companion.","digest":{"turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","botId":"eef7d399-17ac-42e8-80f1-74818aa54d0f","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","at":1795145800459,"durationMs":13494,"tools":[],"toolCalls":0,"memory":[],"reply":"Ecco una risposta lunga, scritta piano piano dal companion.","usage":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01},"hookCoverage":"none"},"turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","requestMessageId":"4aaa8ba5-44c8-40fe-8bb5-6d3638021567","turnSucceeded":true},"seq":183}
+
+id: 5c85f42b:185
+data: {"kind":"bot","bot":{"id":"eef7d399-17ac-42e8-80f1-74818aa54d0f","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":true,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795145751969,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"working","busy":true,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","avatarUrl":null,"tasks":[{"threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","title":"Rispondimi a lungo, poi esco dall'app","createdAt":1795145751969,"updatedAt":1795145800459,"unread":true,"activity":"working","busy":true,"titleFromFirstMessage":true,"lastThreadOrderAt":1795145800456,"turnStartedAt":1795145786254,"cwd":"/tmp/openmausbot-verify-data/task-workspaces/eef7d399-17ac-42e8-80f1-74818aa54d0f/ae0770b2-1152-45a7-9d17-4053d27ea3a6","usage":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01,"turns":1,"lastTurn":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01},"context":{"tokens":12,"window":1000000}},"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":185}
+
+id: 5c85f42b:186
+data: {"kind":"notify","notification":{"kind":"done","botId":"eef7d399-17ac-42e8-80f1-74818aa54d0f","botName":"Fixture Starter","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","title":"Fixture Starter finished","body":"Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta lunga, scritta piano piano dal companion. Ecco una risposta l…","id":"09cf9c2d-9c58-42bc-a7e9-f945dd533edb","at":1795145800462,"read":false},"seq":186}
+
+id: 5c85f42b:188
+data: {"kind":"bot","bot":{"id":"eef7d399-17ac-42e8-80f1-74818aa54d0f","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":true,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795145751969,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"idle","busy":false,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","avatarUrl":null,"tasks":[{"threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","title":"Rispondimi a lungo, poi esco dall'app","createdAt":1795145751969,"updatedAt":1795145800459,"unread":true,"activity":"idle","busy":false,"titleFromFirstMessage":true,"lastThreadOrderAt":1795145800456,"cwd":"/tmp/openmausbot-verify-data/task-workspaces/eef7d399-17ac-42e8-80f1-74818aa54d0f/ae0770b2-1152-45a7-9d17-4053d27ea3a6","usage":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01,"turns":1,"lastTurn":{"input":12,"output":5,"cachedInput":2,"costUsd":0.01},"context":{"tokens":12,"window":1000000}},"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":188}
+
+id: 5c85f42b:189
+data: {"kind":"message.patch","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","message":{"id":"4aaa8ba5-44c8-40fe-8bb5-6d3638021567","at":1795145786247,"parentId":"8bb25636-c159-406b-9841-964057889168","role":"user","kind":"text","text":"Rispondimi a lungo, poi esco dall'app","sendId":"96302d24-a1c4-42df-9ee1-40b5001c925e","requestPending":false},"seq":189}
+

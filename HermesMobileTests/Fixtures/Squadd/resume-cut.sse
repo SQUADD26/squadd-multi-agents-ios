@@ -1,0 +1,74 @@
+data: {"kind":"hello","cursor":"5c85f42b:2","resumed":false}
+
+id: 5c85f42b:3
+data: {"kind":"bot","bot":{"id":"eef7d399-17ac-42e8-80f1-74818aa54d0f","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":false,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795145751969,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","avatarUrl":null,"tasks":[{"threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","title":"Rispondimi a lungo, poi esco dall'app","createdAt":1795145751969,"updatedAt":1795145751974,"unread":false,"activity":"idle","busy":false,"titleFromFirstMessage":true,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":3}
+
+id: 5c85f42b:4
+data: {"kind":"message","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","message":{"id":"4aaa8ba5-44c8-40fe-8bb5-6d3638021567","at":1795145786247,"parentId":"8bb25636-c159-406b-9841-964057889168","role":"user","kind":"text","text":"Rispondimi a lungo, poi esco dall'app","sendId":"96302d24-a1c4-42df-9ee1-40b5001c925e"},"seq":4}
+
+id: 5c85f42b:5
+data: {"kind":"message.patch","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","message":{"id":"8bb25636-c159-406b-9841-964057889168","at":1795145751974,"parentId":null,"role":"bot","kind":"options","text":"Hey! I'm Squadd. I'm new here. I'm here to be your Chief of Staff. I can manage your other bots. Task me with anything. I'll make sure it gets to the right bot. I'm taking a look around to see if there's anything I can pick up for you. I'll follow up in a moment.","helperIntro":true,"card":{"title":"Hey! I'm Squadd. I'm new here.","subtitle":"I'm here to be your Chief of Staff. I can manage your other bots. Task me with anything. I'll make sure it gets to the right bot. I'm taking a look around to see if there's anything I can pick up for you. I'll follow up in a moment.","options":["What are my bots up to?","Set up a bot for my inbox","Make me a morning routine","How do I connect my email?"],"fixedOptions":true,"dismissed":true}},"seq":5}
+
+id: 5c85f42b:7
+data: {"kind":"bot","bot":{"id":"eef7d399-17ac-42e8-80f1-74818aa54d0f","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":false,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795145751969,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","avatarUrl":null,"tasks":[{"threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","title":"Rispondimi a lungo, poi esco dall'app","createdAt":1795145751969,"updatedAt":1795145786247,"unread":false,"activity":"idle","busy":false,"titleFromFirstMessage":true,"lastThreadOrderAt":1795145786247,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":7}
+
+id: 5c85f42b:8
+data: {"kind":"message.patch","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","message":{"id":"4aaa8ba5-44c8-40fe-8bb5-6d3638021567","at":1795145786247,"parentId":"8bb25636-c159-406b-9841-964057889168","role":"user","kind":"text","text":"Rispondimi a lungo, poi esco dall'app","sendId":"96302d24-a1c4-42df-9ee1-40b5001c925e","requestPending":true},"seq":8}
+
+id: 5c85f42b:10
+data: {"kind":"bot","bot":{"id":"eef7d399-17ac-42e8-80f1-74818aa54d0f","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":false,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795145751969,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","avatarUrl":null,"tasks":[{"threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","title":"Rispondimi a lungo, poi esco dall'app","createdAt":1795145751969,"updatedAt":1795145786247,"unread":false,"activity":"idle","busy":false,"titleFromFirstMessage":true,"lastThreadOrderAt":1795145786247,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":10}
+
+id: 5c85f42b:12
+data: {"kind":"bot","bot":{"id":"eef7d399-17ac-42e8-80f1-74818aa54d0f","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":false,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795145751969,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"working","busy":true,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","avatarUrl":null,"tasks":[{"threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","title":"Rispondimi a lungo, poi esco dall'app","createdAt":1795145751969,"updatedAt":1795145786247,"unread":false,"activity":"working","busy":true,"titleFromFirstMessage":true,"lastThreadOrderAt":1795145786247,"turnStartedAt":1795145786254,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":12}
+
+id: 5c85f42b:14
+data: {"kind":"bot","bot":{"id":"eef7d399-17ac-42e8-80f1-74818aa54d0f","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":false,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795145751969,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"working","busy":true,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","avatarUrl":null,"tasks":[{"threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","title":"Rispondimi a lungo, poi esco dall'app","createdAt":1795145751969,"updatedAt":1795145786247,"unread":false,"activity":"working","busy":true,"titleFromFirstMessage":true,"lastThreadOrderAt":1795145786247,"turnStartedAt":1795145786254,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":14}
+
+id: 5c85f42b:16
+data: {"kind":"bot","bot":{"id":"eef7d399-17ac-42e8-80f1-74818aa54d0f","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":false,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795145751969,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"working","busy":true,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","avatarUrl":null,"tasks":[{"threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","title":"Rispondimi a lungo, poi esco dall'app","createdAt":1795145751969,"updatedAt":1795145786247,"unread":false,"activity":"working","busy":true,"titleFromFirstMessage":true,"lastThreadOrderAt":1795145786247,"turnStartedAt":1795145786254,"cwd":"/tmp/openmausbot-verify-data/task-workspaces/eef7d399-17ac-42e8-80f1-74818aa54d0f/ae0770b2-1152-45a7-9d17-4053d27ea3a6","modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":16}
+
+id: 5c85f42b:17
+data: {"kind":"runtime","event":{"eventId":"ev-mwofga4x-0","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:26.961Z","type":"turn.started","providerInstanceId":"claude"},"seq":17}
+
+id: 5c85f42b:18
+data: {"kind":"runtime","event":{"eventId":"ev-mwofga6c-1","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:27.012Z","type":"session.started","sessionId":"d910d03a-3b63-4e36-8662-426faed4f473","model":"claude-sonnet-5-5","providerInstanceId":"claude"},"seq":18}
+
+id: 5c85f42b:20
+data: {"kind":"bot","bot":{"id":"eef7d399-17ac-42e8-80f1-74818aa54d0f","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","name":"Fixture Starter","title":"","description":"","soul":"","soulHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","notifications":true,"color":"chrome","unread":false,"modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"createdAt":1795145751969,"chiefOfStaff":true,"hidden":false,"defaultBot":{},"activity":"working","busy":true,"approvalMode":"full","waitingForTeammates":false,"mainThreadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","avatarUrl":null,"tasks":[{"threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","title":"Rispondimi a lungo, poi esco dall'app","createdAt":1795145751969,"updatedAt":1795145786247,"unread":false,"activity":"working","busy":true,"titleFromFirstMessage":true,"lastThreadOrderAt":1795145786247,"turnStartedAt":1795145786254,"cwd":"/tmp/openmausbot-verify-data/task-workspaces/eef7d399-17ac-42e8-80f1-74818aa54d0f/ae0770b2-1152-45a7-9d17-4053d27ea3a6","modelSelection":{"instanceId":"claude","model":"claude-sonnet-5-5"},"followsBotModel":true,"waitingForTeammates":false}]},"seq":20}
+
+id: 5c85f42b:21
+data: {"kind":"runtime","event":{"eventId":"ev-mwofga6e-2","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:27.014Z","type":"content.delta","streamKind":"assistant_text","delta":"Ecco","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":21}
+
+id: 5c85f42b:22
+data: {"kind":"runtime","event":{"eventId":"ev-mwofga8u-3","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:27.102Z","type":"content.delta","streamKind":"assistant_text","delta":" una","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":22}
+
+id: 5c85f42b:23
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgabc-4","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:27.192Z","type":"content.delta","streamKind":"assistant_text","delta":" ris","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":23}
+
+id: 5c85f42b:24
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgadu-5","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:27.282Z","type":"content.delta","streamKind":"assistant_text","delta":"post","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":24}
+
+id: 5c85f42b:25
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgagc-6","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:27.372Z","type":"content.delta","streamKind":"assistant_text","delta":"a lu","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":25}
+
+id: 5c85f42b:26
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgaiu-7","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:27.462Z","type":"content.delta","streamKind":"assistant_text","delta":"nga,","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":26}
+
+id: 5c85f42b:27
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgalc-8","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:27.552Z","type":"content.delta","streamKind":"assistant_text","delta":" scr","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":27}
+
+id: 5c85f42b:28
+data: {"kind":"runtime","event":{"eventId":"ev-mwofganu-9","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:27.642Z","type":"content.delta","streamKind":"assistant_text","delta":"itta","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":28}
+
+id: 5c85f42b:29
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgaqc-a","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:27.732Z","type":"content.delta","streamKind":"assistant_text","delta":" pia","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":29}
+
+id: 5c85f42b:30
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgasu-b","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:27.822Z","type":"content.delta","streamKind":"assistant_text","delta":"no p","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":30}
+
+id: 5c85f42b:31
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgavc-c","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:27.912Z","type":"content.delta","streamKind":"assistant_text","delta":"iano","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":31}
+
+id: 5c85f42b:32
+data: {"kind":"runtime","event":{"eventId":"ev-mwofgaxv-d","provider":"claudeAgent","threadId":"ae0770b2-1152-45a7-9d17-4053d27ea3a6","turnId":"e1bab53f-13d1-4672-8307-7df414dbbbc9","createdAt":"2026-11-20T03:36:28.003Z","type":"content.delta","streamKind":"assistant_text","delta":" dal","providerInstanceId":"claude","itemId":"text-b34cd818-1917-4211-be82-46de91f82564"},"seq":32}
+
