@@ -63,7 +63,7 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         }
         let model = try XCTUnwrap(loaded, "the thread loaded")
         note("transcript: \(model.messages.count) rows, error: \(model.errorMessage ?? "none")")
-        try photograph(window, named: "7-squadd-chat-open", in: folder)
+        try await readyPhoto(of: window).write(to: folder.appendingPathComponent("7-squadd-chat-open.png"))
 
         let prompt = "Ciao dal simulatore iPhone: rispondimi parola per parola"
         let sending = Task { await model.send(prompt) }
@@ -87,7 +87,8 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         }
         note("final reply: \(reply?.count ?? 0) characters: \(reply?.prefix(80) ?? "none")")
         note("rows: " + model.messages.map { "\($0.role ?? "?"):\($0.messageId ?? "?")" }.joined(separator: " "))
-        try photograph(window, named: "9-squadd-chat-reply", in: folder)
+        try await readyPhoto(of: window, until: { model.activeStreamID == nil })
+            .write(to: folder.appendingPathComponent("9-squadd-chat-reply.png"))
 
         XCTAssertEqual(outcome, .started)
         XCTAssertEqual(shown, true)
