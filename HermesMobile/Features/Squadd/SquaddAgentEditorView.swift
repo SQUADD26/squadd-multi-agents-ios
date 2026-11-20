@@ -128,17 +128,7 @@ struct SquaddAgentAvatar: View {
     let path: String?
     let name: String
     var size: CGFloat = 28
-    /// The agent's mascot color (`SquaddBot.color`): without a picture it is drawn as the desktop's
-    /// colored cursor instead of an initial.
-    var color: String?
     @State private var image: UIImage?
-
-    /// The desktop's mascot palette (`openmausbot/src/lib/mascot.ts`, `MAUS_COLORS`).
-    static let mascotColors: [String: String] = [
-        "green": "#009957", "blue": "#377FE6", "red": "#D94B52", "orange": "#E78531", "purple": "#8057C8",
-        "cyan": "#0EA5C6", "pink": "#D84F8B", "yellow": "#D8A729", "teal": "#01A492", "coral": "#E5634E",
-        "silver": "#A8ADB4", "chrome": "#B3BAC4",
-    ]
 
     @MainActor private static let cache = NSCache<NSString, UIImage>()
 
@@ -146,10 +136,6 @@ struct SquaddAgentAvatar: View {
         ZStack {
             if let image {
                 Image(uiImage: image).resizable().scaledToFill()
-            } else if let hex = color.flatMap({ Self.mascotColors[$0] }) {
-                Image(systemName: "cursorarrow")
-                    .font(.system(size: size * 0.72, weight: .semibold))
-                    .foregroundStyle(HeaderLogoColor.color(for: hex))
             } else {
                 Circle().fill(Color.accentColor.opacity(0.18))
                 Text(verbatim: name.first.map { String($0).uppercased() } ?? "")

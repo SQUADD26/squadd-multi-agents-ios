@@ -907,10 +907,24 @@ private struct SquaddAgentRow: View {
         .accessibilityElement(children: .contain)
     }
 
+    /// The desktop's mascot palette (`openmausbot/src/lib/mascot.ts`, `MAUS_COLORS`).
+    static let mascotColors: [String: String] = [
+        "green": "#009957", "blue": "#377FE6", "red": "#D94B52", "orange": "#E78531", "purple": "#8057C8",
+        "cyan": "#0EA5C6", "pink": "#D84F8B", "yellow": "#D8A729", "teal": "#01A492", "coral": "#E5634E",
+        "silver": "#A8ADB4", "chrome": "#B3BAC4",
+    ]
+
     private var identity: some View {
         HStack(spacing: 10) {
-            if let client {
-                SquaddAgentAvatar(client: client, path: section.bot.avatarUrl, name: section.name, color: section.bot.color)
+            if section.bot.avatarUrl == nil, let hex = section.bot.color.flatMap({ Self.mascotColors[$0] }) {
+                // The desktop's colored cursor, for an agent without a picture.
+                Image(systemName: "cursorarrow")
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(HeaderLogoColor.color(for: hex))
+                    .frame(width: 28, height: 28)
+                    .accessibilityHidden(true)
+            } else if let client {
+                SquaddAgentAvatar(client: client, path: section.bot.avatarUrl, name: section.name)
             }
             SquaddRowName(name: section.name, isUnread: section.isUnread)
             if section.bot.chiefOfStaff == true {
