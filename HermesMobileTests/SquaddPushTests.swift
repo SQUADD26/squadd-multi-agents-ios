@@ -199,10 +199,19 @@ final class SquaddPushPhotoTests: XCTestCase {
         {"bots":[{"id":"c813261f-bd3e-4d86-909c-27416feff813","name":"Finch","threadId":"6f85c7af-a71e-487f-8072-abd6b0765715",
           "tasks":[{"threadId":"t-menu","title":"Weekly menu","updatedAt":1795112300000}]}]}
         """.utf8)
+        // The thread the tap opens: the ask and the reply the push announced.
+        let thread = Data("""
+        {"hasMore":false,"messages":[
+          {"id":"m1","role":"user","kind":"text","text":"Plan next week's dinners, vegetarian, under 30 minutes each.","at":1795112000000},
+          {"id":"m2","role":"bot","kind":"text","text":"Done. Five dinners are in Weekly menu, with one shopping list.","at":1795112300000}]}
+        """.utf8)
+        let threadServed = Flag()
         SquaddHTTPFixture.handler = { request in
             switch request.url?.path {
             case "/api/bots": return (200, bots)
             case "/api/push/device": return (200, registered)
+            case "/api/threads/6f85c7af-a71e-487f-8072-abd6b0765715/messages": threadServed.set(); return (200, thread)
+            case "/api/events": return (200, Data("data: {\"kind\":\"hello\",\"cursor\":\"s:1\",\"resumed\":false}\n\n".utf8))
             default: return (404, Data())
             }
         }
@@ -227,7 +236,7 @@ final class SquaddPushPhotoTests: XCTestCase {
                                             router: router))
         let queued = try XCTUnwrap(router.pendingDeepLink.flatMap(SquaddThreadLink.init(url:)))
         XCTAssertEqual(queued.server, sender)
-        try await shoot("n2-tap-opens-thread", dir: dir) { manager.state == .loggedIn(server: sender) }
+        try await shoot("n2-tap-opens-thread", dir: dir) { manager.state == .loggedIn(server: sender) && threadServed.value }
         XCTAssertEqual(manager.state, .loggedIn(server: sender))
     }
 
@@ -259,4 +268,12 @@ final class SquaddPushPhotoTests: XCTestCase {
         let window = try XCTUnwrap(window)
         try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
     }
+}
+
+/// Set once from the fixture's request thread, read on the main actor.
+private final class Flag: @unchecked Sendable {
+    private let lock = NSLock()
+    private var isSet = false
+    var value: Bool { lock.withLock { isSet } }
+    func set() { lock.withLock { isSet = true } }
 }
