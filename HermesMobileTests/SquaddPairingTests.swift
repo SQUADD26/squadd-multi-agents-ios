@@ -215,9 +215,9 @@ final class SquaddPairingPhotoTests: XCTestCase {
         try await shoot("d-paired-home", SquaddRoute(authManager: manager, server: computer) { EmptyView() }, dir: dir) { Self.served > 0 }
     }
 
-    /// Hosts `view` in a window of the app's scene, waits for `ready` and the frames after it, and
-    /// writes `<name>.png`.
-    func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: @escaping @MainActor () -> Bool) async throws {
+    /// Hosts `view` in a window of the app's scene and writes `<name>.png` once `ready` holds and the
+    /// screen sits still (`readyPhoto`).
+    func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: @MainActor () -> Bool) async throws {
         let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
@@ -227,17 +227,6 @@ final class SquaddPairingPhotoTests: XCTestCase {
         window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
         window.makeKeyAndVisible()
         self.window = window
-        let landed = expectation(description: "\(name) landed")
-        func check(_ remaining: Int) {
-            if ready() || remaining == 0 { landed.fulfill(); return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { MainActor.assumeIsolated { check(remaining - 1) } }
-        }
-        check(100)
-        await fulfillment(of: [landed], timeout: 10)
-        try await Task.sleep(for: .seconds(1)) // test-wait: lets the reply draw before the shot; a photo for review, never an assertion
-        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
-            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-        }
-        try XCTUnwrap(image.pngData()).write(to: dir.appendingPathComponent("\(name).png"))
+        try await readyPhoto(of: window, until: ready, limit: .seconds(10)).write(to: dir.appendingPathComponent("\(name).png"))
     }
 }

@@ -70,8 +70,9 @@ extension SquaddPairingPhotoTests {
             XCTAssertEqual(error as? SquaddError, .pairing("pairing_code_wrong"))
             note("wrong code -> \(error) -> «\(squaddPairingFailure(error))»")
         }
-        // The sheet sends the same wrong code (two of the five tries) and shows the computer's answer.
-        try await shoot("f-live-wrong-code", SquaddAddServerSheet(authManager: manager, invite: wrong), dir: dir) { false }
+        // The sheet sends the same wrong code (two of the five tries); its spinner keeps the screen moving
+        // until the computer answers.
+        try await shoot("f-live-wrong-code", SquaddAddServerSheet(authManager: manager, invite: wrong), dir: dir) { true }
 
         // 3. The right code: the same computer again, so this iPhone is replaced, not added.
         let again = try XCTUnwrap(SquaddPairingInvite(typedAddress: server.absoluteString, code: second.code))
