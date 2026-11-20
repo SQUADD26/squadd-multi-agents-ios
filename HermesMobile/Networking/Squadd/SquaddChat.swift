@@ -14,6 +14,8 @@ struct SquaddMessage: Decodable, Equatable {
     let itemId: String?
     /// The client's own id for a send, echoed on the stored user row.
     let sendId: String?
+    /// A `compaction` marker's summary of the turns it folded.
+    let compactionSummary: String?
     /// A bot row's author: in a room, the member that wrote it.
     let from: Author?
     /// The message this one follows; nil at the thread's root. An edit is a second user row
@@ -41,7 +43,8 @@ struct SquaddMessage: Decodable, Equatable {
         let bytes: Int?
     }
 
-    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, from, parentId, reactions, reaction, attachments }
+    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, from, parentId, reactions, reaction, attachments, compaction }
+    private struct Compaction: Decodable { let summary: String? }
 
     init(id: String, role: String?, kind: String? = "text", text: String?, at: Double? = nil,
          itemId: String? = nil, sendId: String? = nil, from: Author? = nil, parentId: String? = nil,
@@ -53,6 +56,7 @@ struct SquaddMessage: Decodable, Equatable {
         self.at = at
         self.itemId = itemId
         self.sendId = sendId
+        compactionSummary = nil
         self.from = from
         self.parentId = parentId
         self.reactions = reactions
@@ -76,20 +80,27 @@ struct SquaddMessage: Decodable, Equatable {
         reaction = try? container.decodeIfPresent(String.self, forKey: .reaction)
         attachments = (try? container.decodeIfPresent([SquaddLossy<Attachment>].self, forKey: .attachments))?
             .compactMap(\.value) ?? []
+        compactionSummary = (try? container.decodeIfPresent(Compaction.self, forKey: .compaction))?.summary
     }
 
     /// A version of a typed message: the rows an edit puts side by side.
     var isTypedUserText: Bool { role == "user" && (kind == nil || kind == "text") }
 
     /// The transcript row the chat draws, or nil for rows the v1 chat doesn't show: tool steps,
-    /// turn digests, screens, compaction markers and the other cards their own tickets bring.
-    /// `options` (a question card) shows its words until the card has its own view.
+    /// turn digests, screens and the other cards their own tickets bring. `options` (a question
+    /// card) shows its words until the card has its own view; a compaction marker shows as the
+    /// "Context compaction" card `ChatMarkerMessageClassifier` knows by its first words.
     /// A row's files show as its attachments, the tags they rode in taken out of its words.
     var chatMessage: ChatMessage? { chatMessage(namesAuthor: false) }
 
     /// `namesAuthor`: a room's reply carries the member that wrote it as its `name`, which the
     /// bubble shows over it.
     func chatMessage(namesAuthor: Bool) -> ChatMessage? {
+        if kind == "compaction" {
+            let summary = compactionSummary?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return ChatMessage(role: "assistant", content: "[Context compaction]\n\n\(summary)",
+                               timestamp: at.map { $0 / 1000 }, messageId: id)
+        }
         guard kind == nil || kind == "text" || kind == "options", reaction == nil else { return nil }
         let parsed = SquaddAttachmentTags.parse(text ?? "")
         let files = parsed.files.map { MessageAttachment(name: $0.name, path: $0.path, isImage: $0.isImage) }
@@ -139,6 +150,19 @@ struct SquaddSendReceipt: Decodable {
     let queueId: String?
 }
 
+/// A message the companion holds until the busy thread can take it (`bot.queued`), which Steer
+/// sends into the running turn at once and Delete drops.
+struct SquaddQueuedMessage: Decodable, Equatable {
+    let queueId: String
+    let text: String?
+}
+
+/// How a message sent to a working agent meets its running turn (`followUp`): steered into it,
+/// queued behind it, or sent after stopping it.
+enum SquaddFollowUp: String {
+    case steer, queue, restart
+}
+
 /// The frames of `/api/events` the chat acts on (`ServerFrame` in `wire.ts`). Every other kind,
 /// and any frame that doesn't decode, is `.ignored`: the stream carries far more than a chat reads.
 enum SquaddFrame: Equatable {
@@ -148,10 +172,15 @@ enum SquaddFrame: Equatable {
     case message(threadId: String, message: SquaddMessage)
     /// The thread now shows another version: an edit, or a version picked on any device.
     case activeBranch(threadId: String)
-    case turnStarted(threadId: String)
+    /// `turnId` names the turn a Stop is for.
+    case turnStarted(threadId: String, turnId: String?)
     /// A piece of the reply's text as it is written.
     case replyDelta(threadId: String, itemId: String?, text: String)
     case turnCompleted(threadId: String, ok: Bool)
+    /// The turn ended because someone stopped it (`stopReason` interrupted or cancelled).
+    case turnStopped(threadId: String)
+    /// The messages each thread holds (keyed by thread id), all of them: a thread not named holds none.
+    case queued([String: [SquaddQueuedMessage]])
     /// The turn failed with words for the person.
     case runtimeError(threadId: String, message: String)
     case ignored
@@ -171,7 +200,10 @@ enum SquaddFrame: Equatable {
         case "runtime":
             guard let event = frame.event, let threadId = event.threadId else { return .ignored }
             switch event.type {
-            case "turn.started": return .turnStarted(threadId: threadId)
+            case "turn.started": return .turnStarted(threadId: threadId, turnId: event.turnId)
+            // Claude reports a stop as `ok:false, interrupted`, Pi as `ok:true, cancelled`.
+            case "turn.completed" where ["interrupted", "cancelled"].contains(event.stopReason):
+                return .turnStopped(threadId: threadId)
             case "turn.completed": return .turnCompleted(threadId: threadId, ok: event.ok ?? true)
             case "content.delta" where event.streamKind == "assistant_text":
                 guard let delta = event.delta, !delta.isEmpty else { return .ignored }
@@ -181,12 +213,16 @@ enum SquaddFrame: Equatable {
                 return .runtimeError(threadId: threadId, message: message)
             default: return .ignored
             }
+        case "bot.queued":
+            guard let queues = frame.queues else { return .ignored }
+            return .queued(queues.mapValues { $0.compactMap(\.value) })
         default:
             return .ignored
         }
     }
 
     private struct Wire: Decodable {
+        let queues: [String: [SquaddLossy<SquaddQueuedMessage>]]?
         let kind: String
         let cursor: String?
         let resumed: Bool?
@@ -198,6 +234,8 @@ enum SquaddFrame: Equatable {
     private struct Event: Decodable {
         let type: String
         let threadId: String?
+        let turnId: String?
+        let stopReason: String?
         let itemId: String?
         let streamKind: String?
         let delta: String?
@@ -251,11 +289,49 @@ extension SquaddCompanionClient {
 
     /// Sends a typed message into one of the bot's threads. `sendId` makes a retry land once;
     /// `mode` "goal" starts a goal with `text` (`SquaddSlashCommands.outgoing`). The reply comes
-    /// over `events`, not here.
-    func send(_ text: String, botId: String, threadId: String, sendId: String, mode: String? = nil) async throws -> SquaddSendReceipt {
+    /// over `events`, not here. `followUp` says how it meets a running turn; nil leaves it to the
+    /// computer's setting.
+    func send(_ text: String, botId: String, threadId: String, sendId: String, mode: String? = nil,
+              followUp: SquaddFollowUp? = nil) async throws -> SquaddSendReceipt {
         var body = ["text": text, "threadId": threadId, "sendId": sendId]
-        if let mode { body["mode"] = mode }
-        return try await post("api/bots/\(botId)/messages", body)
+        body["mode"] = mode
+        body["followUp"] = followUp?.rawValue
+        let data = try await call("api/bots/\(botId)/messages", body, reportsRefusal: false)
+        return try JSONDecoder().decode(SquaddSendReceipt.self, from: data)
+    }
+
+    /// Stop: asks the computer to stop the thread's running turn. `turnId` keeps a late tap from
+    /// stopping the next turn. The turn's own frames say when it has stopped.
+    func interrupt(botId: String, threadId: String, turnId: String?) async throws {
+        var body = ["threadId": threadId]
+        body["turnId"] = turnId
+        _ = try await call("api/bots/\(botId)/interrupt", body)
+    }
+
+    /// Sends a queued message into the running turn now (the thread's whole queue goes with it).
+    func steerQueued(_ queueId: String, botId: String, threadId: String) async throws {
+        _ = try await call("api/bots/\(botId)/queue/\(queueId)/steer", ["threadId": threadId])
+    }
+
+    /// Drops a queued message before it is sent.
+    func deleteQueued(_ queueId: String, botId: String, threadId: String) async throws {
+        _ = try await call("api/bots/\(botId)/queue/\(queueId)", ["threadId": threadId], method: "DELETE")
+    }
+
+    /// Folds the thread's older turns into a summary. Accepted (202) is not done: the marker
+    /// row comes over `events` once the computer has written it.
+    func compact(botId: String, threadId: String) async throws {
+        _ = try await call("api/bots/\(botId)/compact", ["threadId": threadId])
+    }
+
+    /// A JSON request whose refusal, with `reportsRefusal`, carries the computer's own words.
+    private func call(_ path: String, _ body: [String: String], method: String = "POST",
+                      reportsRefusal: Bool = true) async throws -> Data {
+        var request = authorized(path)
+        request.httpMethod = method
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try JSONEncoder().encode(body)
+        return try await Self.send(request, session: session, reportsRefusal: reportsRefusal)
     }
 
     /// Sends `text` as a new version of the stored user message `messageId`: the thread moves to it
