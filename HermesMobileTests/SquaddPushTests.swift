@@ -210,7 +210,7 @@ final class SquaddPushPhotoTests: XCTestCase {
                                             router: router))
         let queued = try XCTUnwrap(router.pendingDeepLink.flatMap(SquaddThreadLink.init(url:)))
         XCTAssertEqual(queued.server, sender)
-        try await shoot("n2-tap-opens-thread", dir: dir)
+        try await shoot("n2-tap-opens-thread", dir: dir) { manager.state == .loggedIn(server: sender) }
         XCTAssertEqual(manager.state, .loggedIn(server: sender))
     }
 
@@ -226,12 +226,8 @@ final class SquaddPushPhotoTests: XCTestCase {
         self.window = window
     }
 
-    private func shoot(_ name: String, dir: URL) async throws {
-        try await Task.sleep(for: .seconds(2.5)) // test-wait: lets the companion answers and the scroll draw; a photo for review, never an assertion
+    private func shoot(_ name: String, dir: URL, until ready: () -> Bool = { true }) async throws {
         let window = try XCTUnwrap(window)
-        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
-            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-        }
-        try XCTUnwrap(image.pngData()).write(to: dir.appendingPathComponent("\(name).png"))
+        try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
     }
 }
