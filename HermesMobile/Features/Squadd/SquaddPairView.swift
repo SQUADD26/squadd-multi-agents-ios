@@ -52,7 +52,7 @@ struct SquaddPairView: View {
                 if let errorMessage {
                     Text(errorMessage).foregroundStyle(.red)
                 } else {
-                    Text("The address and the code are written under the QR code on the computer.")
+                    Text("On the computer, the address and the code are under the QR code. If you don’t see them, open “Having trouble?” under it.")
                 }
             }
             #if DEBUG
@@ -85,7 +85,7 @@ struct SquaddPairView: View {
         } else {
             VStack(spacing: 12) {
                 Image(systemName: "camera.fill").font(.title).foregroundStyle(.secondary)
-                Text("The camera is off or unavailable. Enter the address and code written under the QR code instead.")
+                Text("The camera is off or unavailable. Enter the address and code from under the QR code on the computer; if you don’t see them, open “Having trouble?” there.")
                     .multilineTextAlignment(.center)
                 if camera == .denied {
                     Button("Open Settings") {
