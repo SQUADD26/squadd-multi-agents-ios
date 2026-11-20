@@ -410,7 +410,7 @@ final class SquaddScreenPhotoTests: XCTestCase {
         // A confirmation or a sheet from the last shot leaves with its screen.
         window.rootViewController?.presentedViewController?.dismiss(animated: false)
         window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
-        try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
+        let t0 = ContinuousClock.now; var readyAt: Duration?; let png = try await readyPhoto(of: window, until: { let r = ready(); if r, readyAt == nil { readyAt = ContinuousClock.now - t0 }; return r }); try png.write(to: dir.appendingPathComponent("\(name).png")); let line = "\(name) ready=\(readyAt.map { "\($0)" } ?? "never") total=\(ContinuousClock.now - t0)\n"; let log = dir.appendingPathComponent("tempi.txt"); if let h = try? FileHandle(forWritingTo: log) { h.seekToEndOfFile(); h.write(Data(line.utf8)); h.closeFile() } else { try Data(line.utf8).write(to: log) } // TEMP misura
     }
 
     private nonisolated static func fixture(_ name: String) throws -> Data {
