@@ -11,7 +11,9 @@ the branches. Exit 0 when every mutation turned a test red, 1 when one stayed
 green or was cancelled, 2 when a push or gh failed or a run never started.
 
 wait waits for the PR iOS run of <sha> on <branch> and prints its conclusion
-and failing assertions. Exit 0 green, 1 red or cancelled, 2 as above.
+and failing assertions; for a cancelled run, why: a newer push, or a timeout
+with the touched test classes that never ended. Exit 0 green, 1 red or
+cancelled, 2 as above.
 
 Works from any folder: every git call runs in this checkout and every gh call
 names the repository. Why: #98 waited 36 minutes on a push that had failed
@@ -19,6 +21,7 @@ names the repository. Why: #98 waited 36 minutes on a push that had failed
 watchers run outside a checkout, whose gh had no repository.
 """
 
+from datetime import datetime
 import json
 import re
 import subprocess
@@ -31,6 +34,7 @@ WORKFLOW = "pr-ios.yml"
 POLL_SECONDS = 20
 NO_RUN_MINUTES = 4   # a push starts its run within a minute
 CAP_MINUTES = 20     # a PR iOS run takes a few minutes
+SUPERSEDED_SECONDS = 20  # a newer push's run exists by the time the old one is cancelled
 
 
 class Stop(Exception):
@@ -86,10 +90,53 @@ def failing_assertions(repo, run_id):
     return [re.sub(r"^.*?(HermesMobileTests/)", r"\1", line)[:300] for line in lines][:5]
 
 
+def moment(stamp):
+    """Seconds since the epoch of a GitHub timestamp, None when there is none."""
+    try:
+        return datetime.fromisoformat(stamp.replace("Z", "+00:00")).timestamp()
+    except (AttributeError, ValueError):
+        return None
+
+
+def why_cancelled(repo, branch, run):
+    """Why a PR iOS run ended cancelled: a newer push to the branch (pr-ios.yml cancels the run in progress) or a
+    job that hit its timeout-minutes, with the touched test classes that never ended. Why: #122 spent six calls
+    reading the log of run 44711780160 to learn that a test hung, and one more on run 44711340082 to learn that its
+    own merge push had cancelled it."""
+    runs = json.loads(sh("gh", "run", "list", "-R", repo, "--branch", branch, "--workflow", WORKFLOW, "-L", "20",
+                         "--json", "databaseId,headSha,status,conclusion,createdAt,updatedAt") or "[]")
+    mine = next((other for other in runs if other["databaseId"] == run["databaseId"]), run)
+    ended = moment(mine.get("updatedAt"))
+    # The newer push's run is created first and this one is cancelled seconds later; a run pushed after this one
+    # ended (#122: 55 s after a timeout) did not cancel it.
+    newer = [other for other in runs if other["databaseId"] > run["databaseId"] and ended
+             and moment(other.get("createdAt")) and moment(other["createdAt"]) <= ended + SUPERSEDED_SECONDS]
+    if newer:
+        last = max(newer, key=lambda other: other["databaseId"])
+        return [f"cancelled by a newer push to {branch}: run {last['databaseId']} of {last['headSha'][:7]} "
+                f"replaced it (pr-ios.yml cancels the run in progress); wait for that one"]
+    log = [line.split("\t")[-1] for line in sh("gh", "run", "view", str(run["databaseId"]), "-R", repo,
+                                                "--log").splitlines()]
+    touched = [m.group(1) for line in log if (m := re.search(r"-only-testing:HermesMobileTests/(\w+)\s*$", line))]
+    finished = {m.group(1) for line in log if (m := re.search(r"Test Suite '(\w+)' (?:passed|failed) at", line))}
+    started = [m.group(1) for line in log if (m := re.search(r"Test Case '-\[HermesMobileTests\.(\w+ \w+)\]' started", line))]
+    closed = {m.group(1) for line in log if (m := re.search(r"Test Case '-\[HermesMobileTests\.(\w+ \w+)\]' (?:passed|failed|skipped)", line))}
+    hung = [case.replace(" ", ".") for case in dict.fromkeys(started) if case not in closed]
+    open_ = [name for name in dict.fromkeys(touched) if name not in finished]
+    lines = ["cancelled with no newer push: the job hit its timeout-minutes, so a test hangs or runs too long"]
+    if hung:
+        lines.append(f"started and never ended: {', '.join(hung)}")
+    elif open_:
+        lines.append("touched test classes that never ended (a hung class holds back the output of its "
+                     f"simulator): {', '.join(open_)}")
+    return lines
+
+
 def report(repo, branch, run):
     print(f"== {branch} run {run['databaseId']} {run['conclusion']}", flush=True)
     errors = failing_assertions(repo, run["databaseId"]) if run["conclusion"] == "failure" else []
-    for line in errors:
+    notes = why_cancelled(repo, branch, run) if run["conclusion"] == "cancelled" else []
+    for line in errors + notes:
         print(f"   {line}", flush=True)
     return errors
 
