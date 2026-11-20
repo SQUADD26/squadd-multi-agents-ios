@@ -85,7 +85,8 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         }
 
         let sending = Task { await model.send("Rispondimi a lungo: esco dall'app e torno") }
-        let before = try XCTUnwrap(try await settle(seconds: 30) { streamed().flatMap { $0.count > 40 ? $0 : nil } }, "the reply started")
+        let opening = try await settle(seconds: 30) { streamed().flatMap { $0.count > 40 ? $0 : nil } }
+        let before = try XCTUnwrap(opening, "the reply started")
         try await readyPhoto(of: window).write(to: folder.appendingPathComponent("10-squadd-before-background.png"))
         model.suspendStreamForBackground()
         note("to the background with \(before.count) characters on screen")
