@@ -36,7 +36,7 @@ def select(changed, tests=TESTS):
         rel = file.relative_to(tests.parent)
         whole = rel in changed or file.stem in {f"{n}Tests" for n in names}
         for name, body in classes(file.read_text(encoding="utf-8")):
-            if whole or (PHOTO.search(body) and any(re.search(rf"\b{re.escape(n)}\b", body) for n in names)):
+            if PHOTO.search(body):  # misura: every photo class
                 picked.add(name)
     if any(p.name == "Localizable.xcstrings" for p in changed):
         picked.add("LocalizationCatalogTests")
