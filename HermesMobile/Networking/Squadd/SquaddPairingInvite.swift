@@ -66,6 +66,15 @@ struct SquaddPairingInvite: Equatable, Identifiable {
         self.name = name
     }
 
+    enum ScanRefusal: Error, Equatable { case relayOnly, notAPairingCode }
+
+    /// What the scanner does with a QR code's text: pair, or say why not.
+    static func scanned(_ text: String) -> Result<SquaddPairingInvite, ScanRefusal> {
+        guard let url = URL(string: text.trimmingCharacters(in: .whitespacesAndNewlines)) else { return .failure(.notAPairingCode) }
+        if isRelayOnly(url) { return .failure(.relayOnly) }
+        return SquaddPairingInvite(url: url).map { .success($0) } ?? .failure(.notAPairingCode)
+    }
+
     /// A link from a computer reachable only through Squadd Multi-Agents Relay: its address is
     /// `relay-only.invalid` (`openmausbot/server/phone-relay.ts`), and this app has no relay route yet (#9).
     static func isRelayOnly(_ url: URL) -> Bool {

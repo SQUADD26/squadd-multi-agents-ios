@@ -1,6 +1,16 @@
 import SwiftUI
 import UIKit
 
+/// What a scanned QR code that doesn't pair tells the person.
+func squaddScanRefusal(_ refusal: SquaddPairingInvite.ScanRefusal) -> String {
+    switch refusal {
+    case .relayOnly:
+        return String(localized: "This computer can be reached only through Squadd Multi-Agents Relay, which this app can’t use yet. Give the computer an HTTPS address, then create a new code.")
+    case .notAPairingCode:
+        return String(localized: "That QR code isn’t a Squadd Multi-Agents pairing code.")
+    }
+}
+
 /// Redeems `invite` with this iPhone's name and saves its computer (`AuthManager.pairSquadd`).
 @MainActor
 func squaddPair(_ invite: SquaddPairingInvite, authManager: AuthManager) async throws {
@@ -17,6 +27,8 @@ func squaddPairingFailure(_ error: Error) -> String {
         return String(localized: "That code isn’t right, or it has expired. Create a new one on the computer and try again.")
     case SquaddError.pairing("pairing_too_many"):
         return String(localized: "Too many wrong codes. Create a new one on the computer and try again.")
+    case SquaddError.pairing("pairing_qr_only"):
+        return String(localized: "This computer takes only its QR code. Scan the QR code on the computer instead of typing the code.")
     case SquaddError.pairing("pairing_device_limit"):
         return String(localized: "This computer already has 20 paired devices. Remove an old phone in Remote access on the computer, then pair again.")
     case SquaddError.pairing, SquaddError.unpaired, SquaddError.status(400), SquaddError.status(403), SquaddError.status(404):

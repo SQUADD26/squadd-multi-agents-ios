@@ -74,15 +74,10 @@ struct SquaddPairView: View {
         if Self.hasCamera, camera == .authorized {
             SquaddQRScanner { scanned in
                 guard !isPairing else { return }
-                if let url = URL(string: scanned), SquaddPairingInvite.isRelayOnly(url) {
-                    errorMessage = String(localized: "This computer can be reached only through Squadd Multi-Agents Relay, which this app can’t use yet. Give the computer an HTTPS address, then create a new code.")
-                    return
+                switch SquaddPairingInvite.scanned(scanned) {
+                case .success(let invite): pair(invite)
+                case .failure(let refusal): errorMessage = squaddScanRefusal(refusal)
                 }
-                guard let url = URL(string: scanned), let invite = SquaddPairingInvite(url: url) else {
-                    errorMessage = String(localized: "That QR code isn’t a Squadd Multi-Agents pairing code.")
-                    return
-                }
-                pair(invite)
             }
             .accessibilityLabel("QR code scanner")
         } else if Self.hasCamera, camera == .notDetermined {
