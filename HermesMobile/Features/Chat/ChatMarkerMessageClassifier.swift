@@ -56,6 +56,11 @@ enum ChatMarkerMessageClassifier {
     static func cardBody(for kind: ChatMarkerMessageKind, content: String?) -> String {
         let text = (content ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
 
+        // A Squadd compaction's row is the bare marker and its summary: the card's title says the marker.
+        if kind == .contextCompaction, let marker = text.range(of: "[context compaction]", options: [.caseInsensitive, .anchored]) {
+            return String(text[marker.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+
         guard kind == .preservedTaskList,
               let markerRange = text.range(
                 of: preservedTaskListPrefix,

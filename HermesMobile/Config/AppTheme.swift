@@ -1062,6 +1062,16 @@ enum ComposerSTTProvider: Equatable {
 }
 
 enum ComposerSTTProviderPolicy {
+    /// What dictation transcribes with: a chat that dictates on the phone only never gets the
+    /// server's transcriber, whatever the stored preference says.
+    static func dictation(
+        onDeviceOnly: Bool,
+        transcriber: ComposerTranscriber?,
+        stored: ComposerSTTProviderPreference
+    ) -> (ComposerTranscriber?, ComposerSTTProviderPreference) {
+        onDeviceOnly ? (nil, .onDeviceOnly) : (transcriber, stored)
+    }
+
     static func orderedProviders(
         preference: ComposerSTTProviderPreference,
         serverConfigured: Bool,

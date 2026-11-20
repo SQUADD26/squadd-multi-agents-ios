@@ -49,6 +49,13 @@ struct BotMentions {
         self.byForm = byForm
     }
 
+    /// A Squadd room's members (#21): each completes to its whole name, which is how the companion
+    /// reads a mention (`@Scrittura Web`). Nothing resolves to a chip or a roster note.
+    init(roomMembers: [BotProfile]) {
+        candidates = roomMembers.map { Completion(profile: $0, tag: $0.name) }
+        byForm = [:]
+    }
+
     static func handle(_ bot: BotProfile) -> String {
         bot.id.lowercased() == "default" ? "hermes" : bot.id
     }

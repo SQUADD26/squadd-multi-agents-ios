@@ -8,8 +8,11 @@ import Foundation
 /// Every other `/name` is one of the agent's enabled skills,
 /// which the computer expands from the message text, as it does `/learn`, `/setup` and `/burst`.
 /// Only `/goal` changes the send: its text goes without the prefix, with `mode: "goal"`.
+/// `/compact` is the app's: it asks the companion to compact the thread (`ChatViewModel`).
 enum SquaddSlashCommands {
-    static let builtInNames: Set<String> = ["goal", "learn", "setup", "burst"]
+    static let builtInNames = Set(["goal", "learn", "setup", "burst", "compact"]).union(forkNames)
+    /// The app's own commands, which fork the thread the way Hermes chats' do (#20).
+    static let forkNames: Set<String> = ["branch", "fork"]
 
     static func scope(runsAgents: Bool, authorsSkills: Bool) -> SlashCommandScope {
         let goal = SlashCommand(name: "goal", description: String(localized: "Keep this agent working until the goal is complete"),
@@ -17,7 +20,11 @@ enum SquaddSlashCommands {
         let learn = SlashCommand(name: "learn", description: String(localized: "Draft a reusable skill from this conversation"))
         let setup = SlashCommand(name: "setup", description: String(localized: "Have this agent interview you and set itself up"))
         let burst = SlashCommand(name: "burst", description: String(localized: "Run many parts of a job at once, then merge the results"))
-        return SlashCommandScope(builtins: [goal] + (runsAgents && authorsSkills ? [learn] : []) + (runsAgents ? [setup, burst] : []))
+        let compact = SlashCommand(name: "compact", description: String(localized: "Compress session context"))
+        let branch = SlashCommand(name: "branch", description: String(localized: "Fork the conversation"))
+        let fork = SlashCommand(name: "fork", description: String(localized: "Alias for \("/branch")"))
+        return SlashCommandScope(builtins: [goal] + (runsAgents && authorsSkills ? [learn] : []) + (runsAgents ? [setup, burst] : [])
+                                 + [branch, fork, compact])
     }
 
     /// The agent's enabled skills the desktop offers as `/name`: a skill name

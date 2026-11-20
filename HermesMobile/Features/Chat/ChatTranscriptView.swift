@@ -140,7 +140,11 @@ struct ChatTranscriptView: View {
     var screenCard: BotScreenCard? = nil
     /// A Hermes chat's queued prompts (`ChatViewModel.queuedPromptMessages`, #1379, #1602), drawn
     /// last in the host's order as pending bubbles whose only action is `onCopyQueuedPrompt`.
+    /// A Squadd thread's queue (#13) also has `onSteerQueuedPrompt` and `onDeleteQueuedPrompt`,
+    /// which take the row's id.
     var queuedPrompts: [ChatMessage] = []
+    var onSteerQueuedPrompt: ((String) -> Void)? = nil
+    var onDeleteQueuedPrompt: ((String) -> Void)? = nil
     /// A turn a canonical host lost across its restart (`ChatViewModel.lostTurn`, #1602), drawn
     /// ahead of the queued prompts it holds, with `onDiscardLostTurn`.
     var lostTurn: ChatLostTurn? = nil
@@ -148,6 +152,8 @@ struct ChatTranscriptView: View {
     /// A Hermes scheduled task's run (#1413), whose prompt rows show as `CronRunPromptCard`s.
     var isCronRun = false
     var onCopyQueuedPrompt: (String) -> Void = { _ in }
+    /// A Squadd room's queued prompts can be removed before they run (#21); nil where the host owns the queue.
+    var onRemoveQueuedPrompt: ((ChatMessage) -> Void)? = nil
     /// A Hermes chat's Send waiting for the reconnect (`ChatViewModel.waitingSendMessage`, #1407),
     /// drawn last as a pending bubble whose only action is `onCancelWaitingSend`.
     var waitingSend: ChatMessage? = nil
@@ -536,7 +542,9 @@ struct ChatTranscriptView: View {
                     .id(ChatLostTurn.rowID)
             }
             ForEach(queuedPrompts) { queuedPrompt in
-                ChatQueuedPromptRow(message: queuedPrompt, onCopy: onCopyQueuedPrompt)
+                ChatQueuedPromptRow(message: queuedPrompt, onCopy: onCopyQueuedPrompt,
+                                    onSteer: onSteerQueuedPrompt, onDelete: onDeleteQueuedPrompt,
+                                    onRemove: onRemoveQueuedPrompt.map { remove in { remove(queuedPrompt) } })
                     .reportsReflowFrame(queuedPrompt.id, to: scrollPositionController, layout: layout, isFollowing: isFollowing)
                     .id(queuedPrompt.id)
             }
@@ -1033,6 +1041,9 @@ struct ChatTranscriptMessageBlock: View, Equatable {
 private struct ChatQueuedPromptRow: View {
     let message: ChatMessage
     let onCopy: (String) -> Void
+    var onSteer: ((String) -> Void)? = nil
+    var onDelete: ((String) -> Void)? = nil
+    var onRemove: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 4) {
@@ -1040,8 +1051,29 @@ private struct ChatQueuedPromptRow: View {
             MessageBubbleView(message: message, transcriptMediaCacheNamespace: "", isQueued: true)
                 .accessibilityElement(children: .combine)
                 .accessibilityValue(Text("Queued"))
-            ChatMessageMetaRow(isUserMessage: true, timeText: String(localized: "Queued"),
-                               onCopy: { onCopy(message.content ?? "") })
+            HStack(spacing: 10) {
+                if let onDelete, let id = message.messageId {
+                    Button { onDelete(id) } label: { Image(systemName: "trash") }
+                        .font(AppFont.caption(weight: .semibold))
+                        .foregroundStyle(.appSecondary)
+                        .chatMinimumHitTarget(horizontalPadding: 12, verticalPadding: 14, in: Rectangle())
+                        .accessibilityLabel(Text("Delete this queued message"))
+                }
+                if let onSteer, let id = message.messageId {
+                    Button("Steer") { onSteer(id) }
+                        .font(AppFont.caption(weight: .semibold))
+                        .chatMinimumHitTarget(horizontalPadding: 12, verticalPadding: 14, in: Rectangle())
+                        .accessibilityLabel(Text("Steer this queued message into the running reply"))
+                }
+                ChatMessageMetaRow(isUserMessage: true, timeText: String(localized: "Queued"),
+                                   onCopy: { onCopy(message.content ?? "") })
+            }
+            if let onRemove {
+                Button("Remove", action: onRemove)
+                    .font(AppFont.caption(weight: .semibold))
+                    .chatMinimumHitTarget(horizontalPadding: 12, verticalPadding: 14, in: Rectangle())
+                    .padding(.horizontal, 2)
+            }
         }
     }
 }

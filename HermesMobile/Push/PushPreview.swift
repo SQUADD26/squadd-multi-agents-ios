@@ -122,6 +122,8 @@ extension PushPreview {
     /// a wrong key, a tampered blob — keeps the banner content-free and only puts the
     /// relay's English placeholder into the phone's language.
     static func rewrite(_ content: UNMutableNotificationContent, candidates: [PushPreviewKeys]) {
+        // A Squadd push (`omb`, ADR 0004) is content-free by design and shows exactly as the computer sent it.
+        guard content.userInfo["omb"] == nil else { return }
         let payload = PushPayload(userInfo: content.userInfo)
         guard let sealed = payload.sealed,
               let keys = PushPreviewKeys.matching(installHash: payload.installHash, in: candidates),

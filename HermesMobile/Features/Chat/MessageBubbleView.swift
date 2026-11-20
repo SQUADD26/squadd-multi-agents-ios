@@ -223,6 +223,11 @@ struct MessageBubbleView: View {
         }
 
         return VStack(alignment: .leading, spacing: 6) {
+            if let author = assistantAuthor {
+                Text(verbatim: author)
+                    .font(AppFont.footnote(weight: .semibold))
+                    .foregroundStyle(.appSecondary)
+            }
             if showsAssistantTurnHeaderForThisMessage {
                 assistantTurnHeader
             }
@@ -290,6 +295,12 @@ struct MessageBubbleView: View {
         } else {
             MarkdownRenderer(content: messageText, isStreaming: isStreaming)
         }
+    }
+
+    /// The member that wrote a reply in a room with several agents (a Squadd room's `from.name`, #21).
+    private var assistantAuthor: String? {
+        let name = message.name?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return message.role == "assistant" && !name.isEmpty ? name : nil
     }
 
     // MARK: - Assistant turn header (issue #258)

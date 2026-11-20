@@ -11,11 +11,15 @@ struct SquaddThreadLink: Hashable {
     let threadID: String
     let botID: String?
     let server: URL?
+    /// What a tapped push said is waiting in the thread (`approval`, `question`, `sign-in`, `done`),
+    /// so the chat can open that card; nil for a plain thread link.
+    let kind: String?
 
-    init(threadID: String, botID: String? = nil, server: URL? = nil) {
+    init(threadID: String, botID: String? = nil, server: URL? = nil, kind: String? = nil) {
         self.threadID = threadID
         self.botID = botID
         self.server = server
+        self.kind = kind
     }
 
     init?(url: URL) {
@@ -31,6 +35,7 @@ struct SquaddThreadLink: Hashable {
         botID = items.first { $0.name == "bot" }?.value.flatMap { $0.isEmpty ? nil : $0 }
         server = items.first { $0.name == "server" }?.value.flatMap(URL.init(string:))
             .flatMap { ["http", "https"].contains($0.scheme?.lowercased() ?? "") && $0.host() != nil ? $0 : nil }
+        kind = items.first { $0.name == "kind" }?.value.flatMap { $0.isEmpty ? nil : $0 }
     }
 
     /// The link itself, on the `openmausbot` scheme.
@@ -42,6 +47,7 @@ struct SquaddThreadLink: Hashable {
         var items: [URLQueryItem] = []
         if let botID { items.append(URLQueryItem(name: "bot", value: botID)) }
         if let server { items.append(URLQueryItem(name: "server", value: server.absoluteString)) }
+        if let kind, !kind.isEmpty { items.append(URLQueryItem(name: "kind", value: kind)) }
         components.queryItems = items.isEmpty ? nil : items
         return components.url
     }
@@ -57,7 +63,7 @@ struct SquaddThreadLink: Hashable {
 
     /// This link pinned to `server`, so only that server's home takes it.
     func pinned(to server: URL) -> SquaddThreadLink {
-        SquaddThreadLink(threadID: threadID, botID: botID, server: server)
+        SquaddThreadLink(threadID: threadID, botID: botID, server: server, kind: kind)
     }
 
     /// The home row that shows the thread: its task row, else the header of the agent whose own
