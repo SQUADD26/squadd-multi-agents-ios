@@ -41,19 +41,6 @@ struct SquaddEndpoint: Codable, Equatable, Hashable, Sendable {
         else { throw DecodingError.dataCorruptedError(forKey: .url, in: container, debugDescription: "not a companion route") }
         self = endpoint
     }
-
-    /// The routes of a link's `endpoints` value: base64url JSON without padding. Bad entries drop out.
-    static func fromLink(_ value: String) -> [SquaddEndpoint] {
-        var base64 = value.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
-        base64 += String(repeating: "=", count: (4 - base64.count % 4) % 4)
-        guard let data = Data(base64Encoded: base64) else { return [] }
-        return decodeList(data)
-    }
-
-    /// A JSON array of routes, keeping the ones this phone can dial.
-    static func decodeList(_ data: Data) -> [SquaddEndpoint] {
-        ((try? JSONDecoder().decode([SquaddLossy<SquaddEndpoint>].self, from: data)) ?? []).compactMap(\.value)
-    }
 }
 
 /// What this iPhone keeps per paired computer to find it again: the companion's routes from the

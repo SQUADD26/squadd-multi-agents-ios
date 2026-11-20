@@ -108,7 +108,7 @@
 		5D0ADE280000000000001201 /* SquaddConnectorModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000001200 /* SquaddConnectorModels.swift */; };
 		5D0ADE280000000000000201 /* SquaddSettingsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000000200 /* SquaddSettingsModels.swift */; };
 		5D0ADD000000000000000103 /* SquaddCompanionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADD000000000000000003 /* SquaddCompanionClient.swift */; };
-		5D0A09000000000000000101 /* SquaddRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A09000000000000000001 /* SquaddRoute.swift */; };
+		5D0A09000000000000000101 /* SquaddEndpoint.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A09000000000000000001 /* SquaddEndpoint.swift */; };
 		5D0ADE280000000000001101 /* SquaddCompanionClient+Connectors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000001100 /* SquaddCompanionClient+Connectors.swift */; };
 		5D0ADE280000000000000101 /* SquaddCompanionClient+Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000000100 /* SquaddCompanionClient+Settings.swift */; };
 		5D0ADD000000000000000104 /* SquaddAgentListModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADD000000000000000004 /* SquaddAgentListModel.swift */; };
@@ -903,7 +903,7 @@
 		5D0ADE280000000000001200 /* SquaddConnectorModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddConnectorModels.swift"; sourceTree = "<group>"; };
 		5D0ADE280000000000000200 /* SquaddSettingsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddSettingsModels.swift"; sourceTree = "<group>"; };
 		5D0ADD000000000000000003 /* SquaddCompanionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddCompanionClient.swift"; sourceTree = "<group>"; };
-		5D0A09000000000000000001 /* SquaddRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddRoute.swift"; sourceTree = "<group>"; };
+		5D0A09000000000000000001 /* SquaddEndpoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddEndpoint.swift"; sourceTree = "<group>"; };
 		5D0ADE280000000000001100 /* SquaddCompanionClient+Connectors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddCompanionClient+Connectors.swift"; sourceTree = "<group>"; };
 		5D0ADE280000000000000100 /* SquaddCompanionClient+Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddCompanionClient+Settings.swift"; sourceTree = "<group>"; };
 		5D0ADD000000000000000004 /* SquaddAgentListModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddAgentListModel.swift"; sourceTree = "<group>"; };
@@ -2043,7 +2043,7 @@
 				5D0ADE280000000000001200 /* SquaddConnectorModels.swift */,
 				5D0ADE280000000000000200 /* SquaddSettingsModels.swift */,
 				5D0ADD000000000000000003 /* SquaddCompanionClient.swift */,
-				5D0A09000000000000000001 /* SquaddRoute.swift */,
+				5D0A09000000000000000001 /* SquaddEndpoint.swift */,
 				5D0A08000000000000000001 /* SquaddPairingInvite.swift */,
 				5D0ADE280000000000001100 /* SquaddCompanionClient+Connectors.swift */,
 				5D0ADE280000000000000100 /* SquaddCompanionClient+Settings.swift */,
@@ -2990,7 +2990,7 @@
 				5D0ADE280000000000001201 /* SquaddConnectorModels.swift in Sources */,
 				5D0ADE280000000000000201 /* SquaddSettingsModels.swift in Sources */,
 				5D0ADD000000000000000103 /* SquaddCompanionClient.swift in Sources */,
-				5D0A09000000000000000101 /* SquaddRoute.swift in Sources */,
+				5D0A09000000000000000101 /* SquaddEndpoint.swift in Sources */,
 				5D0A08000000000000000101 /* SquaddPairingInvite.swift in Sources */,
 				5D0ADE280000000000001101 /* SquaddCompanionClient+Connectors.swift in Sources */,
 				5D0ADE280000000000000101 /* SquaddCompanionClient+Settings.swift in Sources */,

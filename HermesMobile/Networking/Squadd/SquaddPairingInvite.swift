@@ -8,9 +8,6 @@ struct SquaddPairingInvite: Equatable, Identifiable {
     let credential: String
     /// The computer's name as the link carries it; the pairing reply's `serverName` wins.
     var name: String?
-    /// The link's other routes to the computer (`endpoints`), kept for choosing the route (#9) when
-    /// the pairing reply lists none.
-    var endpoints: [SquaddEndpoint] = []
     /// Sent as `pairRequestId` on every try of this invite: a retry after a lost reply gets the same
     /// device back instead of `pairing_not_open`, as the code works once. Random, so knowing the code
     /// is not enough to replay someone else's pairing.
@@ -20,8 +17,8 @@ struct SquaddPairingInvite: Equatable, Identifiable {
 
     /// Reads a link as `openmausbot/packages/phone-protocol/src/pairing-link.ts` writes it: `address` is
     /// `host:port` (IPv6 bracketed) or an http(s) origin, `token` the one-time credential. Nil for anything
-    /// else, as the desktop never prints a link a phone would refuse. `endpoints` are the other routes;
-    /// the older `hosts` list and `e2e` are not read.
+    /// else, as the desktop never prints a link a phone would refuse. The fallback routes (`hosts`,
+    /// `endpoints`, `e2e`) are left to choosing the route (#9).
     init?(url: URL) {
         guard url.scheme?.lowercased() == "openmausbot", url.host?.lowercased() == "pair",
               let items = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems else { return nil }
@@ -34,7 +31,6 @@ struct SquaddPairingInvite: Equatable, Identifiable {
         else { return nil }
         let name = value("name")
         self.init(server: server, credential: token, name: name?.isEmpty == false ? name : nil)
-        endpoints = value("endpoints").map(SquaddEndpoint.fromLink) ?? []
     }
 
     /// What someone typed: the address the computer shows (`192.168.1.10:8810`, or a full http(s) address)

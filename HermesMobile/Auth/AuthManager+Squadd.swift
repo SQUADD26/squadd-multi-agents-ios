@@ -40,8 +40,7 @@ extension AuthManager {
             server: invite.server, credential: invite.credential, deviceName: deviceName, requestID: invite.requestID,
             // No token after a revocation: the computer already dropped that device, so nothing to replace.
             replacesToken: existing == nil ? nil : squaddToken(for: invite.server), session: session)
-        let book = SquaddRouteBook(name: reply.serverName ?? invite.name,
-                                   endpoints: reply.endpoints.isEmpty ? invite.endpoints : reply.endpoints)
+        let book = SquaddRouteBook(name: reply.serverName ?? invite.name, endpoints: reply.endpoints)
         guard let existing else {
             try addSquaddServer(address: invite.server, token: reply.token)
             saveSquaddRoutes(book, for: invite.server)
