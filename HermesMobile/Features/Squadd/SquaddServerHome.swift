@@ -179,16 +179,18 @@ struct SquaddServerHome: View {
     /// this Wi-Fi.
     @ViewBuilder
     private var routeRow: some View {
-        if let finder, !(finder.route == nil && !finder.isSearching) {
+        if let finder {
             Label {
-                switch finder.route?.kind {
-                case .hosted: Text("Connected over the internet")
-                case .tailnet: Text("Connected through Tailscale")
-                case .lan, .bonjour: Text("Connected on this Wi-Fi")
-                case nil: Text("Finding the computer…")
+                switch finder.status {
+                case .connected(.hosted): Text("Connected over the internet")
+                case .connected(.tailnet): Text("Connected through Tailscale")
+                case .connected(.lan), .connected(.bonjour): Text("Connected on this Wi-Fi")
+                case .finding: Text("Finding the computer…")
+                case .unreachable: Text("Can't reach the computer.")
                 }
             } icon: {
-                Image(systemName: finder.route.map(Self.symbol) ?? "antenna.radiowaves.left.and.right")
+                Image(systemName: finder.route.map(Self.symbol)
+                      ?? (finder.status == .unreachable ? "wifi.exclamationmark" : "antenna.radiowaves.left.and.right"))
             }
             .font(AppFont.footnote())
             .foregroundStyle(.secondary)

@@ -84,6 +84,7 @@ final class SquaddRouteTests: XCTestCase {
         let finder = SquaddRouteFinder(server: pairedAt, book: book, session: session)
         await finder.find()
         XCTAssertNil(finder.route)
+        XCTAssertEqual(finder.status, .unreachable, "the home says it can't reach the computer")
 
         let found = try XCTUnwrap(SquaddRouteFinder.endpoint(host: .ipv4(try XCTUnwrap(IPv4Address("192.168.1.20"))), port: 18810))
         let (bonjour, advert) = AsyncStream<SquaddEndpoint>.makeStream()
@@ -96,7 +97,51 @@ final class SquaddRouteTests: XCTestCase {
         XCTAssertEqual(finder.route?.kind, .bonjour)
     }
 
+    func testBonjourResolvesTheComputerAdvertisedUnderItsName() async throws {
+        // Two computers on this Wi-Fi, advertised as the companion does: `_openmausbot._tcp`, `name=` in the TXT record.
+        let other = try await advertise(name: "Altro Mac")
+        let mine = try await advertise(name: "Mac di prova")
+        defer { other.listener.cancel(); mine.listener.cancel() }
+
+        let resolved = expectation(description: "Bonjour resolved the computer")
+        var found: SquaddEndpoint?
+        let browsing = Task {
+            for await endpoint in SquaddRouteFinder.bonjour(named: "Mac di prova") {
+                found = endpoint
+                resolved.fulfill()
+                break
+            }
+        }
+        await fulfillment(of: [resolved], timeout: 10)
+        browsing.cancel()
+        XCTAssertEqual(found?.kind, .bonjour)
+        XCTAssertEqual(found?.url.port, Int(mine.port), "the computer with this name, not the other one")
+    }
+
     // MARK: - Helpers
+
+    /// A TCP listener advertised on Bonjour like the companion; it accepts and drops connections.
+    private func advertise(name: String) async throws -> (listener: NWListener, port: UInt16) {
+        let listener = try NWListener(using: .tcp)
+        listener.service = NWListener.Service(name: "\(name) \(UUID().uuidString.prefix(6))", type: "_openmausbot._tcp",
+                                              domain: nil, txtRecord: NWTXTRecord(["name": name]))
+        listener.newConnectionHandler = { $0.cancel() }
+        let port: UInt16 = try await withCheckedThrowingContinuation { continuation in
+            listener.stateUpdateHandler = { [weak listener] state in
+                switch state {
+                case .ready:
+                    listener?.stateUpdateHandler = nil
+                    continuation.resume(returning: listener?.port?.rawValue ?? 0)
+                case .failed(let error):
+                    listener?.stateUpdateHandler = nil
+                    continuation.resume(throwing: error)
+                default: break
+                }
+            }
+            listener.start(queue: .global())
+        }
+        return (listener, port)
+    }
 
     private var session: URLSession {
         let configuration = URLSessionConfiguration.ephemeral

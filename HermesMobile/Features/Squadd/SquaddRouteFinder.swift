@@ -12,6 +12,14 @@ final class SquaddRouteFinder {
     private(set) var route: SquaddEndpoint?
     private(set) var isSearching = true
 
+    /// What the home's route row says.
+    enum Status: Equatable { case finding, connected(SquaddEndpoint.Kind), unreachable }
+
+    var status: Status {
+        if let route { return .connected(route.kind) }
+        return isSearching ? .finding : .unreachable
+    }
+
     @ObservationIgnored private let book: SquaddRouteBook
     @ObservationIgnored private let session: URLSession
     @ObservationIgnored private var found: [SquaddEndpoint] = []
@@ -88,7 +96,10 @@ final class SquaddRouteFinder {
             browser.browseResultsChangedHandler = { results, _ in
                 for result in results {
                     guard case .bonjour(let txt) = result.metadata, txt["name"] == name else { continue }
-                    let connection = NWConnection(to: result.endpoint, using: .tcp)
+                    // IPv4 only: the companion advertises A records, and a link-local IPv6 address can't go in a URL.
+                    let parameters = NWParameters.tcp
+                    (parameters.defaultProtocolStack.internetProtocol as? NWProtocolIP.Options)?.version = .v4
+                    let connection = NWConnection(to: result.endpoint, using: parameters)
                     connection.stateUpdateHandler = { state in
                         switch state {
                         case .ready:
