@@ -668,7 +668,7 @@ final class SquaddChatTurnCoordinator {
             try await authenticate(link)
         } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
         } catch {
-            cardError = Self.failureMessage(error)
+            cardError = String(localized: "The sign-in page didn't open. Try again.")
             return
         }
         await checkConnector()
