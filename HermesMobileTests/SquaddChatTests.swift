@@ -341,7 +341,7 @@ final class SquaddChatTests: XCTestCase {
             default: return .reply(404, Data())
             }
         }
-        let (model, coordinator) = makeChat(bot: resumeBot, thread: resumeThread)
+        let (model, coordinator) = makeChat(bot: resumeBot, thread: resumeThread, reconnectDelay: { _ in })
         await model.loadMessages()
         SquaddChatFixture.stream(Data(Self.frames(events, to: "interrupt").utf8))
         await waitUntil("the turn runs") { model.activeStreamID != nil }
@@ -353,8 +353,12 @@ final class SquaddChatTests: XCTestCase {
         XCTAssertEqual(try Self.fields(asked)["threadId"], thread)
         XCTAssertNotNil(model.activeStreamID, "accepted is not stopped")
 
-        SquaddChatFixture.stream(Data(Self.frames(events, from: "interrupt", to: "compact").utf8))
-        await waitUntil("the stream ends the turn") { model.activeStreamID == nil }
+        // The stream ends after these frames; its reconnect comes once every one of them is applied.
+        let reopened = expectation(description: "the stream reopens after the stop's frames")
+        SquaddChatFixture.didHold = { if $0.url?.path == "/api/events" { reopened.fulfill() } }
+        SquaddChatFixture.stream(Data(Self.frames(events, from: "interrupt", to: "compact").utf8), finish: true)
+        await fulfillment(of: [reopened], timeout: 5)
+        XCTAssertNil(model.activeStreamID, "the stream ended the turn")
         XCTAssertEqual(coordinator.latestRunEnding?.ending, .cancelled, "a stopped turn is not a failed one")
         XCTAssertEqual(model.messages.first { $0.messageId == replyID }?.content?.isEmpty, false,
                        "the words written before Stop stay, though the companion stores none")
