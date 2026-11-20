@@ -52,10 +52,13 @@ jobs:
             CODE_SIGNING_ALLOWED=NO -quiet
           status=0
           # CHANGE: -only-testing names your live test class.
+          # No parallel clones, as in PR iOS: with them a failure reads «Test case '…' failed on 'Clone 1 of …'», which
+          # the grep drops, and the run goes red with no failing line. The whole output stays in the artifact.
           nice -n 10 xcodebuild test-without-building -project HermesMobile.xcodeproj -scheme HermesMobile \
             -destination "platform=iOS Simulator,id=${udid}" -derivedDataPath "${DERIVED_DATA}" \
-            -disableAutomaticPackageResolution -collect-test-diagnostics never \
+            -disableAutomaticPackageResolution -parallel-testing-enabled NO -collect-test-diagnostics never \
             -only-testing:HermesMobileTests/SquaddChatLivePhotoTests \
+            | tee "${TEST_RUNNER_BRAND_PHOTOS_DIR}/xcodebuild-test.log" \
             | grep -E "^Test (Case|Suite)|: error: -\[|\*\* TEST" || status=1
           cat "${TEST_RUNNER_BRAND_PHOTOS_DIR}"/*.txt || true
           exit "${status}"
