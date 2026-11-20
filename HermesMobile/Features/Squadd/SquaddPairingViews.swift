@@ -145,22 +145,9 @@ struct SquaddDebugAddServerView: View {
     }
 }
 
-/// Debug only: a corner button on first launch that opens the pairing screen, until onboarding (#10)
-/// leads there.
-struct SquaddDebugAddServerButton: View {
-    @Bindable var authManager: AuthManager
-    @State private var isPresented = false
-
-    var body: some View {
-        Button { isPresented = true } label: { Text(verbatim: "Squadd (Debug)") }
-            .buttonStyle(.bordered)
-            .padding()
-            .sheet(isPresented: $isPresented) { SquaddAddServerSheet(authManager: authManager) }
-    }
-}
 #endif
 
-/// The Squadd home's Add Server, the debug first-launch button and an `openmausbot://pair` link:
+/// The Squadd home's Add Server and an `openmausbot://pair` link:
 /// the pairing screen, which pairs `invite` at once when there is one.
 struct SquaddAddServerSheet: View {
     @Bindable var authManager: AuthManager

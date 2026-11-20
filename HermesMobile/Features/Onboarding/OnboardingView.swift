@@ -3,7 +3,9 @@ import SwiftUI
 /// First launch, and a webui server signing in again (#1540): one welcome page whose "Add your
 /// server" opens the Add Server sheet (`AddServerView`, entry `.onboarding`), with the setup
 /// prompt and private-network pages behind "I don't have one yet". Given a saved server, the
-/// sheet opens at once with its address filled in.
+/// sheet opens at once with its address filled in. Without the Hermes backends (the Squadd build)
+/// the page asks to install Squadd Multi-Agents on the computer, and its button opens the pairing
+/// screen (`SquaddPairView`); pairing leaves onboarding for the computer's home.
 struct OnboardingView: View {
     /// Height of the fade the bottom bar paints over the pager. Pages that end in a control
     /// pad their scroll content past it so the control can scroll clear of the fade.
@@ -13,6 +15,7 @@ struct OnboardingView: View {
     private let savedServer: URL?
     @State private var isAddingServer: Bool
     @State private var isShowingSetup = false
+    @State private var isPairing: Bool
     @State private var currentPage = 0
     @State private var shownSetupPrompt = OnboardingFlowPolicy.initialSetupPrompt
     @State private var copiedSetupPrompts: Set<OnboardingSetupPrompt> = []
@@ -21,23 +24,25 @@ struct OnboardingView: View {
     @State private var isShowingCopyReminder = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    init(authManager: AuthManager, savedServer: URL? = nil) {
+    /// `pairing` opens on the Squadd pairing screen, for its photo.
+    init(authManager: AuthManager, savedServer: URL? = nil, pairing: Bool = false) {
         self.authManager = authManager
         self.savedServer = savedServer
         // A known server means a sign-in again, not first-run setup.
         _isAddingServer = State(initialValue: savedServer != nil)
+        _isPairing = State(initialValue: pairing)
     }
 
     var body: some View {
         NavigationStack {
-            OnboardingWelcomePage(addServer: { isAddingServer = true }, setUp: { isShowingSetup = true })
+            OnboardingWelcomePage(addServer: {
+                if HermesBackends.isEnabled { isAddingServer = true } else { isPairing = true }
+            }, setUp: { isShowingSetup = true })
                 .toolbar(.hidden, for: .navigationBar)
                 .navigationDestination(isPresented: $isShowingSetup) { setupPages }
+                .navigationDestination(isPresented: $isPairing) { SquaddPairView(authManager: authManager, onPaired: {}) }
         }
         .preferredColorScheme(.dark)
-        #if DEBUG
-        .overlay(alignment: .topTrailing) { SquaddDebugAddServerButton(authManager: authManager) }
-        #endif
         .sheet(isPresented: $isAddingServer) {
             AddServerView(authManager: authManager, entry: .onboarding, savedServer: savedServer)
         }
