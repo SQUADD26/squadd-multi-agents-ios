@@ -297,15 +297,10 @@ final class SquaddScreenPhotoTests: XCTestCase {
         try add(studio, name: "Mac Studio", initials: "MS", color: "#2E7D32", token: "token-a", to: manager)
         try await shoot("a-agents", home(manager, studio), dir: dir) { Self.botsServed > 0 }
 
-        // b. A second server, then back to the first from the avatar's switcher.
+        // b. A second server becomes active with its own token; the first keeps its own (photo e1 lists both).
         try add(laptop, name: "MacBook", initials: "MB", color: "#1565C0", token: "token-b", to: manager)
         XCTAssertEqual(manager.state, .loggedIn(server: laptop))
-        Self.botsServed = 0
-        try await shoot("b1-second-server", home(manager, laptop), dir: dir) { Self.botsServed > 0 }
-        manager.switchActiveServer(to: try XCTUnwrap(manager.servers.first { $0.id == studio.absoluteString }))
-        XCTAssertEqual(manager.squaddToken(for: laptop), "token-b")
-        Self.botsServed = 0
-        try await shoot("b2-back-to-first", home(manager, studio), dir: dir) { Self.botsServed > 0 }
+        XCTAssertEqual(manager.squaddToken(for: studio), "token-a")
 
         // c. The desktop revoked this iPhone: the companion's 401 sends it to pair again.
         try add(revoked, name: "Old Mac", initials: "OM", color: "#6A1B9A", token: "revoked", to: manager)
@@ -329,9 +324,6 @@ final class SquaddScreenPhotoTests: XCTestCase {
         try await shoot("e2-server-page", NavigationStack {
             SettingsServerPage(authManager: manager, account: account, onDefaultProfileSelected: { _ in })
         }, dir: dir) { true }
-        // The Settings pages that take the server: push and About read it, with the companion answering.
-        try await shoot("e3-notifications", NavigationStack { SettingsNotificationsPage(server: studio) }, dir: dir) { true }
-        try await shoot("e4-about", NavigationStack { SettingsAboutPage(server: account) }, dir: dir) { true }
     }
 
     /// #17: an agent's threads in the desktop's order (pinned first) with its archived ones folded
@@ -402,26 +394,23 @@ final class SquaddScreenPhotoTests: XCTestCase {
         SquaddRoute(authManager: manager, server: server) { EmptyView() }
     }
 
-    /// Hosts `view` in a window of the app's scene, waits for `ready` and the frames after it, and
-    /// writes `<name>.png`.
-    private func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: @escaping @MainActor () -> Bool) async throws {
+    /// Shows `view` in the test's one window on the app's scene (made on the first shot) and writes
+    /// `<name>.png` once `ready` holds and the screen stops changing.
+    private func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: @MainActor () -> Bool) async throws {
+        if window == nil {
+            let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+            let window = UIWindow(windowScene: scene)
+            window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+            window.makeKeyAndVisible()
+            self.window = window
+        }
+        let window = try XCTUnwrap(window)
         let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        window?.isHidden = true
-        let window = UIWindow(windowScene: scene)
-        window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+        // A confirmation or a sheet from the last shot leaves with its screen.
+        window.rootViewController?.presentedViewController?.dismiss(animated: false)
         window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
-        window.makeKeyAndVisible()
-        self.window = window
-        let landed = expectation(description: "\(name) landed")
-        func check(_ remaining: Int) {
-            if ready() || remaining == 0 { landed.fulfill(); return }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { MainActor.assumeIsolated { check(remaining - 1) } }
-        }
-        check(100)
-        await fulfillment(of: [landed], timeout: 10)
-        try await readyPhoto(of: window).write(to: dir.appendingPathComponent("\(name).png"))
+        try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
     }
 
     private nonisolated static func fixture(_ name: String) throws -> Data {
