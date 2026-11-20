@@ -208,7 +208,8 @@ class SquaddAgentPhotoTestCase: XCTestCase {
 
     /// Writes `<name>.png` of what the window shows now, once it has drawn.
     func shoot(_ name: String, dir: URL, until ready: () -> Bool = { true }) async throws {
-        try await readyPhoto(of: XCTUnwrap(window), until: ready).write(to: dir.appendingPathComponent("\(name).png"))
+        let window = try XCTUnwrap(window)
+        try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
     }
 
     nonisolated static func fixture(_ name: String) -> Data {
