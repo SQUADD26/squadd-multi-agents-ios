@@ -142,6 +142,7 @@
 		5D0E2E030000000000000101 /* SquaddE2ESession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E2E030000000000000001 /* SquaddE2ESession.swift */; };
 		5D0E2E040000000000000101 /* SquaddRelay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E2E040000000000000001 /* SquaddRelay.swift */; };
 		5D0E2E090000000000000101 /* SquaddE2ETests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E2E090000000000000001 /* SquaddE2ETests.swift */; };
+		5D0E2E100000000000000101 /* SquaddRelayLiveTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0E2E100000000000000001 /* SquaddRelayLiveTests.swift */; };
 		5D0A16000000000000000101 /* SquaddCards.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A16000000000000000001 /* SquaddCards.swift */; };
 		5D0A08000000000000000102 /* SquaddPairView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A08000000000000000002 /* SquaddPairView.swift */; };
 		5D0A08000000000000000103 /* SquaddPairingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0A08000000000000000003 /* SquaddPairingTests.swift */; };
@@ -970,6 +971,7 @@
 		5D0E2E030000000000000001 /* SquaddE2ESession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddE2ESession.swift"; sourceTree = "<group>"; };
 		5D0E2E040000000000000001 /* SquaddRelay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddRelay.swift"; sourceTree = "<group>"; };
 		5D0E2E090000000000000001 /* SquaddE2ETests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddE2ETests.swift; sourceTree = "<group>"; };
+		5D0E2E100000000000000001 /* SquaddRelayLiveTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddRelayLiveTests.swift; sourceTree = "<group>"; };
 		5D0A16000000000000000001 /* SquaddCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddCards.swift"; sourceTree = "<group>"; };
 		5D0A08000000000000000002 /* SquaddPairView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddPairView.swift"; sourceTree = "<group>"; };
 		5D0A08000000000000000003 /* SquaddPairingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddPairingTests.swift; sourceTree = "<group>"; };
@@ -1998,6 +2000,7 @@
 				27A1E0000000000000000003 /* SquaddThreadLinkTests.swift */,
 				5D0A08000000000000000003 /* SquaddPairingTests.swift */,
 				5D0E2E090000000000000001 /* SquaddE2ETests.swift */,
+				5D0E2E100000000000000001 /* SquaddRelayLiveTests.swift */,
 				5D0A08000000000000000004 /* SquaddPairingLiveTests.swift */,
 				5D0A09000000000000000003 /* SquaddRouteTests.swift */,
 				5D0ADE280000000000001500 /* SquaddConnectorsTests.swift */,
@@ -3524,6 +3527,7 @@
 				27A1E0000000000000000103 /* SquaddThreadLinkTests.swift in Sources */,
 				5D0A08000000000000000103 /* SquaddPairingTests.swift in Sources */,
 				5D0E2E090000000000000101 /* SquaddE2ETests.swift in Sources */,
+				5D0E2E100000000000000101 /* SquaddRelayLiveTests.swift in Sources */,
 				5D0A08000000000000000104 /* SquaddPairingLiveTests.swift in Sources */,
 				5D0A09000000000000000103 /* SquaddRouteTests.swift in Sources */,
 				5D0ADE280000000000001501 /* SquaddConnectorsTests.swift in Sources */,

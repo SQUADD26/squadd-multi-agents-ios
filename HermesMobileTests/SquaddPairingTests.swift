@@ -152,6 +152,8 @@ final class SquaddPairingTests: XCTestCase {
         XCTAssertEqual(messages.count, 5, "expired and used share one message; the rest each have their own")
         XCTAssertEqual(squaddPairingFailure(SquaddError.pairing("pairing_new_reason")),
                        String(localized: "The computer refused the code. Codes work once and only for a few minutes: create a new one on the computer."))
+        XCTAssertFalse(messages.contains(squaddPairingFailure(SquaddError.pairing("pairing_new_reason"))),
+                       "every known refusal has its own message, not the catch-all")
         XCTAssertTrue(messages.contains { $0.contains("20") }, "the device limit names it")
         XCTAssertTrue(manager.servers.isEmpty)
     }

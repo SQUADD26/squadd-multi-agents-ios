@@ -8,8 +8,10 @@ Reads the PR's changed paths on stdin and selects test classes from HermesMobile
   so a touched screen gets its photos;
 - LocalizationCatalogTests when the String Catalog changes.
 Nothing selected prints nothing: the PR still builds and checks the catalog. The full suite runs at night.
+With `--rosso` (a `rosso/*` branch, which only shows that a test fails without its change) it selects just the
+non-photo classes of the changed test files.
 
-    git diff --name-only BASE...HEAD | python3 ci/pr_tests.py
+    git diff --name-only BASE...HEAD | python3 ci/pr_tests.py [--rosso]
 """
 
 import re
@@ -28,7 +30,7 @@ def classes(text):
     return [(m.group(1), text[m.start():found[i + 1].start() if i + 1 < len(found) else len(text)]) for i, m in enumerate(found)]
 
 
-def select(changed, tests=TESTS):
+def select(changed, tests=TESTS, red=False):
     changed = [Path(p) for p in changed if p.strip()]
     names = {p.stem for p in changed if p.suffix == ".swift" and p.parts[:1] != ("HermesMobileTests",)}
     picked = set()
@@ -36,13 +38,16 @@ def select(changed, tests=TESTS):
         rel = file.relative_to(tests.parent)
         whole = rel in changed or file.stem in {f"{n}Tests" for n in names}
         for name, body in classes(file.read_text(encoding="utf-8")):
-            if whole or (PHOTO.search(body) and any(re.search(rf"\b{re.escape(n)}\b", body) for n in names)):
+            if red:
+                if rel in changed and not PHOTO.search(body):
+                    picked.add(name)
+            elif whole or (PHOTO.search(body) and any(re.search(rf"\b{re.escape(n)}\b", body) for n in names)):
                 picked.add(name)
-    if any(p.name == "Localizable.xcstrings" for p in changed):
+    if not red and any(p.name == "Localizable.xcstrings" for p in changed):
         picked.add("LocalizationCatalogTests")
     return sorted(picked)
 
 
 if __name__ == "__main__":
-    for name in select(sys.stdin.read().splitlines()):
+    for name in select(sys.stdin.read().splitlines(), red="--rosso" in sys.argv[1:]):
         print(f"-only-testing:HermesMobileTests/{name}")
