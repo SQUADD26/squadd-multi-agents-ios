@@ -183,6 +183,10 @@ enum SquaddFrame: Equatable {
     case queued([String: [SquaddQueuedMessage]])
     /// The turn failed with words for the person.
     case runtimeError(threadId: String, message: String)
+    /// A new entry for the computer's notification list.
+    case notify(SquaddNotification)
+    /// These notifications were read, here or on another app.
+    case notificationsRead(ids: [String])
     case ignored
 
     static func decode(_ data: String) -> SquaddFrame {
@@ -194,6 +198,10 @@ enum SquaddFrame: Equatable {
         case "message", "message.patch":
             guard let threadId = frame.threadId, let message = frame.message?.value else { return .ignored }
             return .message(threadId: threadId, message: message)
+        case "notify":
+            return frame.notification?.value.map { .notify($0) } ?? .ignored
+        case "notifications.read":
+            return .notificationsRead(ids: frame.ids ?? [])
         case "thread":
             guard let threadId = frame.threadId else { return .ignored }
             return .activeBranch(threadId: threadId)
@@ -229,6 +237,8 @@ enum SquaddFrame: Equatable {
         let threadId: String?
         let message: SquaddLossy<SquaddMessage>?
         let event: Event?
+        let notification: SquaddLossy<SquaddNotification>?
+        let ids: [String]?
     }
 
     private struct Event: Decodable {
