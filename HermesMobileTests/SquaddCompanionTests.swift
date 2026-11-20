@@ -512,6 +512,30 @@ final class SquaddScreenPhotoTests: XCTestCase {
         XCTAssertTrue(shared, "export opens the share sheet")
     }
 
+    /// #34: no network, and the home shows the threads and folders it saved, marked offline.
+    func testPhotoSquaddOffline() async throws {
+        let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
+        try XCTSkipIf(path == nil, "Only for photo runs")
+        let dir = URL(fileURLWithPath: path!)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
+                                           configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let saved = try JSONDecoder().decode(SquaddBotList.self, from: Self.fixture("bots-organized.json")).bots
+        try CacheStore.cacheSquaddBots(saved, serverURL: studio, in: container.mainContext)
+        var tried = 0
+        SquaddHTTPFixture.handler = { request in
+            if request.url?.path == "/api/bots" { tried += 1 }
+            return (0, Data())
+        }
+        URLProtocol.registerClass(SquaddHTTPFixture.self)
+        let keychain = InMemoryKeychainStore()
+        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(),
+                                  serverRegistry: ServerRegistry.inMemory(keychain: keychain),
+                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
+        try add(studio, name: "Mac Studio", initials: "MS", color: "#2E7D32", token: "token-a", to: manager)
+        try await shoot("h1-offline-home", home(manager, studio), dir: dir, cache: container) { tried > 0 }
+    }
+
     private static func shows<T: UIViewController>(_ type: T.Type, from controller: UIViewController?) -> Bool {
         guard let controller else { return false }
         return controller is T || controller.children.contains { shows(type, from: $0) } || shows(type, from: controller.presentedViewController)
@@ -530,8 +554,9 @@ final class SquaddScreenPhotoTests: XCTestCase {
 
     /// Shows `view` in the test's one window on the app's scene (made on the first shot) and writes
     /// `<name>.png` once `ready` holds and the screen stops changing.
-    private func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: @MainActor () -> Bool) async throws {
-        let window = try show(view)
+    private func shoot<V: View>(_ name: String, _ view: V, dir: URL, cache: ModelContainer? = nil,
+                                until ready: @MainActor () -> Bool) async throws {
+        let window = try show(view, cache: cache)
         try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
     }
 
@@ -547,7 +572,7 @@ final class SquaddScreenPhotoTests: XCTestCase {
     }
 
     @discardableResult
-    private func show<V: View>(_ view: V) throws -> UIWindow {
+    private func show<V: View>(_ view: V, cache: ModelContainer? = nil) throws -> UIWindow {
         if window == nil {
             let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
             let window = UIWindow(windowScene: scene)
@@ -556,8 +581,8 @@ final class SquaddScreenPhotoTests: XCTestCase {
             self.window = window
         }
         let window = try XCTUnwrap(window)
-        let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
-                                           configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+        let container = try cache ?? ModelContainer(for: CachedSession.self, CachedMessage.self,
+                                                    configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         // A confirmation or a sheet from the last shot leaves with its screen.
         window.rootViewController?.presentedViewController?.dismiss(animated: false)
         window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
