@@ -14,6 +14,8 @@ struct SquaddAgentSection: Identifiable, Equatable {
 
     let id: String
     let name: String
+    /// The agent's own chat.
+    let threadID: String?
     let subtitle: String?
     let isBusy: Bool
     let folders: [Folder]
@@ -30,6 +32,7 @@ struct SquaddAgentSection: Identifiable, Equatable {
     init(bot: SquaddBot) {
         self.bot = bot
         id = bot.id
+        threadID = bot.threadId
         unreadThreadIDs = Set(bot.tasks.filter { $0.unread == true }.map(\.threadId))
         name = Self.nonEmpty(bot.name) ?? String(localized: "Unnamed Agent")
         subtitle = Self.nonEmpty(bot.title)
@@ -48,6 +51,9 @@ struct SquaddAgentSection: Identifiable, Equatable {
         SessionSummary(sessionId: task.threadId, title: nonEmpty(task.title), updatedAt: task.updatedAt.map { $0 / 1000 },
                        pinned: task.pinned, archived: task.isArchived, projectId: task.projectId, isStreaming: task.busy)
     }
+
+    /// The scroll identity of the agent's header row in the home.
+    var headerRowID: String { "agent-\(id)" }
 
     private static func nonEmpty(_ text: String?) -> String? {
         let trimmed = text?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""

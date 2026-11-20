@@ -5,12 +5,14 @@ import SwiftUI
 struct SquaddRoute<Webui: View>: View {
     @Bindable var authManager: AuthManager
     let server: URL
+    /// A thread link waiting for this server's home (`SquaddThreadLink`).
+    var pendingThread: Binding<SquaddThreadLink?> = .constant(nil)
     @ViewBuilder let webui: () -> Webui
 
     var body: some View {
         if authManager.kind(of: server) == .squadd {
             if case .loggedIn = authManager.state {
-                SquaddServerHome(authManager: authManager, server: server).id(server)
+                SquaddServerHome(authManager: authManager, server: server, pendingThread: pendingThread).id(server)
             } else {
                 SquaddPairAgainView(authManager: authManager, server: server).id(server)
             }
@@ -24,14 +26,18 @@ struct SquaddRoute<Webui: View>: View {
 /// header with the server's avatar, switcher and search, then each agent's threads in session rows,
 /// in the desktop sidebar's order, read from the companion's `GET /api/bots`. A thread's menu and
 /// swipes pin, rename, export, archive and delete it; archived threads wait under their agent.
-/// Threads don't open yet: chat is its own ticket.
+/// Threads don't open yet: chat is its own ticket, so a thread link scrolls to the thread's row and marks it.
 struct SquaddServerHome: View {
     @Bindable var authManager: AuthManager
     let server: URL
+    @Binding var pendingThread: SquaddThreadLink?
     /// What the home does once its agents first load; nil in the app. The photo runs use it to
     /// show the search and a thread's actions through the same handlers a tap reaches.
     var start: SquaddHomeStart?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// The row a thread link pointed at, marked until the next link.
+    @State private var linkedRow: String?
+    @State private var isLinkedThreadMissing = false
     /// Made once in `.task`, not in `init`, so a pass of the parent reads no Keychain.
     @State private var model: SquaddAgentListModel?
     @State private var client: SquaddCompanionClient?
@@ -55,20 +61,29 @@ struct SquaddServerHome: View {
 
     var body: some View {
         NavigationStack {
-            AppList(rows: .plain) {
-                SessionsHeader(logoColor: HeaderLogoColor.color(for: identity.headerLogoColorHex), avatar: avatar,
-                               field: SessionsHeader.Field(isExpanded: isSearchExpanded, text: $searchText,
-                                                           isFocused: $isSearchFocused, close: closeSearch),
-                               searchLabel: "Search threads", openSearch: openSearch)
-                    .sessionsTopChromeListRow()
-                if let hits = model?.searchHits {
-                    SquaddSearchResults(hits: hits, query: searchText)
-                } else {
-                    rows
+            ScrollViewReader { proxy in
+                AppList(rows: .plain) {
+                    SessionsHeader(logoColor: HeaderLogoColor.color(for: identity.headerLogoColorHex), avatar: avatar,
+                                   field: SessionsHeader.Field(isExpanded: isSearchExpanded, text: $searchText,
+                                                               isFocused: $isSearchFocused, close: closeSearch),
+                                   searchLabel: "Search threads", openSearch: openSearch)
+                        .sessionsTopChromeListRow()
+                    if let hits = model?.searchHits {
+                        SquaddSearchResults(hits: hits, query: searchText)
+                    } else {
+                        rows
+                    }
                 }
+                .refreshable { await model?.load() }
+                .toolbar(.hidden, for: .navigationBar)
+                .onChange(of: model?.phase) { openPendingThread(proxy) }
+                .onChange(of: pendingThread) { openPendingThread(proxy) }
             }
-            .refreshable { await model?.load() }
-            .toolbar(.hidden, for: .navigationBar)
+        }
+        .alert("Thread Not Found", isPresented: $isLinkedThreadMissing) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("This thread isn’t on the computer anymore.")
         }
         .overlay(alignment: .bottom) {
             ActionToastView(state: toast)
@@ -86,6 +101,8 @@ struct SquaddServerHome: View {
                 )
             }
             await model?.load()
+            // Siri and Shortcuts offer this server's agents once they are known (`OpenSquaddAgentIntent`).
+            HermexShortcuts.updateAppShortcutParameters()
             if let start, !hasStarted {
                 hasStarted = true
                 begin(start)
@@ -216,6 +233,8 @@ struct SquaddServerHome: View {
                     newFolderName = ""
                     namingFolderFor = section.id
                 }
+                .background(linkedMark(section.headerRowID))
+                .id(section.headerRowID)
                 .sessionsScreenListRow()
                 ForEach(section.folders) { folder in
                     folderHeader(folder, in: section)
@@ -249,6 +268,9 @@ struct SquaddServerHome: View {
         let ref = SquaddThreadRef(botId: section.id, session: thread)
         return SessionRowView(session: thread, showsMessageCount: false, showsWorkspace: false,
                               isUnread: section.unreadThreadIDs.contains(thread.id), labelsArchived: true)
+            .background(linkedMark(thread.id))
+            .accessibilityAddTraits(linkedRow == thread.id ? .isSelected : [])
+            .id(thread.id)
             .padding(.horizontal, 12)
             .contextMenu { SquaddThreadMenu(thread: ref, folders: section.folders, act: act) }
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
@@ -418,6 +440,27 @@ struct SquaddServerHome: View {
         searchText = ""
         isSearchFocused = false
         withAnimation(SessionListMotion.searchChromeAnimation(reduceMotion: reduceMotion)) { isSearchExpanded = false }
+    }
+
+    /// Opens a held thread link once this server's agents are loaded: scrolls to the thread's row
+    /// and marks it, or says the thread is gone. A link pinned to another server waits for its home.
+    private func openPendingThread(_ proxy: ScrollViewProxy) {
+        guard let link = pendingThread, link.server.map({ SquaddThreadLink.sameServer($0.absoluteString, server.absoluteString) }) ?? true,
+              case .loaded(let sections) = model?.phase else { return }
+        pendingThread = nil
+        guard let row = link.row(in: sections) else {
+            linkedRow = nil
+            isLinkedThreadMissing = true
+            return
+        }
+        linkedRow = row
+        if let section = sections.first(where: { $0.archived.contains { $0.id == row } }) { expandedArchives.insert(section.id) }
+        withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(row, anchor: .center) }
+    }
+
+    private func linkedMark(_ row: String) -> some View {
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
+            .fill(Color.accentColor.opacity(linkedRow == row ? 0.15 : 0))
     }
 
     private var identity: ServerAccount {
