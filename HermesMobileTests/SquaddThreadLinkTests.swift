@@ -139,6 +139,9 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         var times: [String] = []
         func mark(_ what: String) { times.append("\(what) \(ContinuousClock.now - t0)") }
         defer { try? times.joined(separator: "\n").write(to: dir.appendingPathComponent("timing.txt"), atomically: true, encoding: .utf8) }
+        // The photos are of where each step ends; without animations the screen gets there at once.
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(true) }
         let manager = try twoPairedComputers()
         let router = try host(manager)
         mark("host")
@@ -221,7 +224,8 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         let window = UIWindow(windowScene: scene)
         window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
         window.rootViewController = UIHostingController(
-            rootView: ContentView(authManager: manager, intentRouter: router).modelContainer(container))
+            rootView: ContentView(authManager: manager, intentRouter: router).modelContainer(container)
+                .transaction { if !UIView.areAnimationsEnabled { $0.disablesAnimations = true } })
         window.makeKeyAndVisible()
         self.window = window
         return router
