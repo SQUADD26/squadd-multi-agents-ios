@@ -43,8 +43,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           BRANCH: ${{ github.ref_name }}
+        # `consegna` pushes and opens the PR ~1 s later, while this job asks ~4 s after the push: one more ask 3 s
+        # later keeps a PR opened right after its push on the PR route. If GitHub doesn't answer, the PR route.
         run: |
-          prs=$(gh pr list -R "${GITHUB_REPOSITORY}" --head "${BRANCH}" --base dev --state open --json number --jq length)
+          count() { gh pr list -R "${GITHUB_REPOSITORY}" --head "${BRANCH}" --base dev --state open --json number --jq length || echo 1; }
+          prs=$(count); [[ ${prs} == 0 ]] && sleep 3 && prs=$(count)
           label=squadd-multi-ios-senza-pr; [[ ${prs} != 0 ]] && label=squadd-multi-ios-pr
           echo "Open PRs to dev: ${prs} -> ${label}"; echo "label=${label}" >> "$GITHUB_OUTPUT"
 
@@ -90,6 +93,10 @@ jobs:
           red=""; [[ ${BRANCH} == rosso/* ]] && red=--rosso
           python3 ci/pr_tests.py ${red} < "${RUNNER_TEMP}/changed.txt" > "${RUNNER_TEMP}/tests.txt"
           echo "Tests of the touched files:"; cat "${RUNNER_TEMP}/tests.txt"
+          if [[ -n ${red} && ! -s "${RUNNER_TEMP}/tests.txt" ]]; then
+            echo "::error::rosso/*: no touched non-photo test class, so nothing can fail. Touch the test that must fail."
+            exit 1
+          fi
           # This runner's own simulator, then the one both runners share (ci/pr_sims.py).
           own="${SIMULATOR_NAME}"; [[ ${RUNNER_NAME} == *-2 ]] && own="${SIMULATOR_NAME} 3"
           for name in "${own}" "${SIMULATOR_NAME} 2"; do
