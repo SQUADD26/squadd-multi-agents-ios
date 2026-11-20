@@ -324,7 +324,27 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         let connectorCard = try await settle(seconds: 30) { ChatView.squaddCard(in: connectorModel) }
         note("connector card: \(connectorCard.map { "\($0.kind)" } ?? "none")")
         try await readyPhoto(of: connectorWindow).write(to: folder.appendingPathComponent("16-g-live-connector-card.png"))
-        // The sheet the Connect button opens; the person signing in there is what the companion's broker stands for.
+        // The system sheet Connect opens, on the companion's real link: the workflow photographs the simulator's screen
+        // (the sheet is the system's, outside the app's windows) once `sheet-open` appears, and answers `sheet-shot`.
+        let (probeWindow, session) = try WebAuthenticationProbe.open()
+        var sheetFinished = false
+        let sheet = Task {
+            await connectorTurn.connect { try await SquaddCardInset.openSignInPage($0, in: session) }
+            sheetFinished = true
+        }
+        _ = try await settle(seconds: 3) { sheetFinished ? true : nil }
+        note("sheet: \(sheetFinished ? "closed by itself" : "open"), error: \(connectorTurn.cardError ?? "none")")
+        let sheetOpen = !sheetFinished && connectorTurn.cardError == nil
+        try Data().write(to: folder.appendingPathComponent("sheet-open"))
+        let shot = try await settle(seconds: 20) {
+            FileManager.default.fileExists(atPath: folder.appendingPathComponent("sheet-shot").path) ? true : nil
+        }
+        note("screen photographed: \(shot == true)")
+        sheet.cancel()
+        _ = try await settle(seconds: 5) { sheetFinished ? true : nil }
+        probeWindow.isHidden = true
+
+        // The person signing in on the sheet is what the companion's broker stands for.
         var link: URL?
         await connectorTurn.connect { link = $0 }
         note("sign-in link: \(link?.absoluteString ?? "none"), error: \(connectorTurn.cardError ?? "none")")
@@ -337,6 +357,7 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         XCTAssertTrue(provided, "the computer opened and saved the phone's envelope")
         XCTAssertNotNil(signInCard)
         XCTAssertTrue(done)
+        XCTAssertTrue(sheetOpen, "the system sheet opened on the companion's link and waited")
         XCTAssertEqual(link?.host, "connect.composio.dev")
         XCTAssertEqual(left, true, "connected, the card left")
     }

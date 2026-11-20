@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 
 /// A Squadd agent's secret, sign-in or connector card (#16), pinned above the composer in the request slot.
@@ -133,11 +134,7 @@ struct SquaddCardInset: View {
                 } else {
                     Button {
                         Task {
-                            await turn.connect { link in
-                                _ = try await webAuthenticationSession.authenticate(
-                                    using: link, callback: .customScheme("squadd-multi-agents"),
-                                    preferredBrowserSession: .shared, additionalHeaderFields: [:])
-                            }
+                            await turn.connect { try await Self.openSignInPage($0, in: webAuthenticationSession) }
                         }
                     } label: {
                         Label("Connect", systemImage: "link").frame(maxWidth: .infinity)
@@ -147,6 +144,12 @@ struct SquaddCardInset: View {
                 }
             }
         }
+    }
+
+    /// The service's sign-in in the system browser sheet, sharing Safari's sign-ins. Returns when the sheet closes.
+    static func openSignInPage(_ link: URL, in session: WebAuthenticationSession) async throws {
+        _ = try await session.authenticate(using: link, callback: .customScheme("squadd-multi-agents"),
+                                           preferredBrowserSession: .shared, additionalHeaderFields: [:])
     }
 
     // MARK: Parts

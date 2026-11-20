@@ -958,6 +958,39 @@ final class SquaddChatTests: XCTestCase {
         XCTAssertNil(ChatView.squaddCard(in: otherModel))
     }
 
+    /// Connect opens the system's sign-in sheet on the service's link, and waits on the person there.
+    func testConnectOpensTheSystemSignInSheet() async throws {
+        let bot = "f6231aa0-f288-48a7-80b6-c9e5567f21a2", thread = "c9b197de-4cf9-4332-8401-de64297a1efa"
+        let card = "/api/bots/\(bot)/connector-cards/f48243be-58ec-4e88-b07d-308124a9c167"
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, try! Self.fixture("thread-connector-open.json"))
+            case ("POST", card + "/authorize"): return .reply(200, Data(#"{"url":"https://connect.composio.dev/link/fixture-gmail"}"#.utf8))
+            case ("GET", _): return .hold
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, coordinator) = makeChat(bot: bot, thread: thread)
+        await model.loadMessages()
+        let (window, session) = try WebAuthenticationProbe.open()
+        addTeardownBlock { window.isHidden = true }
+
+        let closed = expectation(description: "the sheet closed by itself")
+        closed.isInverted = true
+        var opened: URL?
+        let sheet = Task {
+            await coordinator.connect { link in
+                opened = link
+                try await SquaddCardInset.openSignInPage(link, in: session)
+            }
+            closed.fulfill()
+        }
+        await fulfillment(of: [closed], timeout: 3)
+        XCTAssertEqual(opened, URL(string: "https://connect.composio.dev/link/fixture-gmail"))
+        XCTAssertNil(coordinator.cardError, "the sheet opened and waits on the person")
+        sheet.cancel()
+    }
+
     /// A sheet that can't open says so on the card, and nothing asks the computer about a sign-in that never showed.
     func testAConnectorSheetThatFailsToOpenSaysSo() async throws {
         let bot = "f6231aa0-f288-48a7-80b6-c9e5567f21a2", thread = "c9b197de-4cf9-4332-8401-de64297a1efa"
@@ -1543,5 +1576,31 @@ final class SquaddCardPhotoTests: XCTestCase {
             window.isHidden = true
             SquaddChatFixture.reset()
         }
+    }
+}
+
+/// The `WebAuthenticationSession` a view in a real window gets, for a test to open the system sheet with.
+@MainActor
+final class WebAuthenticationProbe {
+    var session: WebAuthenticationSession?
+
+    private struct Reader: View {
+        let probe: WebAuthenticationProbe
+        @Environment(\.webAuthenticationSession) private var session
+
+        var body: some View {
+            probe.session = session
+            return Color.clear
+        }
+    }
+
+    static func open() throws -> (UIWindow, WebAuthenticationSession) {
+        let probe = WebAuthenticationProbe()
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = UIHostingController(rootView: Reader(probe: probe))
+        window.makeKeyAndVisible()
+        window.layoutIfNeeded()
+        return (window, try XCTUnwrap(probe.session, "the window's view read its session"))
     }
 }

@@ -1123,6 +1123,11 @@ struct ChatView: View {
         viewModel.squaddTurn?.pendingCard
     }
 
+    static func squaddSecretCardID(in viewModel: ChatViewModel) -> String? {
+        guard let card = squaddCard(in: viewModel), case .secret = card.kind else { return nil }
+        return card.messageId
+    }
+
     /// A Squadd agent's question (#15) in the clarification card, one of its questions at a time.
     private func squaddQuestionInset(
         _ question: SquaddPendingQuestion,
@@ -1353,6 +1358,10 @@ struct ChatView: View {
             }
             .onChange(of: screenShortcut.map(ObjectIdentifier.init)) {
                 if isOnScreen { ScreenShortcut.shared.offer(screenShortcut, from: viewID) }
+            }
+            // A secret card takes the keyboard from the composer, so a key is typed into the card, never the chat.
+            .onChange(of: Self.squaddSecretCardID(in: viewModel), initial: true) { _, id in
+                if id != nil { composerIsFocused = false }
             }
             .onDisappear {
                 isOnScreen = false
