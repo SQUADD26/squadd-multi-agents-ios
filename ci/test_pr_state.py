@@ -42,6 +42,12 @@ class PRStateTests(unittest.TestCase):
         self.assertEqual((work / "DerivedData" / "built").read_text(), "branch 1")
         self.assertTrue((workspace / ".git").is_dir())
 
+        # A cancelled run left this branch both parked and in place: the next run still gets its state.
+        (work / "pr-states" / "foto-1-a" / "dd").mkdir(parents=True)
+        subprocess.run(["cp", "-R", workspace, work / "pr-states" / "foto-1-a" / "src"], check=True)
+        pr_state.main("foto/2-b", base)
+        self.assertEqual((work / "DerivedData" / "built").read_text(), "branch 2")
+
         pr_state.KEEP = 1  # the oldest parked state leaves at once; its files go in the background
         pr_state.main("foto/3-c", base)
         self.assertEqual(sorted(p.name for p in (work / "pr-states").iterdir() if p.is_dir()), ["foto-1-a"])

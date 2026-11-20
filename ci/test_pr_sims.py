@@ -1,6 +1,7 @@
 import os
 import sys
 import tempfile
+import time
 import unittest
 import uuid
 from pathlib import Path
@@ -11,12 +12,19 @@ import pr_sims  # noqa: E402
 
 
 class PrSimsTests(unittest.TestCase):
-    def run_step(self, other_busy, shared):
+    def run_step(self, other_busy, shared, script='echo "$ONE $TWO" > {out}'):
         out = Path(tempfile.mkdtemp()) / "env.txt"
+        workspace = out.parent / "repo" / "repo"
         with mock.patch.object(pr_sims, "other_runner_busy", return_value=other_busy), \
-                mock.patch.dict(os.environ, {"ONE": "own", "TWO": shared}):
-            self.assertEqual(pr_sims.main(["sh", "-c", f'echo "$ONE $TWO" > {out}']), 0)
+                mock.patch.dict(os.environ, {"ONE": "own", "TWO": shared, "GITHUB_WORKSPACE": str(workspace)}):
+            self.assertEqual(pr_sims.main(["sh", "-c", script.format(out=out)]), 0)
         return out.read_text().split()
+
+    def test_nothing_the_step_started_outlives_it(self):
+        pid = int(self.run_step(True, str(uuid.uuid4()), "sleep 30 & echo $! > {out}")[0])
+        time.sleep(0.1)  # the kill is sent; the zombie needs its reaper (launchd) a moment
+        with self.assertRaises(ProcessLookupError):
+            os.kill(pid, 0)
 
     def test_a_lone_run_borrows_the_shared_simulator(self):
         shared = str(uuid.uuid4())

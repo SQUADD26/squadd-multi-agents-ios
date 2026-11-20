@@ -16,6 +16,7 @@ import ctypes
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -55,12 +56,44 @@ def closest(repo, head, candidates):
     return min(scored)[1] if scored else candidates[0][0]
 
 
+def discard(work, path):
+    """Moves `path` out of the way at once and deletes it in the background: a state is ~100k files (~1 s)."""
+    gone = work / f"pr-state-deleting-{path.name}-{os.getpid()}-{len(list(work.glob('pr-state-deleting-*')))}"
+    path.rename(gone)
+    subprocess.Popen([sys.executable, "-c", "import shutil, sys; shutil.rmtree(sys.argv[1])", str(gone)],
+                     start_new_session=True)
+
+
+def move(work, src, dest):
+    """Renames `src` onto `dest`, discarding whatever is already there: a cancelled run leaves half a move, and
+    an xcodebuild that outlived its job may have written a fresh DerivedData after it was parked."""
+    if dest.exists():
+        print(f"Discarding {dest}, left by an earlier run")
+        discard(work, dest)
+    src.rename(dest)
+
+
+def stop_leftover_tests(work):
+    """Kills the test step of an earlier job that was cancelled and outlived it (ci/pr_sims.py records its process
+    group): it would keep writing into DerivedData and hold a simulator."""
+    pgid_file = work / "pr-tests.pgid"
+    if pgid_file.exists():
+        pgid = int(pgid_file.read_text())
+        pgid_file.unlink()
+        try:
+            os.killpg(pgid, signal.SIGKILL)
+            print(f"Stopped the tests of an earlier cancelled job (process group {pgid})")
+        except ProcessLookupError:
+            pass
+
+
 def main(branch, head):
     workspace = Path(os.environ["GITHUB_WORKSPACE"])
     work = workspace.parent.parent
     derived, states = work / "DerivedData", work / "pr-states"
     marker = states / "current"
     states.mkdir(exist_ok=True)
+    stop_leftover_tests(work)
     current = marker.read_text().strip() if marker.exists() else "start"
     mine = re.sub(r"[^A-Za-z0-9._-]", "-", branch)
     if current == mine:
@@ -69,25 +102,27 @@ def main(branch, head):
     os.chdir(work)
     parked = states / current
     parked.mkdir(exist_ok=True)
-    workspace.rename(parked / "src")
+    move(work, workspace, parked / "src")
     if derived.exists():
-        derived.rename(parked / "dd")
-    if (states / mine).is_dir():
-        (states / mine / "src").rename(workspace)
-        (states / mine / "dd").rename(derived)
+        move(work, derived, parked / "dd")
+    if (states / mine / "src" / ".git").is_dir() and (states / mine / "dd").is_dir():
+        move(work, states / mine / "src", workspace)
+        move(work, states / mine / "dd", derived)
         shutil.rmtree(states / mine)
         print(f"Build state: {mine}, back from {states / mine}")
     else:
         candidates = [(p.name, git(p / "src", "rev-parse", "HEAD").stdout.strip())
-                      for p in states.iterdir() if (p / "dd").is_dir() and (p / "src").is_dir()]
+                      for p in states.iterdir() if (p / "dd").is_dir() and (p / "src" / ".git").is_dir()]
         base = closest(parked / "src", head, sorted(candidates, key=lambda c: c[0] != current))
         # The build system records each file's inode, and a clone has new ones: a no-op build after a clone
         # redoes the asset catalog and the copies (~6 s). So the new branch takes the base's own files and the
         # base keeps the clone, paying that once if its branch runs again.
         for part, dest in (("src", workspace), ("dd", derived)):
             spare = states / base / f"{part}-clone"
+            if spare.exists():
+                discard(work, spare)
             clone(states / base / part, spare)
-            (states / base / part).rename(dest)
+            move(work, states / base / part, dest)
             spare.rename(states / base / part)
         print(f"Build state: {mine}, new, from {base} (which keeps a clone)")
     # After a clone git's index holds old inodes: without this the checkout rewrites every file.
@@ -95,11 +130,7 @@ def main(branch, head):
     marker.write_text(mine)
     old = sorted((p for p in states.iterdir() if p.is_dir()), key=lambda p: p.stat().st_mtime, reverse=True)[KEEP:]
     for p in old:
-        # Renamed out of the states at once, deleted in the background: a state is ~100k files (~1 s).
-        gone = work / f"pr-state-deleting-{p.name}-{os.getpid()}"
-        p.rename(gone)
-        subprocess.Popen([sys.executable, "-c", "import shutil, sys; shutil.rmtree(sys.argv[1])", str(gone)],
-                         start_new_session=True)
+        discard(work, p)
         print(f"Deleting the old build state {p.name}")
 
 
