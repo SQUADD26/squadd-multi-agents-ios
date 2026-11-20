@@ -64,6 +64,8 @@ jobs:
             CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= -quiet
 
       - name: Permission, pairing, push and tap
+        # An untapped permission alert holds the test forever: tap_allow.py gives up at 5 minutes, the step soon after.
+        timeout-minutes: 8
         env:
           UDID: ${{ steps.sim.outputs.udid }}
           TEST_RUNNER_PUSH_REAL: "1"
@@ -73,7 +75,7 @@ jobs:
           python3 ci/foto/companion.py 22020 > "${PHOTOS}/companion.log" 2>&1 & echo $! > "${RUNNER_TEMP}/pids"
           idb_companion --udid "${UDID}" --grpc-port 10882 > "${PHOTOS}/idb-companion.log" 2>&1 & echo $! >> "${RUNNER_TEMP}/pids"
           for _ in $(seq 30); do idb connect localhost 10882 > /dev/null 2>&1 && break; sleep 1; done
-          python3 ci/foto/tap_allow.py "${UDID}" Allow 300 > "${PHOTOS}/tap-allow.log" 2>&1 & allow=$!
+          python3 ci/foto/tap_allow.py "${UDID}" "Allow|Consenti" 300 > "${PHOTOS}/tap-allow.log" 2>&1 & allow=$!
           nice -n 10 xcodebuild test-without-building -project HermesMobile.xcodeproj -scheme HermesMobile \
             -destination "platform=iOS Simulator,id=${UDID}" -derivedDataPath "${DERIVED_DATA}" \
             -disableAutomaticPackageResolution -parallel-testing-enabled NO -collect-test-diagnostics never \
