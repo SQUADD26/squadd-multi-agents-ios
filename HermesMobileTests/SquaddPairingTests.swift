@@ -215,6 +215,30 @@ final class SquaddPairingPhotoTests: XCTestCase {
         try await shoot("d-paired-home", SquaddRoute(authManager: manager, server: computer) { EmptyView() }, dir: dir) { Self.served > 0 }
     }
 
+    /// The app opens an `openmausbot://pair` link the way iOS hands one over: `ContentView.onOpenURL`
+    /// presents the pairing sheet in the app's own window, and the sheet pairs on appear.
+    func testPhotoLinkOpensThePairingSheet() async throws {
+        let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
+        try XCTSkipIf(path == nil, "Only for photo runs")
+        let expired = try SquaddPairingTests.fixture("code-expired.json")
+        Self.served = 0
+        SquaddHTTPFixture.handler = { request in
+            if request.url?.path == "/api/pair" { Self.served += 1 }
+            return (401, expired)
+        }
+        URLProtocol.registerClass(SquaddHTTPFixture.self)
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let app = try XCTUnwrap(scene.windows.first { $0.rootViewController != nil && !$0.isHidden })
+        let link = try XCTUnwrap(URL(string: String(decoding: try SquaddPairingTests.fixture("qr-link.txt"), as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines)))
+        let opened = await UIApplication.shared.open(link)
+        XCTAssertTrue(opened, "iOS hands openmausbot:// to this app")
+        let photo = try await readyPhoto(of: app, until: { Self.served > 0 }, limit: .seconds(10))
+        XCTAssertGreaterThan(Self.served, 0, "the link opened the pairing sheet, which sent the link's code to /api/pair")
+        try photo.write(to: URL(fileURLWithPath: path!).appendingPathComponent("g-link-opens-sheet.png"))
+        app.rootViewController?.dismiss(animated: false)
+    }
+
     /// Hosts `view` in a window of the app's scene and writes `<name>.png` once `ready` holds and the
     /// screen sits still (`readyPhoto`).
     func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: @MainActor () -> Bool) async throws {
