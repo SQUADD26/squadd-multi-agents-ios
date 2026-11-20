@@ -1,5 +1,5 @@
 # Template for docs/agents/live-companion.md (from foto-11-live.yml, which ran green on 20/11).
-# Copy to .github/workflows/foto-<issue>-live.yml on a branch foto/<issue>-live that is never merged,
+# Copy to .github/workflows/foto-<issue>-live.yml on a branch foto/<issue>-live (then -2, -3…) that is never merged,
 # push it once per PR (work done, PR iOS green, just before merging; keep the push trigger: `gh workflow run` is refused),
 # change every line marked CHANGE, and rename SQUADD_LIVE_* to your own names everywhere (secrets, env, add-mask). LOOKUP is the gist the tunnel writes its address to; TOKEN is the
 # disposable companion's device token, masked in the log.
@@ -7,7 +7,7 @@ name: Foto <issue> live  # CHANGE
 
 on:
   push:
-    branches: ['foto/<issue>-live']  # CHANGE
+    branches: ['foto/<issue>-live*']  # CHANGE <issue>; the * also takes foto/<issue>-live-2, -3… for a run on a newer head
 
 permissions:
   contents: read
