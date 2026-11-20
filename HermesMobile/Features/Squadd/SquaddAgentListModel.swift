@@ -10,6 +10,8 @@ struct SquaddAgentSection: Identifiable, Equatable {
         let name: String
         let emoji: String?
         let threads: [SessionSummary]
+        let canMoveUp: Bool
+        let canMoveDown: Bool
     }
 
     let id: String
@@ -19,8 +21,6 @@ struct SquaddAgentSection: Identifiable, Equatable {
     let subtitle: String?
     let isBusy: Bool
     let folders: [Folder]
-    /// Every folder id in its saved order, which Move Up and Move Down rewrite.
-    let savedFolderOrder: [String]
     /// Open threads in no folder.
     let threads: [SessionSummary]
     let archived: [SessionSummary]
@@ -40,9 +40,10 @@ struct SquaddAgentSection: Identifiable, Equatable {
         let layout = bot.desktopLayout
         threads = layout.loose.map(Self.row)
         folders = layout.folders.map { folder in
-            Folder(id: folder.project.id, name: folder.project.name, emoji: folder.project.emoji, threads: folder.tasks.map(Self.row))
+            Folder(id: folder.project.id, name: folder.project.name, emoji: folder.project.emoji, threads: folder.tasks.map(Self.row),
+                   canMoveUp: bot.projects(movingFolder: folder.project.id, by: -1) != nil,
+                   canMoveDown: bot.projects(movingFolder: folder.project.id, by: 1) != nil)
         }
-        savedFolderOrder = bot.projects.map(\.id)
         archived = SquaddTask.desktopOrder(bot.tasks).filter(\.isArchived).map(Self.row)
     }
 
@@ -157,15 +158,12 @@ final class SquaddAgentListModel {
         await change(threadId, botId, ["projectId": projectId.map { $0 as Any } ?? NSNull()]) { $0.projectId = projectId }
     }
 
-    /// Moves a folder one place in the saved order (`offset` -1 up, +1 down) and saves the whole
+    /// Moves a folder one place in the shown order (`offset` -1 up, +1 down) and saves the whole
     /// order, as the desktop's drag does.
     func moveFolder(_ projectId: String, botId: String, by offset: Int) async -> Bool {
         guard let bot = bots.first(where: { $0.id == botId }),
-              let index = bot.projects.firstIndex(where: { $0.id == projectId }),
-              bot.projects.indices.contains(index + offset) else { return false }
+              let after = bot.projects(movingFolder: projectId, by: offset) else { return false }
         let before = bot.projects
-        var after = before
-        after.swapAt(index, index + offset)
         editBot(botId) { $0.projects = after }
         do {
             try await client.reorderProjects(botId: botId, projectIds: after.map(\.id))

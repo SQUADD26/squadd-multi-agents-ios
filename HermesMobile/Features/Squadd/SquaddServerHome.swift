@@ -161,8 +161,10 @@ struct SquaddServerHome: View {
             Button("Create") {
                 let name = newFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard let botId = namingFolderFor, !name.isEmpty else { return }
-                Task { await run { await $0.createFolder(named: String(name.prefix(80)), botId: botId) } }
+                Task { await run { await $0.createFolder(named: name, botId: botId) } }
             }
+            // The companion takes 1 to 80 characters; a longer name is refused here, never cut.
+            .disabled(newFolderName.trimmingCharacters(in: .whitespacesAndNewlines).count > 80)
             Button("Cancel", role: .cancel) {}
         }
         .confirmationDialog("Delete Folder?", isPresented: Binding(get: { deletingFolder != nil }, set: { if !$0 { deletingFolder = nil } }),
@@ -296,7 +298,6 @@ struct SquaddServerHome: View {
 
     private func folderHeader(_ folder: SquaddAgentSection.Folder, in section: SquaddAgentSection) -> some View {
         let ref = SquaddFolderRef(botId: section.id, id: folder.id, name: folder.name)
-        let saved = section.savedFolderOrder.firstIndex(of: folder.id) ?? 0
         return HStack(spacing: 8) {
             if let emoji = folder.emoji {
                 Text(verbatim: emoji)
@@ -322,11 +323,11 @@ struct SquaddServerHome: View {
             Button { Task { await run { await $0.moveFolder(folder.id, botId: section.id, by: -1) } } } label: {
                 Label("Move Up", systemImage: "arrow.up")
             }
-            .disabled(saved == 0)
+            .disabled(!folder.canMoveUp)
             Button { Task { await run { await $0.moveFolder(folder.id, botId: section.id, by: 1) } } } label: {
                 Label("Move Down", systemImage: "arrow.down")
             }
-            .disabled(saved >= section.savedFolderOrder.count - 1)
+            .disabled(!folder.canMoveDown)
             Button(role: .destructive) { deletingFolder = ref } label: { Label("Delete Folder", systemImage: "trash") }
         }
         .sessionsScreenListRow()
@@ -423,7 +424,7 @@ struct SquaddServerHome: View {
             }
         case .act(let action, let title):
             for section in sections {
-                if let thread = (section.threads + section.archived).first(where: { $0.title == title }) {
+                if let thread = (section.threads + section.folders.flatMap(\.threads) + section.archived).first(where: { $0.title == title }) {
                     act(action, SquaddThreadRef(botId: section.id, session: thread))
                     return
                 }

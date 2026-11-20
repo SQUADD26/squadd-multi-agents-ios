@@ -149,6 +149,21 @@ extension SquaddBot {
         let ids = Set(projects.map(\.id))
         return (folders, open.filter { !ids.contains($0.projectId ?? "") })
     }
+
+    /// The saved folder order after moving `projectId` up (-1) or down (+1) in the shown order:
+    /// it steps past folders until `desktopLayout` changes, since a folder with an open thread sits
+    /// by that thread whatever the saved order says. Nil when no move changes what shows.
+    func projects(movingFolder projectId: String, by offset: Int) -> [SquaddProject]? {
+        guard var index = projects.firstIndex(where: { $0.id == projectId }) else { return nil }
+        let shown = desktopLayout.folders.map(\.project.id)
+        var moved = self
+        while moved.projects.indices.contains(index + offset) {
+            moved.projects.swapAt(index, index + offset)
+            index += offset
+            if moved.desktopLayout.folders.map(\.project.id) != shown { return moved.projects }
+        }
+        return nil
+    }
 }
 
 /// One of an agent's folders: a name, maybe an emoji, and the threads whose `projectId` is its id.

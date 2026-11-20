@@ -219,10 +219,22 @@ final class SquaddCompanionTests: XCTestCase {
         await model.load()
 
         let section = try XCTUnwrap(sections(model).first)
-        XCTAssertEqual(section.savedFolderOrder, [interni, clienti])
         XCTAssertEqual(section.folders.map(\.name), ["Clienti", "Interni"], "a folder with the top thread comes first, as on the desktop")
         XCTAssertEqual(section.folders.map { $0.threads.map(\.title) }, [["Rinominato"], []])
         XCTAssertEqual(section.threads.map(\.title), ["ciao zucchero"])
+        XCTAssertFalse(section.folders.contains { $0.canMoveUp || $0.canMoveDown }, "no move here would change what shows")
+    }
+
+    func testFolderMovesChangeTheShownOrder() {
+        let full = SquaddProject(id: "full", name: "Full")
+        let first = SquaddProject(id: "first", name: "First"), last = SquaddProject(id: "last", name: "Last")
+        let bot = SquaddBot(id: "bot", name: "Bot", tasks: [SquaddTask(threadId: "t", title: nil, lastThreadOrderAt: 1, projectId: "full")],
+                            projects: [first, full, last])
+
+        XCTAssertEqual(bot.desktopLayout.folders.map(\.project.id), ["full", "first", "last"], "empty folders in the saved order")
+        XCTAssertEqual(bot.projects(movingFolder: "last", by: -1)?.map(\.id), ["last", "first", "full"],
+                       "Move Up steps past the folder its thread holds")
+        XCTAssertNil(bot.projects(movingFolder: "full", by: 1), "a folder with an open thread stays by it")
     }
 
     func testFolderActionsUseTheProjectRoutesAndKeepTheThreads() async throws {
@@ -241,35 +253,40 @@ final class SquaddCompanionTests: XCTestCase {
         await model.load()
         let base = "/api/bots/\(starter)"
 
-        let moved = await model.move(threadId: sugarThread, botId: starter, toFolder: interni)
-        let ungrouped = await model.move(threadId: sugarThread, botId: starter, toFolder: nil)
+        let ungrouped = await model.move(threadId: pinnedThread, botId: starter, toFolder: nil)
         let reordered = await model.moveFolder(clienti, botId: starter, by: -1)
+        let afterMove = try XCTUnwrap(sections(model).first)
+        let filed = await model.move(threadId: sugarThread, botId: starter, toFolder: clienti)
         let deleted = await model.deleteFolder(clienti, botId: starter)
         let afterDelete = try XCTUnwrap(sections(model).first)
         let created = await model.createFolder(named: "Clienti", botId: starter)
 
-        XCTAssertEqual([moved, ungrouped, reordered, deleted, created], [true, true, true, true, true])
+        XCTAssertEqual([ungrouped, reordered, filed, deleted, created], [true, true, true, true, true])
         let calls = Array(seen.dropFirst())
-        XCTAssertEqual(calls.map { "\($0.0) \($0.1)" }, ["PATCH \(base)/tasks/\(sugarThread)", "PATCH \(base)/tasks/\(sugarThread)",
-                                                     "PATCH \(base)/projects/order", "DELETE \(base)/projects/\(clienti)",
+        XCTAssertEqual(calls.map { "\($0.0) \($0.1)" }, ["PATCH \(base)/tasks/\(pinnedThread)", "PATCH \(base)/projects/order",
+                                                     "PATCH \(base)/tasks/\(sugarThread)", "DELETE \(base)/projects/\(clienti)",
                                                      "POST \(base)/projects"])
-        XCTAssertEqual(calls[0].2["projectId"] as? String, interni)
-        XCTAssertTrue(calls[1].2["projectId"] is NSNull, "out of every folder sends null")
-        XCTAssertEqual(calls[2].2["projectIds"] as? [String], [clienti, interni], "the whole saved order, the moved folder one place up")
+        XCTAssertTrue(calls[0].2["projectId"] is NSNull, "out of every folder sends null")
+        XCTAssertEqual(calls[1].2["projectIds"] as? [String], [clienti, interni], "the whole saved order, the moved folder one place up")
+        XCTAssertEqual(afterMove.folders.map(\.id), [clienti, interni], "two empty folders show in the new order")
+        XCTAssertEqual(calls[2].2["projectId"] as? String, clienti)
         XCTAssertEqual(calls[4].2["name"] as? String, "Clienti")
-        XCTAssertEqual(afterDelete.savedFolderOrder, [interni])
-        let kept = try XCTUnwrap(afterDelete.threads.first { $0.id == pinnedThread }, "the deleted folder's thread stays")
+        XCTAssertEqual(afterDelete.folders.map(\.id), [interni])
+        let kept = try XCTUnwrap(afterDelete.threads.first { $0.id == sugarThread }, "the deleted folder's thread stays")
         XCTAssertNil(kept.projectId, "in no folder, so its menu ticks No Folder")
-        XCTAssertEqual(try sections(model).first?.savedFolderOrder, [interni, clienti], "a new folder goes last")
+        XCTAssertEqual(try sections(model).first?.folders.map(\.id), [interni, clienti], "a new folder goes last")
     }
 
     func testRefusedFolderChangesPutThemBack() async throws {
         var refusing = false
-        SquaddHTTPFixture.handler = { _ in
-            refusing ? (400, try! Self.fixture("task-patch-400.json")) : (200, try! Self.fixture("bots-organized.json"))
+        SquaddHTTPFixture.handler = { request in
+            refusing ? (400, try! Self.fixture("task-patch-400.json"))
+                : (200, try! Self.fixture(request.httpMethod == "PATCH" ? "task-patch.json" : "bots-organized.json"))
         }
         let model = SquaddAgentListModel(client: client(token: "t"), onUnpaired: {})
         await model.load()
+        let emptied = await model.move(threadId: pinnedThread, botId: starter, toFolder: nil)
+        XCTAssertTrue(emptied, "both folders empty, so a move changes what shows")
         let before = try sections(model)
         refusing = true
 
