@@ -533,11 +533,13 @@ final class SquaddScreenPhotoTests: XCTestCase {
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
         let saved = try JSONDecoder().decode(SquaddBotList.self, from: Self.fixture("bots-organized.json")).bots
         try CacheStore.cacheSquaddBots(saved, serverURL: studio, in: container.mainContext)
-        var tried = 0, answered = 0
+        var tried = 0, answered = 0, probed = 0
         let network = NetworkSwitch()
         network.isOn = false
         let organized = try Self.fixture("bots-organized.json")
+        let health = try SquaddPairingTests.fixture("health.json")
         SquaddHTTPFixture.handler = { request in
+            if request.url?.path == "/api/health", network.isOn { probed += 1; return (200, health) }
             guard request.url?.path == "/api/bots" else { return (network.isOn ? 404 : 0, Data()) }
             guard network.isOn else { tried += 1; return (0, Data()) }
             answered += 1
@@ -552,9 +554,10 @@ final class SquaddScreenPhotoTests: XCTestCase {
         try await shoot("h1-offline-home", home(manager, studio), dir: dir, cache: container) { tried > 0 }
         network.isOn = true
         let window = try XCTUnwrap(window)
-        try await readyPhoto(of: window, until: { answered > 0 }, limit: .seconds(4))
+        try await readyPhoto(of: window, until: { answered > 0 && probed > 0 }, limit: .seconds(4))
             .write(to: dir.appendingPathComponent("h2-home-back-online.png"))
         XCTAssertGreaterThan(answered, 0, "the offline home read the computer again by itself")
+        XCTAssertGreaterThan(probed, 0, "the route row looks for the computer again once it answers")
     }
 
     private static func shows<T: UIViewController>(_ type: T.Type, from controller: UIViewController?) -> Bool {

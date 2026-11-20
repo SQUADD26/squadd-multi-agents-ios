@@ -90,6 +90,10 @@ struct SquaddServerHome: View {
                 .toolbar(.hidden, for: .navigationBar)
                 .onChange(of: model?.phase) { openPendingThread(proxy) }
                 .onChange(of: pendingThread) { openPendingThread(proxy) }
+                // The computer answered again after an offline copy: the route row looks again too.
+                .onChange(of: model?.isShowingCache) { was, now in
+                    if was == true, now == false, finder?.route == nil { Task { await finder?.find() } }
+                }
             }
             .navigationDestination(for: SquaddThreadChat.self) { ChatView(squaddThread: $0).id($0.id) }
         }
