@@ -4512,10 +4512,6 @@ final class ChatViewModel {
         if let hermesTurn {
             return await askHermesBtw(question, sideTasks: hermesTurn.sideTasks)
         }
-        guard squaddTurn == nil else {
-            return .unsupported(friendlyMessage: String(localized: "Agents on the computer take side questions as a queued message: send it while the agent works and choose Queue."))
-        }
-
         guard let sessionID else {
             return .unsupported(friendlyMessage: String(localized: "The server did not provide a session ID."))
         }
@@ -10058,6 +10054,20 @@ extension ChatViewModel: SquaddChatTurnDelegate {
                                         files: [PendingAttachment]? = nil,
                                         followUp: SquaddFollowUp? = nil) async -> ChatSendOutcome {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        // The app's own commands on the computer: compaction asks the companion, `/btw` has no
+        // equivalent there. Either leaves the draft in the composer when it doesn't go.
+        switch text.lowercased() {
+        case "/compact", "/compress":
+            if case .unsupported(let reason) = await compactSquaddThread(squadd) {
+                sendErrorMessage = reason
+                return .kept
+            }
+            return .started
+        case let typed where typed == "/btw" || typed.hasPrefix("/btw "):
+            sendErrorMessage = String(localized: "Agents on the computer take side questions as a queued message: send it while the agent works and choose Queue.")
+            return .kept
+        default: break
+        }
         let files = files ?? attachmentCoordinator.pendingAttachments
         guard !text.isEmpty || !files.isEmpty, !isStartingChat else { return .kept }
         // The companion refuses an empty goal; say so instead of a server error.

@@ -166,7 +166,7 @@ final class SquaddChatLivePhotoTests: XCTestCase {
             .write(to: folder.appendingPathComponent("15-squadd-stopped.png"))
 
         let before = markers()
-        let result = await model.executeSlashCommand(try XCTUnwrap(SlashCommandCatalog.command(named: "compact")))
+        let result = await model.send("/compact")
         let compacted = try await settle(seconds: 30) { markers() > before ? markers() : nil }
         let page = try await SquaddCompanionClient(server: chat.server, token: token).messages(threadId: chat.threadId)
         note("Compact: \(result), markers on screen \(before) → \(compacted ?? before), stored markers \(page.messages.filter { $0.kind == "compaction" }.count)")

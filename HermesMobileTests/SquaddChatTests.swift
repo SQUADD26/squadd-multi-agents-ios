@@ -231,7 +231,7 @@ final class SquaddChatTests: XCTestCase {
     func testSlashPanelOffersTheDesktopsCommandsAndTheThreadsEnabledSkills() async throws {
         let (commands, skills, query) = try await slashCatalog(bots: "slash-bots.json", config: "slash-config.json")
 
-        XCTAssertEqual(commands, ["goal", "learn", "setup", "burst"])
+        XCTAssertEqual(commands, ["goal", "learn", "setup", "burst", "compact"])
         XCTAssertEqual(skills, ["meeting-notes", "weekly-report"], "neither a turned-off skill nor one named like a built-in")
         XCTAssertEqual(query, "threadId=\(threadId)", "the skills this thread's turn sees")
     }
@@ -239,13 +239,13 @@ final class SquaddChatTests: XCTestCase {
     func testAnAgentWithNoEngineIsOfferedOnlyTheGoal() async throws {
         let (commands, _, _) = try await slashCatalog(bots: "slash-bots-no-engine.json", config: "slash-config.json")
 
-        XCTAssertEqual(commands, ["goal"])
+        XCTAssertEqual(commands, ["goal", "compact"])
     }
 
     func testLearnLeavesThePanelWhenTheComputerTurnsSkillDraftingOff() async throws {
         let (commands, _, _) = try await slashCatalog(bots: "slash-bots.json", config: "slash-config-no-learn.json")
 
-        XCTAssertEqual(commands, ["goal", "setup", "burst"])
+        XCTAssertEqual(commands, ["goal", "setup", "burst", "compact"])
     }
 
     func testGoalGoesWithoutItsPrefixInGoalModeAndOtherCommandsAsTyped() async throws {
@@ -426,7 +426,7 @@ final class SquaddChatTests: XCTestCase {
                 return .reply(200, try! Self.fixture(asked == nil ? "control-thread-before.json" : "control-thread-after.json"))
             case ("GET", _): return .hold
             case ("POST", "/api/bots/\(bot)/compact"): asked = request; return .reply(202, try! Self.fixture("control-compact.json"))
-            default: return .reply(404, Data())
+            default: XCTFail("only the compaction is asked for, \(request.url?.path ?? "")"); return .reply(404, Data())
             }
         }
         let (model, _) = makeChat(bot: resumeBot, thread: resumeThread)
@@ -434,8 +434,8 @@ final class SquaddChatTests: XCTestCase {
         func markers() -> Int { model.messages.filter { ChatMarkerMessageClassifier.classify($0) == .contextCompaction }.count }
         XCTAssertEqual(markers(), 1)
 
-        let result = await model.executeSlashCommand(try XCTUnwrap(SlashCommandCatalog.command(named: "compact")))
-        XCTAssertEqual(result, .executed(message: nil))
+        let outcome = await model.send("/compact")
+        XCTAssertEqual(outcome, .started)
         XCTAssertEqual(try Self.fields(asked)["threadId"], thread)
         XCTAssertEqual(markers(), 1, "the marker comes with the stream, not the request")
 
@@ -454,6 +454,7 @@ final class SquaddChatTests: XCTestCase {
             case ("POST", "/api/bots/\(bot)/interrupt"):
                 return .reply(409, Data(#"{"error":"the bot switched tasks before it could be interrupted"}"#.utf8))
             case ("DELETE", "/api/bots/\(bot)/queue/\(second)"): return .reply(404, Data(#"{"error":"no such queued message"}"#.utf8))
+            case ("POST", "/api/bots/\(bot)/compact"): return .reply(409, Data(#"{"error":"the bot is busy"}"#.utf8))
             default: return .reply(404, Data())
             }
         }
@@ -470,6 +471,12 @@ final class SquaddChatTests: XCTestCase {
         await model.deleteQueuedPrompt(try XCTUnwrap(model.queuedPromptMessages.last?.messageId))
         XCTAssertEqual(model.queuedPromptMessages.count, 2)
         XCTAssertEqual(model.sendErrorMessage, "no such queued message")
+
+        let shown = model.messages.map(\.messageId)
+        let compacted = await model.submitStreamingMessage("/compact", behavior: .queue)
+        XCTAssertEqual(compacted, .notDelivered, "the draft stays in the composer")
+        XCTAssertEqual(model.messages.map(\.messageId), shown)
+        XCTAssertEqual(model.sendErrorMessage, "the bot is busy")
     }
 
     func testOfflineThreadShowsItsServersCachedTranscriptAndRefreshesWhenTheNetworkReturns() async throws {
