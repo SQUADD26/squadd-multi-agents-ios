@@ -20,6 +20,7 @@ final class SquaddChatTests: XCTestCase {
     func testRecordedTurnShowsThePromptAtOnceAndStreamsTheReplyInPlace() async throws {
         let events = try String(decoding: Self.fixture("turn-events.sse"), as: UTF8.self)
         var sent: URLRequest?
+        let posted = expectation(description: "the send reached the companion")
         let threadId = threadId, botId = botId
         SquaddChatFixture.handler = { request in
             switch (request.httpMethod, request.url?.path) {
@@ -27,6 +28,7 @@ final class SquaddChatTests: XCTestCase {
                 return .reply(200, try! Self.fixture(sent == nil ? "thread-before.json" : "thread-after.json"))
             case ("POST", "/api/bots/\(botId)/messages"):
                 sent = request
+                posted.fulfill()
                 return .hold
             case ("GET", "/api/events"):
                 return .hold
@@ -45,6 +47,7 @@ final class SquaddChatTests: XCTestCase {
         await waitUntil("the prompt shows before the server answers") { model.messages.count == 4 }
         let prompt = try XCTUnwrap(model.messages.last)
         XCTAssertEqual(prompt.content, "Rispondimi parola per parola")
+        await fulfillment(of: [posted], timeout: 5)
         let body = try XCTUnwrap(sent.flatMap { $0.httpBody ?? $0.httpBodyStream.map(Self.read) })
         let fields = try JSONSerialization.jsonObject(with: body) as? [String: String]
         XCTAssertEqual(fields?["threadId"], threadId)
@@ -93,7 +96,7 @@ final class SquaddChatTests: XCTestCase {
 
         XCTAssertEqual(outcome, .kept, "the composer keeps the draft")
         XCTAssertEqual(model.messages.count, 3, "the prompt leaves the transcript")
-        XCTAssertEqual(model.sendErrorMessage, String(localized: "The agent can't take this message right now. Try again."))
+        XCTAssertEqual(model.sendErrorMessage, String(localized: "The computer is busy. Try again when the agents have finished."))
     }
 
     func testRecordedFramesDecodeAndUnknownOnesAreIgnored() throws {
