@@ -91,25 +91,28 @@ final class SquaddChatTests: XCTestCase {
         let reply = try Self.storedReply()
         let thread = resumeThread
         var cursors: [String?] = [], turnEnded = false
+        var opened = expectation(description: "the stream opens")
         SquaddChatFixture.handler = { request in
             switch request.url?.path {
             case "/api/threads/\(thread)/messages":
                 return .reply(200, try! Self.fixture(turnEnded ? "resume-thread-after.json" : "resume-thread-before.json"))
             case "/api/events":
                 cursors.append(request.value(forHTTPHeaderField: "Last-Event-ID"))
+                opened.fulfill()
                 return .hold
             default: return .reply(404, Data())
             }
         }
         let (model, _) = makeChat(bot: resumeBot, thread: resumeThread)
         await model.loadMessages()
-        await waitUntil("the stream opens") { cursors.count == 1 }
+        await fulfillment(of: [opened], timeout: 5)
         SquaddChatFixture.stream(Data(cut.utf8))
         await waitUntil("the first 12 pieces show") { Self.streamedText(model) == String(reply.prefix(48)) }
 
         model.suspendStreamForBackground()
+        opened = expectation(description: "the stream reopens after the app comes back")
         await model.reconnectStreamIfNeeded()
-        await waitUntil("the stream reopens after the app comes back") { cursors.count == 2 }
+        await fulfillment(of: [opened], timeout: 5)
         XCTAssertEqual(cursors.last, "5c85f42b:32", "it resumes after the last frame seen")
 
         // The resumed frames up to the 40th piece, then the first ones again, as a proxy may resend them.
@@ -118,8 +121,9 @@ final class SquaddChatTests: XCTestCase {
         SquaddChatFixture.stream(Data((resumed[..<middle] + firstFrames).utf8))
         await waitUntil("each piece shows once") { Self.streamedText(model) == String(reply.prefix(48 + 40 * 4)) }
 
+        opened = expectation(description: "a network change reopens the stream")
         await model.networkPathDidChange()
-        await waitUntil("a network change reopens the stream") { cursors.count == 3 }
+        await fulfillment(of: [opened], timeout: 5)
         XCTAssertEqual(cursors.last, Self.lastID(in: resumed[..<middle]))
         turnEnded = true
         SquaddChatFixture.stream(Data(resumed[middle...].utf8))
@@ -133,33 +137,41 @@ final class SquaddChatTests: XCTestCase {
         let stale = try Self.text("resume-stale.sse").replacingOccurrences(of: "5c85f42b:189", with: "5c85f42b:54")
         let reply = try Self.storedReply()
         let thread = resumeThread
-        var reads = 0, turnEnded = false
+        var turnEnded = false
+        var opened = expectation(description: "the stream opens"), reloaded = expectation(description: "the thread loads")
         SquaddChatFixture.handler = { request in
             switch request.url?.path {
             case "/api/threads/\(thread)/messages":
-                reads += 1
+                reloaded.fulfill()
                 return .reply(200, try! Self.fixture(turnEnded ? "resume-thread-after.json" : "resume-thread-before.json"))
-            default: return .hold
+            case "/api/events":
+                opened.fulfill()
+                return .hold
+            default: return .reply(404, Data())
             }
         }
         let (model, coordinator) = makeChat(bot: resumeBot, thread: resumeThread, reconnectDelay: { _ in })
         await model.loadMessages()
-        await waitUntil("the stream opens") { SquaddChatFixture.heldStreams == 1 }
+        await fulfillment(of: [opened, reloaded], timeout: 5)
+        opened = expectation(description: "the stream reopens on its own")
         SquaddChatFixture.stream(Data(cut.utf8), finish: true)
-        await waitUntil("the stream reopens on its own") { SquaddChatFixture.heldStreams == 1 && reads == 1 }
+        await fulfillment(of: [opened], timeout: 5)
 
+        reloaded = expectation(description: "the companion's lost frames reload the thread")
         SquaddChatFixture.stream(Data(stale.utf8))
-        await waitUntil("the companion's lost frames reload the thread") { reads == 2 }
+        await fulfillment(of: [reloaded], timeout: 5)
         // The live frames after the hello; those up to its cursor were already sent and are dropped.
         let frames = resumed[resumed.range(of: "id: ")!.lowerBound...]
         let ending = frames[..<frames.range(of: "turn.completed")!.lowerBound].lastIndex(of: "\n")!
         SquaddChatFixture.stream(Data(frames[..<ending].utf8))
         await waitUntil("the reply goes on as working") { model.activeStreamID != nil }
         XCTAssertNil(coordinator.latestRunEnding, "a lost resume is not a failed turn")
-        XCTAssertFalse(model.messages.contains { $0.content?.hasPrefix("Ecco") == true }, "no reply with its beginning missing")
+        XCTAssertEqual(Self.streamedText(model) ?? "", "", "no reply with its beginning missing")
 
         turnEnded = true
+        reloaded = expectation(description: "the turn's end reloads the thread")
         SquaddChatFixture.stream(Data(frames[ending...].utf8))
+        await fulfillment(of: [reloaded], timeout: 5)
         await waitUntil("the stored reply comes when the turn ends") { model.activeStreamID == nil && model.messages.last?.content == reply }
         XCTAssertEqual(model.messages.filter { $0.content == reply }.count, 1)
     }
@@ -327,8 +339,6 @@ final class SquaddChatFixture: URLProtocol {
     nonisolated(unsafe) static var handler: ((URLRequest) -> Answer)?
     nonisolated(unsafe) private static var held: [SquaddChatFixture] = []
     private static let lock = NSLock()
-
-    static var heldStreams: Int { lock.withLock { held.filter { $0.request.url?.path == "/api/events" }.count } }
 
     static func reset() {
         lock.withLock { held = [] }
