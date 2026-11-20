@@ -19,7 +19,9 @@ name: PR iOS
 
 on:
   push:
-    branches-ignore: [dev, main, master]
+    # foto/** branches carry a workflow of their own (scripts/pr-ios-run live): PR iOS there would be a second
+    # build on the Mac runners for the same push (#47, #104).
+    branches-ignore: [dev, main, master, 'foto/**']
 
 permissions:
   contents: read
@@ -144,12 +146,15 @@ jobs:
           # A cancelled run can leave these behind: xcodebuild refuses an existing result bundle, and an old log
           # would be recorded as this run's times.
           rm -rf "${RUNNER_TEMP:?}"/{one,two}.{xcresult,log}
+          # The log keeps the test lines, failures, and whatever a test prints while it runs (#86 lost a CI round
+          # measuring photos with print, which a plain grep of the test lines dropped).
+          KEEP='/^Test Case .* started/ { inside = 1 } inside || /^Test (Case|Suite)|: error: -\[|\*\* TEST/ { print; fflush() } /^Test Case .* (passed|failed|skipped)/ { inside = 0 }'
           run() {
             nice -n 10 xcodebuild test-without-building -project HermesMobile.xcodeproj -scheme HermesMobile \
               -destination "platform=iOS Simulator,id=$1" -derivedDataPath "${DERIVED_DATA}" \
               -disableAutomaticPackageResolution -parallel-testing-enabled NO -collect-test-diagnostics never \
               -resultBundlePath "${RUNNER_TEMP}/$2.xcresult" $(cat "${RUNNER_TEMP}/$2.txt") \
-              | grep -E "^Test (Case|Suite)|: error: -\[|\*\* TEST" | tee "${RUNNER_TEMP}/$2.log"
+              | awk "${KEEP}" | tee "${RUNNER_TEMP}/$2.log"
           }
           failed=0
           if [[ -s "${RUNNER_TEMP}/tests.txt" ]]; then

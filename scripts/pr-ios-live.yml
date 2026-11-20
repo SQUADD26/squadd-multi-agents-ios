@@ -1,13 +1,11 @@
-# Template for docs/agents/live-companion.md (from foto-11-live.yml, which ran green on 20/11).
-# Copy to .github/workflows/foto-<issue>-live.yml on a branch foto/<issue>-live (then -2, -3…) that is never merged,
-# push it once per PR (work done, PR iOS green, just before merging; keep the push trigger: `gh workflow run` is refused),
-# change every line marked CHANGE, and rename SQUADD_LIVE_* to your own names everywhere (secrets, env, add-mask). LOOKUP is the gist the tunnel writes its address to; TOKEN is the
-# disposable companion's device token, masked in the log.
-name: Foto <issue> live  # CHANGE
+# The live run `scripts/pr-ios-run live` commits as .github/workflows/foto-__ISSUE__-live.yml on its own branch
+# __BRANCH__, on top of the head it tests: never copy it by hand. The launcher fills every __NAME__.
+# LOOKUP is the gist the tunnel writes its address to; TOKEN is the disposable companion's device token.
+name: Foto __ISSUE__ live
 
 on:
   push:
-    branches: ['foto/<issue>-live*']  # CHANGE <issue>; the * also takes foto/<issue>-live-2, -3… for a run on a newer head
+    branches: ['__BRANCH__']
 
 permissions:
   contents: read
@@ -21,8 +19,8 @@ jobs:
       DERIVED_DATA: ${{ github.workspace }}/../../DerivedData
       SIMULATOR_NAME: Squadd multi CI
       TEST_RUNNER_BRAND_PHOTOS_DIR: ${{ github.workspace }}/ci-foto
-      TEST_RUNNER_SQUADD_LIVE_LOOKUP: ${{ secrets.SQUADD_LIVE_LOOKUP }}
-      TEST_RUNNER_SQUADD_LIVE_TOKEN: ${{ secrets.SQUADD_LIVE_TOKEN }}
+      TEST_RUNNER_SQUADD_LIVE_LOOKUP: ${{ secrets.__LOOKUP__ }}
+      TEST_RUNNER_SQUADD_LIVE_TOKEN: ${{ secrets.__TOKEN__ }}
       RUNNER_TRACKING_ID: ""
     steps:
       - name: Build and run the live test
@@ -51,13 +49,12 @@ jobs:
             -disableAutomaticPackageResolution -enableCodeCoverage NO COMPILER_INDEX_STORE_ENABLE=NO \
             CODE_SIGNING_ALLOWED=NO -quiet
           status=0
-          # CHANGE: -only-testing names your live test class.
           # No parallel clones, as in PR iOS: with them a failure reads «Test case '…' failed on 'Clone 1 of …'», which
-          # the grep drops, and the run goes red with no failing line. The whole output stays in the artifact.
+          # the grep drops, and the run goes red with no failing line (#97). The whole output stays in the artifact.
           nice -n 10 xcodebuild test-without-building -project HermesMobile.xcodeproj -scheme HermesMobile \
             -destination "platform=iOS Simulator,id=${udid}" -derivedDataPath "${DERIVED_DATA}" \
             -disableAutomaticPackageResolution -parallel-testing-enabled NO -collect-test-diagnostics never \
-            -only-testing:HermesMobileTests/SquaddChatLivePhotoTests \
+            -only-testing:HermesMobileTests/__TEST__ \
             | tee "${TEST_RUNNER_BRAND_PHOTOS_DIR}/xcodebuild-test.log" \
             | grep -E "^Test (Case|Suite)|: error: -\[|\*\* TEST" || status=1
           cat "${TEST_RUNNER_BRAND_PHOTOS_DIR}"/*.txt || true

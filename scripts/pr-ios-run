@@ -4,6 +4,7 @@
 Usage:
   scripts/pr-ios-run red <issue> <name>=<commit> [<name>=<commit> ...]
   scripts/pr-ios-run wait <branch> <sha>
+  scripts/pr-ios-run live <issue> <TestClass>[/<testMethod>]
 
 red pushes each mutation commit to its own branch rosso/<issue>-<name>, all at
 once, waits for every PR iOS run, prints each failing assertion and deletes
@@ -15,6 +16,18 @@ and failing assertions; for a cancelled run, why: a newer push, or a timeout
 with the touched test classes that never ended. Exit 0 green, 1 red or
 cancelled, 2 as above.
 
+live runs one test class of this checkout's HEAD on the Mac runner against a
+disposable Squadd companion in this sandbox, the whole recipe of
+docs/agents/live-companion.md: an openmausbot worktree of its own with its
+packages, the fake-engine server (control-omb.ts launch; FAKE_CLAUDE_* in the
+environment pass through), a companion on free ports, paired; a serveo tunnel
+on port 443 with a key of this run, checked to answer with this companion's
+token, its address kept in a secret gist; two secrets of this run; the
+workflow scripts/pr-ios-live.yml committed on top of HEAD on the first free
+branch foto/<issue>-live, -2, -3…, pushed once. It waits for the run, prints
+the failing assertions and the artifact's logs, and cleans up everything it
+made. Exit 0 green, 1 red, 2 as above.
+
 Works from any folder: every git call runs in this checkout and every gh call
 names the repository. Why: #98 waited 36 minutes on a push that had failed
 (the loop kept looking for a run of a commit GitHub never got) and 15 more on
@@ -23,8 +36,15 @@ watchers run outside a checkout, whose gh had no repository.
 
 from datetime import datetime
 import json
+import os
 import re
+import secrets
+import signal
+import socket
 import subprocess
+import tempfile
+import threading
+import urllib.request
 import sys
 import time
 from pathlib import Path
@@ -35,15 +55,19 @@ POLL_SECONDS = 20
 NO_RUN_MINUTES = 4   # a push starts its run within a minute
 CAP_MINUTES = 20     # a PR iOS run takes a few minutes
 SUPERSEDED_SECONDS = 20  # a newer push's run exists by the time the old one is cancelled
+LIVE_TEMPLATE = ROOT / "scripts" / "pr-ios-live.yml"
+LIVE_CAP_MINUTES = 30   # the live job's own timeout is 25
+# serveo also prints https://console.serveo.net/… links (tips, key notice); #15 wrote one into the gist.
+SERVEO_ADDRESS = re.compile(r"https://[a-z0-9-]+\.serveousercontent\.com")
 
 
 class Stop(Exception):
     """A failure no amount of waiting fixes: exit 2 with its message."""
 
 
-def sh(*cmd):
+def sh(*cmd, cwd=None, env=None, input=None, timeout=120):
     try:
-        done = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        done = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, cwd=cwd, env=env, input=input)
     except (OSError, subprocess.TimeoutExpired) as error:
         raise Stop(f"{' '.join(cmd[:3])}: {error}")
     if done.returncode != 0:
@@ -51,8 +75,8 @@ def sh(*cmd):
     return done.stdout
 
 
-def git(*args):
-    return sh("git", "-C", str(ROOT), *args)
+def git(*args, **options):
+    return sh("git", "-C", str(ROOT), *args, **options)
 
 
 def repository():
@@ -63,24 +87,24 @@ def repository():
     return f"{match.group(1)}/{match.group(2)}"
 
 
-def find_run(repo, branch, sha):
-    runs = json.loads(sh("gh", "run", "list", "-R", repo, "--branch", branch, "--workflow", WORKFLOW,
+def find_run(repo, branch, sha, workflow=WORKFLOW):
+    runs = json.loads(sh("gh", "run", "list", "-R", repo, "--branch", branch, "--workflow", workflow,
                          "-L", "20", "--json", "databaseId,headSha,status,conclusion") or "[]")
     return next((run for run in runs if run["headSha"] == sha), None)
 
 
-def wait_run(repo, branch, sha):
+def wait_run(repo, branch, sha, workflow=WORKFLOW, cap_minutes=CAP_MINUTES):
     start = time.monotonic()
     while True:
-        run = find_run(repo, branch, sha)
+        run = find_run(repo, branch, sha, workflow)
         if run and run["status"] == "completed":
             return run
         waited = time.monotonic() - start
         if not run and waited > NO_RUN_MINUTES * 60:
-            raise Stop(f"no PR iOS run for {sha[:7]} on {branch} after {NO_RUN_MINUTES} min: "
+            raise Stop(f"no {workflow} run for {sha[:7]} on {branch} after {NO_RUN_MINUTES} min: "
                        f"check the push reached GitHub (git ls-remote origin {branch})")
-        if waited > CAP_MINUTES * 60:
-            raise Stop(f"run {run['databaseId']} on {branch} still {run['status']} after {CAP_MINUTES} min")
+        if waited > cap_minutes * 60:
+            raise Stop(f"run {run['databaseId']} on {branch} still {run['status']} after {cap_minutes} min")
         time.sleep(POLL_SECONDS)
 
 
@@ -175,8 +199,242 @@ def red(issue, pairs):
                            capture_output=True, text=True, timeout=120)
 
 
+def tunnel_address(text):
+    """The tunnel's own address in serveo's output, never its console links."""
+    match = SERVEO_ADDRESS.search(text)
+    return match.group(0) if match else None
+
+
+def tunnel_command(key, known_hosts, port):
+    """serveo on 443 (its port 22 was closed from the sandbox on 20/11, #93) with a key of this run, so no other
+    session on the sandbox gets the same address (#109); ConnectTimeout fails a blocked port in seconds."""
+    return ["ssh", "-i", str(key), "-o", "IdentitiesOnly=yes", "-o", "StrictHostKeyChecking=accept-new",
+            "-o", f"UserKnownHostsFile={known_hosts}", "-p", "443", "-o", "ConnectTimeout=15",
+            "-o", "ServerAliveInterval=20", "-o", "ExitOnForwardFailure=yes", "-R", f"80:127.0.0.1:{port}",
+            "serveo.net"]
+
+
+def live_branch(issue, taken):
+    """The first foto/<issue>-live, -2, -3… not on GitHub: the push guard refuses rewriting a branch (#115)."""
+    branch, n = f"foto/{issue}-live", 1
+    while branch in taken:
+        n += 1
+        branch = f"foto/{issue}-live-{n}"
+    return branch
+
+
+def live_workflow(issue, test, branch, lookup, token):
+    """The live workflow for this run: its trigger is exactly the branch it is pushed to (#117)."""
+    text = LIVE_TEMPLATE.read_text()
+    for name, value in {"__ISSUE__": issue, "__BRANCH__": branch, "__TEST__": test,
+                        "__LOOKUP__": lookup, "__TOKEN__": token}.items():
+        text = text.replace(name, value)
+    if "__" in re.sub(r"\${{.*?}}", "", text).replace("__NAME__", ""):
+        raise Stop("pr-ios-live.yml has a placeholder the launcher does not fill")
+    return text
+
+
+def free_port():
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        return probe.getsockname()[1]
+
+
+def http(method, url, body=None, headers=None, timeout=10):
+    data = json.dumps(body).encode() if body is not None else None
+    request = urllib.request.Request(url, data=data, method=method,
+                                     headers={"content-type": "application/json", **(headers or {})})
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        return response.status, json.loads(response.read() or b"null")
+
+
+def until(seconds, what, check):
+    """check() until it returns a value, at most `seconds`; Stop with `what` and the last error otherwise."""
+    deadline, last = time.monotonic() + seconds, None
+    while time.monotonic() < deadline:
+        try:
+            value = check()
+            if value:
+                return value
+        except Exception as error:  # a server still starting refuses connections
+            last = error
+        time.sleep(1)
+    raise Stop(f"{what} after {seconds} s{f': {last}' if last else ''}")
+
+
+class Live:
+    """Everything one live run makes, so `close` removes exactly that: processes by the PID it spawned, never by
+    name, and the gist, secrets, branch and openmausbot worktree it created."""
+
+    def __init__(self, repo, issue):
+        self.repo, self.issue = repo, issue
+        self.work = Path(tempfile.mkdtemp(prefix=f"pr-ios-live-{issue}-"))
+        self.processes, self.secrets, self.gist, self.branch, self.omb = [], [], None, None, None
+        self.address, self.stopping = None, threading.Event()
+
+    def spawn(self, cmd, cwd, env, log):
+        process = subprocess.Popen(cmd, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=open(log, "w"),
+                                   stderr=subprocess.STDOUT, start_new_session=True)
+        self.processes.append(process)
+        return process
+
+    def openmausbot(self):
+        """A worktree of its own on openmausbot's dev, with its own packages: a link to another checkout's
+        node_modules misses packages added since and the server stops with ERR_MODULE_NOT_FOUND (#78)."""
+        common = Path(git("rev-parse", "--path-format=absolute", "--git-common-dir").strip())
+        main = common.parent.parent / "openmausbot"
+        if not (main / ".git").exists():
+            sh("gh", "repo", "clone", "SQUADD26/openmausbot", str(main), timeout=600)
+        sh("git", "-C", str(main), "fetch", "-q", "origin", "dev", timeout=300)
+        self.omb = (main, self.work / "openmausbot")
+        sh("git", "-C", str(main), "worktree", "add", "-q", "--detach", str(self.omb[1]), "origin/dev")
+        sh("pnpm", "install", "--frozen-lockfile", "--ignore-scripts", cwd=self.omb[1], timeout=600)
+        return self.omb[1]
+
+    def server(self, omb):
+        """The fake-engine server: `control-omb.ts launch`, never `node server/index.ts`, which runs the real Claude
+        engine and answers «Not logged in» (#94). Its JSON names the url."""
+        log = self.work / "server.log"
+        process = self.spawn(["node", "--experimental-strip-types", "scripts/control-omb.ts", "launch"],
+                             omb, os.environ.copy(), log)
+
+        def ready():
+            if process.poll() is not None:
+                raise Stop(f"the openmausbot server stopped: {log.read_text()[-600:]}")
+            text = log.read_text()
+            start = text.find("{")
+            return json.loads(text[start:text.rindex("}") + 1]) if start >= 0 and "}" in text[start:] else None
+        info = until(120, "the openmausbot server did not start", ready)
+        return info
+
+    def companion(self, omb, server_url):
+        port, control, token = free_port(), free_port(), secrets.token_hex(16)
+        home = self.work / "home"
+        home.mkdir()
+        env = {**os.environ, "HOME": str(home), "OMB_PORT": server_url.rsplit(":", 1)[1].strip("/"),
+               "OMB_COMPANION_PORT": str(port), "OMB_CONTROL_PORT": str(control), "OMB_CONTROL_TOKEN": token,
+               "OMB_COMPANION_DIR": str(self.work / "companion"), "OMB_COMPANION_BONJOUR": "0"}
+        self.spawn(["node", "--experimental-strip-types", "companion/src/index.ts"], omb, env,
+                   self.work / "companion.log")
+        _, window = until(60, "the companion did not open pairing", lambda: http(
+            "POST", f"http://127.0.0.1:{control}/pairing", headers={"x-openmausbot-control-token": token}))
+        _, paired = http("POST", f"http://127.0.0.1:{port}/api/pair",
+                         {"code": window["code"], "deviceName": f"pr-ios-run live {self.issue}"})
+        return port, paired["token"]
+
+    def tunnel(self, port, device_token):
+        """serveo in a loop (its address changes about every 12 minutes), each new address into the gist, and a
+        request every 20 s to keep it busy. Returns once an address answers with this companion's token."""
+        key = self.work / "tunnel-key"
+        sh("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", str(key))
+        (self.work / "current.txt").write_text("starting\n")
+        created = sh("gh", "gist", "create", str(self.work / "current.txt")).strip()
+        self.gist = created.rstrip("/").rsplit("/", 1)[-1]
+
+        def loop():
+            log = self.work / "tunnel.log"
+            while not self.stopping.is_set():
+                process = self.spawn(tunnel_command(key, self.work / "known_hosts", port), self.work,
+                                     os.environ.copy(), log)
+                while process.poll() is None and not self.stopping.is_set():
+                    address = tunnel_address(log.read_text())
+                    if address and address != self.address:
+                        self.address = address
+                        subprocess.run(["gh", "api", "-X", "PATCH", f"gists/{self.gist}", "-f",
+                                        f"files[current.txt][content]={address}"], capture_output=True, timeout=60)
+                    time.sleep(1)
+                self.processes.remove(process)
+                self.stopping.wait(2)
+
+        def ping():
+            while not self.stopping.wait(20):
+                try:
+                    urllib.request.urlopen(f"{self.address}/api/health", timeout=10).close()
+                except Exception:
+                    pass
+        threading.Thread(target=loop, daemon=True).start()
+        threading.Thread(target=ping, daemon=True).start()
+        until(45, "no serveo address on port 443 (see tunnel.log)", lambda: self.address)
+        until(60, f"{self.address} does not answer with this run's companion token", lambda: http(
+            "GET", f"{self.address}/api/companion/endpoints", headers={"authorization": f"Bearer {device_token}"},
+        )[0] == 200)
+        return f"https://api.github.com/gists/{self.gist}"
+
+    def secret(self, kind, value):
+        name = f"LIVE_{self.issue}_{secrets.token_hex(3).upper()}_{kind}"
+        sh("gh", "secret", "set", name, "-R", self.repo, "--body", value)
+        self.secrets.append(name)
+        return name
+
+    def push(self, test, lookup, token):
+        taken = {line.split("refs/heads/", 1)[1] for line in
+                 git("ls-remote", "origin", f"refs/heads/foto/{self.issue}-live*").splitlines()}
+        branch = live_branch(self.issue, taken)
+        path = f".github/workflows/foto-{self.issue}-live.yml"
+        index = {**os.environ, "GIT_INDEX_FILE": str(self.work / "index")}
+        git("read-tree", "HEAD", env=index)
+        blob = git("hash-object", "-w", "--stdin", input=live_workflow(self.issue, test, branch, lookup, token)).strip()
+        git("update-index", "--add", "--cacheinfo", f"100644,{blob},{path}", env=index)
+        tree = git("write-tree", env=index).strip()
+        sha = git("commit-tree", tree, "-p", "HEAD", "-m", f"foto({self.issue}): live run of {test}").strip()
+        git("push", "-q", "origin", f"{sha}:refs/heads/{branch}")
+        self.branch = branch
+        return branch, sha, Path(path).name
+
+    def close(self):
+        self.stopping.set()
+        for process in list(self.processes):
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+                process.wait(10)
+            except (ProcessLookupError, subprocess.TimeoutExpired):
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+        quiet = dict(capture_output=True, text=True, timeout=120)
+        if self.branch:
+            subprocess.run(["git", "-C", str(ROOT), "push", "-q", "origin", "--delete", f"refs/heads/{self.branch}"],
+                           **quiet)
+        for name in self.secrets:
+            subprocess.run(["gh", "secret", "delete", name, "-R", self.repo], **quiet)
+        if self.gist:
+            subprocess.run(["gh", "gist", "delete", self.gist, "--yes"], **quiet)
+        if self.omb:
+            subprocess.run(["git", "-C", str(self.omb[0]), "worktree", "remove", "--force", str(self.omb[1])], **quiet)
+
+
+def live(issue, test):
+    if not re.fullmatch(r"[a-z0-9-]+", issue) or not re.fullmatch(r"\w+(/\w+)?", test):
+        raise Stop(f"expected <issue> <TestClass>[/<testMethod>], got {issue!r} {test!r}")
+    repo = repository()
+    if git("status", "--porcelain").strip():
+        print("pr-ios-run: uncommitted changes are not in the run: it tests HEAD", file=sys.stderr, flush=True)
+    run = Live(repo, issue)
+    try:
+        omb = run.openmausbot()
+        server = run.server(omb)
+        port, token = run.companion(omb, server["url"])
+        lookup = run.tunnel(port, token)
+        print(f"companion: {run.address} (server data {server.get('dataDir')}, logs {run.work})", flush=True)
+        branch, sha, workflow = run.push(test, run.secret("LOOKUP", lookup), run.secret("TOKEN", token))
+        found = wait_run(repo, branch, sha, workflow, LIVE_CAP_MINUTES)
+        errors = report(repo, branch, found)
+        out = Path(tempfile.mkdtemp(prefix=f"live-run-{issue}-"))
+        subprocess.run(["gh", "run", "download", str(found["databaseId"]), "-R", repo, "-n", "live-run",
+                        "-D", str(out)], capture_output=True, timeout=300)
+        for log in sorted(out.glob("*.txt")):
+            print(f"-- {log.name}\n{log.read_text()[-3000:]}", flush=True)
+        print(f"artifact: {out}  run: https://github.com/{repo}/actions/runs/{found['databaseId']}", flush=True)
+        return 0 if found["conclusion"] == "success" and not errors else 1
+    finally:
+        run.close()
+
+
 def main(argv):
     try:
+        if len(argv) == 3 and argv[0] == "live":
+            return live(argv[1], argv[2])
         if len(argv) == 3 and argv[0] == "wait":
             return wait(argv[1], argv[2])
         if len(argv) >= 3 and argv[0] == "red":
