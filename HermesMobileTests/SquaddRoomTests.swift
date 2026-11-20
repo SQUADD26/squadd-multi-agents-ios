@@ -453,7 +453,7 @@ final class SquaddHomeListDefaultPhotoTests: SquaddHomeListPhotoTestCase {
 }
 
 final class SquaddHomeListLargestTextPhotoTests: SquaddHomeListPhotoTestCase {
-    func testPhotoHomeListLargestText() async throws { try await shootList("l2-home-ax5", size: .accessibility5, height: 3400) }
+    func testPhotoHomeListLargestText() async throws { try await shootList("l2-home-ax5", size: .accessibility5, height: 2700) }
 }
 
 final class SquaddHomeListOpenAgentPhotoTests: SquaddHomeListPhotoTestCase {
