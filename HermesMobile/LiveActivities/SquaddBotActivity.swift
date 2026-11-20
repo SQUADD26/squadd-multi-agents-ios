@@ -153,3 +153,20 @@ struct SquaddBotActivityMark: View {
         .accessibilityHidden(true)
     }
 }
+
+/// The compact Dynamic Island's trailing side: a mark when the agent needs the person, else how
+/// long it has worked.
+struct SquaddBotActivityCompactTrailing: View {
+    let props: SquaddBotActivityProps
+    let isStale: Bool
+
+    var body: some View {
+        if props.needsYou {
+            Image(systemName: "exclamationmark.circle.fill").foregroundStyle(props.tint)
+        } else if !isStale {
+            Text(props.sinceDate, style: .timer)
+                .monospacedDigit()
+                .frame(maxWidth: 44)
+        }
+    }
+}

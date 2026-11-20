@@ -684,7 +684,8 @@ final class SquaddChatTurnCoordinator {
             // A reconnect whose frames were lost: what they carried is in the stored transcript.
             else if !resumed, isResuming, hasLoaded {
                 // The turn may still run or may have ended unseen: close it quietly, and a reply
-                // that goes on rejoins as working.
+                // that goes on rejoins as working. The Lock Screen card stays (and keeps its timer)
+                // until a turn's end says so; one that ended unseen goes stale after 15 minutes.
                 finish(nil)
                 await reload()
             }
@@ -777,7 +778,7 @@ final class SquaddChatTurnCoordinator {
         activeRunStartedAt = nil
         streamingItemID = nil
         runningTurnID = nil
-        liveActivities?.end(botId: chat.botId)
+        if ending != nil { liveActivities?.end(botId: chat.botId) }
         joinedMidReply = false
         delegate?.streamCoordinatorStreamingAssistantMessageID = nil
         if ending == .completed { delegate?.streamCoordinatorDidCompleteCurrentResponse(needsTranscriptRefresh: false) }

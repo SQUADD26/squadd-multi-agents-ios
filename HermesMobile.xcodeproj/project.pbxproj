@@ -26,6 +26,7 @@
 		D16430000000000000000014 /* BotWidgetIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16430000000000000000002 /* BotWidgetIntent.swift */; };
 		D16430000000000000000015 /* BotWidgetPublisher.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16430000000000000000003 /* BotWidgetPublisher.swift */; };
 		D16430000000000000000016 /* BotWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16430000000000000000004 /* BotWidget.swift */; };
+		5D3100000000000000000016 /* BotWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16430000000000000000004 /* BotWidget.swift */; };
 		D16430000000000000000017 /* BotWidgetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = D16430000000000000000005 /* BotWidgetTests.swift */; };
 		E1582000000000000000A009 /* HermesPluginCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1582000000000000000A010 /* HermesPluginCatalog.swift */; };
 		E1582000000000000000A011 /* PluginInstallSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1582000000000000000A012 /* PluginInstallSheet.swift */; };
@@ -3100,6 +3101,7 @@
 				A04500000000000000000001 /* AgentRunActivityAttributes.swift in Sources */,
 				5D3100000000000000000013 /* SquaddLiveActivities.swift in Sources */,
 				5D3100000000000000000011 /* SquaddBotActivity.swift in Sources */,
+				5D3100000000000000000016 /* BotWidget.swift in Sources */,
 				A04500000000000000000002 /* HermesDeepLink.swift in Sources */,
 				D14090000000000000000011 /* ProviderLimitsSnapshot.swift in Sources */,
 				D14090000000000000000013 /* ProviderLimitsPublisher.swift in Sources */,

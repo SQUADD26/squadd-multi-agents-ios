@@ -27,15 +27,7 @@ struct SquaddBotLiveActivityWidget: Widget {
             } compactLeading: {
                 if let props { SquaddBotActivityMark(props: props, size: 22) }
             } compactTrailing: {
-                if let props {
-                    if props.needsYou {
-                        Image(systemName: "exclamationmark.circle.fill").foregroundStyle(props.tint)
-                    } else if !context.isStale {
-                        Text(props.sinceDate, style: .timer)
-                            .monospacedDigit()
-                            .frame(maxWidth: 44)
-                    }
-                }
+                if let props { SquaddBotActivityCompactTrailing(props: props, isStale: context.isStale) }
             } minimal: {
                 if let props { SquaddBotActivityMark(props: props, size: 22) }
             }

@@ -159,7 +159,8 @@ final class SquaddChatTests: XCTestCase {
             }
         }
         SquaddChatFixture.didHold = { if $0.url?.path == "/api/events" { opened.fulfill() } }
-        let (model, coordinator) = makeChat(bot: resumeBot, thread: resumeThread, reconnectDelay: { _ in })
+        let activities = ActivityRecorder()
+        let (model, coordinator) = makeChat(bot: resumeBot, thread: resumeThread, liveActivities: activities, reconnectDelay: { _ in })
         await model.loadMessages()
         await fulfillment(of: [opened, reloaded], timeout: 5)
         await waitUntil("the thread shows before the turn's frames come") { !model.messages.isEmpty }
@@ -177,6 +178,7 @@ final class SquaddChatTests: XCTestCase {
         await waitUntil("the reply goes on as working") { model.activeStreamID != nil }
         XCTAssertNil(coordinator.latestRunEnding, "a lost resume is not a failed turn")
         XCTAssertEqual(Self.streamedText(model) ?? "", "", "no reply with its beginning missing")
+        XCTAssertEqual(activities.ended, [], "the Lock Screen card stays through a lost resume")
 
         turnEnded = true
         reloaded = reads("the turn's end reloads the thread")
@@ -864,6 +866,7 @@ final class SquaddChatTests: XCTestCase {
     private func makeChat(server: URL? = nil, bot: String? = nil, thread: String? = nil, retrying: XCTestExpectation? = nil,
                           copies: (any ChatDraftAttachmentStoring)? = nil,
                           listen: (@MainActor (Data) throws -> any ListenAudioPlaying)? = nil,
+                          liveActivities: (any SquaddLiveActivityDriving)? = nil,
                           reconnectDelay: @escaping ChatStreamReconnectDelay = { _ in try await Task.sleep(for: .seconds(3600)) })
         -> (ChatViewModel, SquaddChatTurnCoordinator) {
         let configuration = URLSessionConfiguration.ephemeral
@@ -872,6 +875,7 @@ final class SquaddChatTests: XCTestCase {
         let threadId = thread ?? threadId
         let chat = SquaddThreadChat(server: server, token: "device-token", botId: bot ?? botId, threadId: threadId, title: "Prova")
         let coordinator = SquaddChatTurnCoordinator(chat, session: URLSession(configuration: configuration),
+                                                    liveActivities: liveActivities,
                                                     reconnectDelay: { delay in
                                                         retrying?.fulfill()
                                                         try await reconnectDelay(delay)

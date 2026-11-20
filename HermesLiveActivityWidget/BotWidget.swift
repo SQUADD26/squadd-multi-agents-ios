@@ -94,7 +94,8 @@ struct BotWidgetTimeline: AppIntentTimelineProvider {
     }
 }
 
-private struct BotWidgetView: View {
+/// Also in the app target, for its photo test.
+struct BotWidgetView: View {
     let entry: BotWidgetEntry
 
     var body: some View {

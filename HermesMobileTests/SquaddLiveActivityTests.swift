@@ -99,20 +99,21 @@ final class SquaddLiveActivityTests: XCTestCase {
         XCTAssertNotNil((body["statuses"] as? [String: Any])?["needsYou"])
     }
 
-    func testSquaddAgentsFillTheBotWidgetAndASlotOpensTheAgentsChat() throws {
+    func testSquaddAgentsFillTheBotWidgetWithTheirAvatarsAndASlotOpensTheAgentsChat() async throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         addTeardownBlock { try? FileManager.default.removeItem(at: directory) }
         let file = BotWidgetSnapshotFile(directory: directory)
-        let publisher = BotWidgetPublisher(file: file, serverTitle: { _ in "Studio" }, reloadWidget: {}, configuredBots: { [] })
-        let list = try JSONDecoder().decode(SquaddBotList.self, from: Self.fixture("bots.json"))
-        let agents = list.bots.map(SquaddAgentSection.init(bot:))
+        let kiwi = "f6b2d30c-6c88-403d-8ff8-4edc30531b55"
 
-        publisher.publish(agents, squaddServer: server)
+        await loadSquaddBotWidget(file: file, server: server, configured: [kiwi])
 
         let shown = try XCTUnwrap(file.read().servers.first)
-        let agent = try XCTUnwrap(agents.first { $0.threadID != nil })
+        let slot = try XCTUnwrap(shown.bots.first { $0.title == "Kiwi" })
         XCTAssertEqual(shown.serverKey, BotHistoryCache.Scope.key(server))
-        XCTAssertEqual(shown.bots.first { $0.title == agent.name }?.profile, agent.threadID, "a slot names the agent's own chat")
+        XCTAssertEqual(slot.profile, kiwi, "a slot names the agent's own chat")
+        await waitUntil("the agent's avatar is drawn for the widget") {
+            [false, true].allSatisfy { FileManager.default.fileExists(atPath: file.avatarURL(slot.avatar, dark: $0).path) }
+        }
     }
 
     private nonisolated static func fixture(_ name: String) -> Data {
@@ -121,8 +122,32 @@ final class SquaddLiveActivityTests: XCTestCase {
     }
 }
 
+/// Reads `bots.json`, with Kiwi carrying the recorded avatar, through the home's model into `file`'s
+/// Bot widget snapshot, whose `configured` threads a widget shows.
+@MainActor func loadSquaddBotWidget(file: BotWidgetSnapshotFile, server: URL, configured: [String]) async {
+    let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/Squadd")
+    let avatarPath = "/api/attachments/89144ba5-f349-4d34-87df-24def160fa8f.png"
+    var bots = try! String(contentsOf: fixtures.appendingPathComponent("bots.json"), encoding: .utf8)
+    bots.replaceSubrange(bots.range(of: #""avatarUrl": null"#)!, with: #""avatarUrl": "\#(avatarPath)""#)
+    let avatar = try! Data(contentsOf: fixtures.appendingPathComponent("avatar.png"))
+    SquaddHTTPFixture.handler = { request in
+        switch request.url?.path {
+        case "/api/bots": (200, Data(bots.utf8))
+        case avatarPath: (200, avatar)
+        default: (404, Data())
+        }
+    }
+    let configuration = URLSessionConfiguration.ephemeral
+    configuration.protocolClasses = [SquaddHTTPFixture.self]
+    let key = BotHistoryCache.Scope.key(server)
+    let widgets = BotWidgetPublisher(file: file, serverTitle: { _ in "Studio" }, reloadWidget: {},
+                                     configuredBots: { configured.map { BotWidgetDestination(serverKey: key, profile: $0) } })
+    let client = SquaddCompanionClient(server: server, token: "device-token", session: URLSession(configuration: configuration))
+    await SquaddAgentListModel(client: client, widgets: widgets, onUnpaired: {}).load()
+}
+
 /// Observable, so a test waits on its calls.
-@MainActor @Observable private final class ActivityRecorder: SquaddLiveActivityDriving {
+@MainActor @Observable final class ActivityRecorder: SquaddLiveActivityDriving {
     private(set) var shown: [(bot: SquaddActivityBot, ask: String?)] = []
     private(set) var ended: [String] = []
 
@@ -148,11 +173,19 @@ private extension URLRequest {
     }
 }
 
-/// Photos for review (#31): the agent's Live Activity as the Lock Screen shows it, working from the
-/// app's stream, then waiting on an approval as the companion pushes it. Skipped outside photo runs.
+/// Photos for review (#31): the agent's Live Activity on the Lock Screen and in the Dynamic Island,
+/// working from the app's stream and waiting on an approval as the companion pushes it, and the Bot
+/// widget with Squadd's agents. Skipped outside photo runs.
 @MainActor
 final class SquaddLiveActivityPhotoTests: XCTestCase {
-    func testPhotoLiveActivityWorkingAndNeedsYou() async throws {
+    override func tearDown() {
+        SquaddHTTPFixture.handler = nil
+        super.tearDown()
+    }
+
+    /// r1: the Lock Screen cards and the Dynamic Island, working and asking; r2: the Bot widget,
+    /// small and medium, as the home's read fills it.
+    func testPhotoLiveActivityAndBotWidget() async throws {
         let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
         try XCTSkipIf(path == nil, "Only for photo runs")
         let dir = URL(fileURLWithPath: path!)
@@ -166,20 +199,72 @@ final class SquaddLiveActivityPhotoTests: XCTestCase {
         """)))
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let window = UIWindow(windowScene: scene)
-        window.frame = CGRect(x: 0, y: 0, width: 402, height: 360)
+        window.frame = CGRect(x: 0, y: 0, width: 402, height: 640)
         window.makeKeyAndVisible()
         defer { window.isHidden = true }
-        window.rootViewController = UIHostingController(rootView: VStack(spacing: 16) {
+        window.rootViewController = UIHostingController(rootView: VStack(spacing: 14) {
             ForEach([working, pushed], id: \.name) { props in
                 SquaddBotActivityCard(props: props, isStale: false)
                     .padding(16)
                     .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 22))
             }
+            ForEach([working, pushed], id: \.name) { props in
+                HStack {
+                    SquaddBotActivityMark(props: props, size: 22)
+                    Spacer()
+                    SquaddBotActivityCompactTrailing(props: props, isStale: false)
+                }
+                .padding(.horizontal, 8)
+                .frame(width: 250, height: 37)
+                .background(.black, in: Capsule())
+            }
+            HStack(spacing: 12) {
+                SquaddBotActivityMark(props: pushed, size: 22)
+                    .frame(width: 37, height: 37)
+                    .background(.black, in: Circle())
+                Text(verbatim: "minimal").font(.caption).foregroundStyle(.secondary)
+            }
+            SquaddBotActivityCard(props: pushed, isStale: false)
+                .padding(20)
+                .background(.black, in: RoundedRectangle(cornerRadius: 40))
         }
         .padding(16)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(LinearGradient(colors: [.indigo, .black], startPoint: .top, endPoint: .bottom))
         .environment(\.colorScheme, .dark))
         try await readyPhoto(of: window).write(to: dir.appendingPathComponent("r1-live-activity.png"))
+
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let file = BotWidgetSnapshotFile(directory: directory)
+        let server = URL(string: "http://192.0.2.10:8810")!
+        let threads = ["f6b2d30c-6c88-403d-8ff8-4edc30531b55", "5e423427-5373-4b0b-b212-0eb4f5c39be0",
+                       "4a16f61d-ddfe-4a9a-87b9-54c02dfe44d1"]
+        await loadSquaddBotWidget(file: file, server: server, configured: threads)
+        let entities = try XCTUnwrap(file.read().servers.first).bots.map {
+            BotWidgetEntity(serverKey: BotHistoryCache.Scope.key(server), bot: $0)
+        }
+        let rendered = { (entity: BotWidgetEntity) in
+            let slot = entity.destination.flatMap { file.read().bot(serverKey: $0.serverKey, profile: $0.profile) }
+            return slot.map { FileManager.default.fileExists(atPath: file.avatarURL($0.avatar, dark: false).path) } ?? false
+        }
+        await waitUntil("every agent's avatar is drawn") { entities.allSatisfy(rendered) }
+        var small = BotWidgetConfigurationIntent(), medium = BotWidgetConfigurationIntent()
+        small.bot = entities.first { $0.title == "Kiwi" }
+        medium.bots = entities
+        window.rootViewController = UIHostingController(rootView: VStack(spacing: 24) {
+            BotWidgetView(entry: BotWidgetEntry(date: Date(), configuration: small, family: .systemSmall, file: file))
+                .padding(16)
+                .frame(width: 170, height: 170)
+                .background(.background, in: RoundedRectangle(cornerRadius: 22))
+            BotWidgetView(entry: BotWidgetEntry(date: Date(), configuration: medium, family: .systemMedium, file: file))
+                .padding(16)
+                .frame(width: 364, height: 170)
+                .background(.background, in: RoundedRectangle(cornerRadius: 22))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(white: 0.85))
+        .environment(\.colorScheme, .light))
+        try await readyPhoto(of: window).write(to: dir.appendingPathComponent("r2-bot-widget.png"))
     }
 }
