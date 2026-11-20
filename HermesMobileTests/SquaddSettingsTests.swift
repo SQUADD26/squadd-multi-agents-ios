@@ -8,7 +8,7 @@ import XCTest
 /// fake Anthropic and OpenRouter keys set on the desktop).
 @MainActor
 final class SquaddSettingsTests: XCTestCase {
-    private let recorder = Recorder()
+    private let recorder = SquaddRequestRecorder()
     private var requests: [URLRequest] { recorder.requests }
     private var bodies: [[String: String]] { recorder.bodies }
     private var unpaired = 0
@@ -154,7 +154,7 @@ final class SquaddSettingsTests: XCTestCase {
 }
 
 /// What the fixture saw, written from URLSession's thread and read by the test after each await.
-private final class Recorder: @unchecked Sendable {
+final class SquaddRequestRecorder: @unchecked Sendable {
     private let lock = NSLock()
     private var _requests: [URLRequest] = []
     private var _bodies: [[String: String]] = []
@@ -191,6 +191,7 @@ final class SquaddSettingsPhotoTests: XCTestCase {
         let recordings: [String: String] = [
             "/api/config": "settings-config.json", "/api/instances": "settings-instances.json",
             "/api/bots": "bots.json", "/api/team-memory": "settings-memory-added.json",
+            "/api/connectors/catalog": "connectors-catalog.json", "/api/connectors/connected": "connectors-connected.json",
         ]
         SquaddHTTPFixture.handler = { request in
             let path = request.url!.path
@@ -221,6 +222,8 @@ final class SquaddSettingsPhotoTests: XCTestCase {
         }
         try await shoot("f6-team-memory", NavigationStack { SquaddTeamMemoryPage(model: model) }, dir: dir) { model.memoryPhase == .loaded }
         try await shoot("f7-memory-editor", SquaddMemoryEditor(model: model, entry: model.memory.first), dir: dir) { true }
+        let connectors = SquaddConnectorsPage(client: model.client, onUnpaired: {})
+        try await shoot("f8-connected-apps", NavigationStack { connectors }, dir: dir) { true }
     }
 
     /// Hosts `view` in a window of the app's scene, waits for `ready`, and writes `<name>.png`.
