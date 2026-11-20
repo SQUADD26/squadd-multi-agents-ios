@@ -113,8 +113,9 @@ final class SquaddThreadLinkTests: XCTestCase {
 
 /// Photographs a thread link opening in the real `ContentView`, through the same deep-link path
 /// Siri and Shortcuts take, with the companion played back from the recordings: a link to a thread
-/// on the inactive computer, one to a deleted thread, and one to a computer never paired (photos
-/// only when `FOTO_DIR` is set, `TEST_RUNNER_FOTO_DIR`); and a link queued before the app appears.
+/// on the inactive computer (photographed), then in the same window one to a deleted thread and one
+/// to a computer never paired (their alerts checked); only when `FOTO_DIR` is set, `TEST_RUNNER_FOTO_DIR`.
+/// And a link queued before the app appears.
 @MainActor
 final class SquaddThreadLinkPhotoTests: XCTestCase {
     private let studio = URL(string: "http://mac-studio.tailnet.test:8810")!
@@ -135,8 +136,11 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         try XCTSkipIf(path == nil, "Only for photo runs")
         let dir = URL(fileURLWithPath: path!)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        // The photo and the alerts are where each step ends; without animations the screen gets there at once.
+        UIView.setAnimationsEnabled(false)
+        defer { UIView.setAnimationsEnabled(true) }
         let manager = try twoPairedComputers()
-        var router = try host(manager)
+        let router = try host(manager)
 
         // a. A link to Pesto's "hi" thread on the Mac Studio, with the MacBook active: the app
         // switches computer, reads its agents and marks the thread.
@@ -149,15 +153,16 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         }
         XCTAssertEqual(manager.state, .loggedIn(server: studio))
 
-        // b. A thread deleted on the computer. Each alert gets a fresh app window.
-        router = try host(manager)
+        // b. A thread deleted on the computer, in the same window: an alert says so.
         router.requestDeepLink(SquaddThreadLink(threadID: "deleted-thread", server: studio).url)
-        try await shoot("f2-thread-not-found", dir: dir) { self.window?.rootViewController?.presentedViewController != nil }
+        let missing = try await presentedAlert()
+        XCTAssertEqual(missing.title, String(localized: "Thread Not Found"))
 
-        // c. A computer this iPhone never paired.
-        router = try host(manager)
+        // c. A computer this iPhone never paired, once the alert above is gone.
+        await missing.dismiss(animated: false)
         router.requestDeepLink(SquaddThreadLink(threadID: "t", server: URL(string: "http://other.tailnet.test:8810")!).url)
-        try await shoot("f3-computer-not-paired", dir: dir) { self.window?.rootViewController?.presentedViewController != nil }
+        let unpaired = try await presentedAlert(after: missing)
+        XCTAssertEqual(unpaired.title, String(localized: "Computer Not Paired"))
         XCTAssertEqual(manager.state, .loggedIn(server: studio), "a link to an unpaired computer switches nothing")
     }
 
@@ -211,10 +216,28 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         let window = UIWindow(windowScene: scene)
         window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
         window.rootViewController = UIHostingController(
-            rootView: ContentView(authManager: manager, intentRouter: router).modelContainer(container))
+            rootView: ContentView(authManager: manager, intentRouter: router).modelContainer(container)
+                .transaction { if !UIView.areAnimationsEnabled { $0.disablesAnimations = true } })
         window.makeKeyAndVisible()
         self.window = window
         return router
+    }
+
+    /// The alert the window shows next, once it has finished appearing (an alert still appearing
+    /// can't be dismissed), other than `previous`.
+    private func presentedAlert(after previous: UIAlertController? = nil) async throws -> UIAlertController {
+        func shown() -> UIAlertController? {
+            guard let alert = window?.rootViewController?.presentedViewController as? UIAlertController,
+                  alert !== previous, !alert.isBeingPresented else { return nil }
+            return alert
+        }
+        let end = ContinuousClock.now + .seconds(5)
+        while ContinuousClock.now < end {
+            if let alert = shown() { return alert }
+            // test-wait: UIKit says nothing when SwiftUI presents an alert; checks each 20 ms.
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        return try XCTUnwrap(shown(), "an alert")
     }
 
     /// Writes `<name>.png` once `ready` holds and the screen has settled (`readyPhoto`).
