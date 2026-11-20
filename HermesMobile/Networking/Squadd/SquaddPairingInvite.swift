@@ -36,6 +36,7 @@ struct SquaddPairingInvite: Equatable, Identifiable {
         }
         // Only a relay-only computer's descriptor is used: elsewhere the address still pairs as before.
         let relay = Self.isRelayOnly(url) ? Self.relayDescriptor(value("e2e")) : nil
+        if Self.isRelayOnly(url), relay == nil { return nil }
         guard let server = relay.map({ SquaddRelay.identity(hostId: $0.hostId!) }) ?? value("address").flatMap(Self.server(fromLinkAddress:)),
               let token = value("token").flatMap(Self.credential) ?? value("code").flatMap(Self.pairingCode)
         else { return nil }
