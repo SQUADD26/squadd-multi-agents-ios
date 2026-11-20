@@ -51,7 +51,7 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         defer { window.isHidden = true }
 
         // The thread may hold no row the chat shows yet, so loaded means a row or an error.
-        let loaded = settle(seconds: 20) { continuity.model.map { !$0.isLoading && (!$0.messages.isEmpty || $0.errorMessage != nil) ? $0 : nil } ?? nil }
+        let loaded = try await settle(seconds: 20) { continuity.model.map { !$0.isLoading && (!$0.messages.isEmpty || $0.errorMessage != nil) ? $0 : nil } ?? nil }
         if loaded == nil {
             note("not loaded: model \(continuity.model == nil ? "missing" : "on screen"), loading \(continuity.model?.isLoading ?? false), rows \(continuity.model?.messages.count ?? 0)")
             try? photograph(window, named: "7-squadd-chat-open", in: folder)
@@ -67,10 +67,10 @@ final class SquaddChatLivePhotoTests: XCTestCase {
 
         let prompt = "Ciao dal simulatore iPhone: rispondimi parola per parola"
         let sending = Task { await model.send(prompt) }
-        let shown = settle(seconds: 2) { model.messages.last?.content == prompt ? true : nil }
+        let shown = try await settle(seconds: 2) { model.messages.last?.content == prompt ? true : nil }
         note("prompt on screen before the companion answered: \(shown == true)")
 
-        let partial = settle(seconds: 30) { () -> String? in
+        let partial = try await settle(seconds: 30) { () -> String? in
             guard model.activeStreamID != nil, let id = model.streamingAssistantMessageID,
                   let text = model.messages.first(where: { $0.messageId == id })?.content, text.count > 20 else { return nil }
             return text
@@ -80,7 +80,7 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         let outcome = await sending.value
         note("send outcome: \(outcome)")
 
-        let reply = settle(seconds: 60) { () -> String? in
+        let reply = try await settle(seconds: 60) { () -> String? in
             guard model.activeStreamID == nil, let last = model.messages.last, last.role == "assistant",
                   last.content != model.messages.dropLast().last?.content else { return nil }
             return last.content
@@ -116,13 +116,14 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         return window
     }
 
-    /// Runs the main loop until `value` gives something or `seconds` pass.
-    private func settle<T>(seconds: TimeInterval, _ value: () -> T?) -> T? {
+    /// Waits until `value` gives something or `seconds` pass. `Task.sleep`, not the run loop, so the
+    /// chat's own async work (its `.task` loads) runs meanwhile.
+    private func settle<T>(seconds: TimeInterval, _ value: () -> T?) async throws -> T? {
         let deadline = Date().addingTimeInterval(seconds)
         while Date() < deadline {
             if let found = value() { return found }
-            // test-wait: a photo tool against a live server, not a check; the main loop must turn for the chat to draw.
-            RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+            // test-wait: a photo tool against a live server, not a check.
+            try await Task.sleep(for: .milliseconds(50))
         }
         return value()
     }
