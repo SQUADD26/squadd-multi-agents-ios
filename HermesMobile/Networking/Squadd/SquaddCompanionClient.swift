@@ -31,8 +31,12 @@ struct SquaddCompanionClient {
 
     /// The computer's agents and their task threads.
     func bots() async throws -> [SquaddBot] {
-        let data = try await call("GET", "api/bots")
-        return try JSONDecoder().decode(SquaddBotList.self, from: data).bots
+        try await botList().bots
+    }
+
+    /// The agents and the rooms, as one `GET /api/bots` lists them.
+    func botList() async throws -> SquaddBotList {
+        try JSONDecoder().decode(SquaddBotList.self, from: await call("GET", "api/bots"))
     }
 
     /// Tells the computer the person has the app open (`POST /api/presence/active`, the route the

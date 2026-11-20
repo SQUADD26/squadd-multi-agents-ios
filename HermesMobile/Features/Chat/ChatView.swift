@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 import SwiftData
 import UIKit
@@ -382,6 +383,7 @@ struct ChatView: View {
     @State private var pushedSession: SessionSummary?
     /// A new Hermes chat in another Profile, pushed on top so Back returns here (#1015).
     @State private var pushedHermesSession: HermesSessionChat?
+    @State private var pushedSquaddThread: SquaddThreadChat?
     /// The Sessions list `/sessions` or `/resume` pushed when no list is under this chat (#1053).
     @State private var pushedHermesSessionList: HermesSessionListEntry?
     /// Set when this webui chat is a fork; draws the "Forked from" row. A Hermes chat's is
@@ -642,10 +644,11 @@ struct ChatView: View {
             isSending: viewModel.isStartingChat || viewModel.isSendingVoiceNote || viewModel.isHermesSubmissionUncertain
                 || viewModel.isUndoingExchange || viewModel.hermesRequests?.answeringRequestID != nil
                 || viewModel.isCachedCopyProvisional
-                // Squadd has no Stop yet (its own ticket): Send stays held until the turn ends.
-                || isSquaddThread && viewModel.activeStreamID != nil,
+                // An agent's Squadd thread has no Stop yet (its own ticket): Send stays held until the
+                // turn ends. A room has Stop, and queues what is sent meanwhile (#21).
+                || isSquaddThread && !viewModel.isSquaddRoom && viewModel.activeStreamID != nil,
             isCompressingSession: viewModel.isCompressingSession,
-            isWaitingForStream: viewModel.activeStreamID != nil && !isSquaddThread,
+            isWaitingForStream: viewModel.activeStreamID != nil && (!isSquaddThread || viewModel.isSquaddRoom),
             isCancellingStream: viewModel.isCancellingStream,
             // Offline the draft stays editable and Send waits for the reconnect (#1375); a Hermes
             // chat's plain-text Send waits as the transcript's waiting bubble (#1407).
@@ -697,7 +700,7 @@ struct ChatView: View {
             server: server,
             searchFilePaths: viewModel.offersFilePathSearch ? { await viewModel.searchFilePaths($0) } : nil,
             chipFilePaths: viewModel.fileChipPaths,
-            botMentions: viewModel.hermesBotChat?.mentions,
+            botMentions: viewModel.hermesBotChat?.mentions ?? viewModel.squaddRoomMentions,
             mentionAvatars: viewModel.hermesBotChat?.settings.avatars ?? [:],
             filePathSearch: viewModel.filePathSearch,
             uploadAttachmentErrorMessage: viewModel.uploadAttachmentErrorMessage,
@@ -707,6 +710,7 @@ struct ChatView: View {
                 }
             },
             streamingSendBehavior: StreamingSendBehavior.storedValue(streamingSendBehaviorRawValue),
+            offersSendChoices: !viewModel.isSquaddRoom,
             onSend: { behavior in
                 Task { await sendDraftMessage(behavior: behavior) }
             },
@@ -817,7 +821,7 @@ struct ChatView: View {
                 persistDraftEdit(text)
             },
             recallLastSentText: { viewModel.lastSentText },
-            onPasteLargeText: isHermesSession ? { text in
+            onPasteLargeText: isHermesSession || isSquaddThread ? { text in
                 viewModel.stagePastedText(text)
             } : nil,
             onOpenFileReference: { path in
@@ -833,7 +837,11 @@ struct ChatView: View {
                 Task { await gitAvailabilityViewModel.loadBranches() }
             },
             showsSessionControls: !isHermesSession && !isSquaddThread,
-            slashScope: viewModel.hermesSlashCommands?.scope ?? .webui,
+            allowsVoiceNotes: isSquaddThread,
+            // A Squadd thread offers `/goal` alone until its catalog says what the agent can run.
+            slashScope: isSquaddThread
+                ? viewModel.squaddSlashScope ?? SquaddSlashCommands.scope(runsAgents: false, authorsSkills: false)
+                : viewModel.hermesSlashCommands?.scope ?? .webui,
             hostSlashCompletion: viewModel.hermesSlashCommands?.completion,
             onCompleteHostSlashArgument: { text in
                 await viewModel.hermesSlashCommands?.complete(text)
@@ -863,7 +871,8 @@ struct ChatView: View {
             showsNewChatControls: showsNewChatControls,
             uploadsAttachmentsOnSend: isHermesSession,
             onCancelAttachmentUpload: viewModel.isSendingAttachments ? { viewModel.cancelAttachmentUpload() } : nil,
-            hermesTranscriber: hermesTranscriber
+            hermesTranscriber: hermesTranscriber,
+            dictatesOnDevice: viewModel.dictatesOnDevice
         )
         // The composer flips wholesale with the transcript under the RTL
         // toggle (#259): input, placeholder, and chrome mirror together.
@@ -905,8 +914,10 @@ struct ChatView: View {
         among siblings: [MessageAttachmentPreview]
     ) {
         let attachment = tapped.attachment
-        guard isHermesSession, let path = attachment.path, !path.isEmpty else {
-            let pageable = siblings.filter { !isHermesSession || $0.attachment.path?.isEmpty != false }
+        // A Squadd thread's sent files live on its computer, as a Hermes chat's on its host (#23).
+        let opensFromServer = isHermesSession || isSquaddThread
+        guard opensFromServer, let path = attachment.path, !path.isEmpty else {
+            let pageable = siblings.filter { !opensFromServer || $0.attachment.path?.isEmpty != false }
             guard let index = pageable.firstIndex(where: { $0.attachment == attachment }) else {
                 let item = ChatAttachmentPreviewItem(message: attachment, localData: tapped.localData)
                 return presentAttachmentPreview([item], at: 0)
@@ -1207,6 +1218,11 @@ struct ChatView: View {
             .onChange(of: scenePhase) {
                 handleScenePhaseChange(scenePhase)
             }
+            .onReceive(NotificationCenter.default.publisher(for: AVAudioSession.interruptionNotification)) { note in
+                // A call or another app taking the audio.
+                guard (note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt) == AVAudioSession.InterruptionType.began.rawValue else { return }
+                viewModel.stopSquaddListening()
+            }
             .onChange(of: NetworkPathMonitor.shared.changeCount) {
                 handleNetworkPathChange()
             }
@@ -1362,6 +1378,7 @@ struct ChatView: View {
                     .modifier(SessionScreenModifier(chat: chat))
                     .id(chat.id)
             }
+            .navigationDestination(item: $pushedSquaddThread) { ChatView(squaddThread: $0).id($0.id) }
             .navigationDestination(item: $pushedHermesSessionList) { entry in
                 HermesSessionListView(entry: entry).id(entry.id)
             }
@@ -2530,7 +2547,7 @@ struct ChatView: View {
             },
             attachmentAudio: AttachmentAudioSource(
                 load: { path in await viewModel.attachmentRawData(path: path) },
-                isHost: isHermesSession,
+                isHost: isHermesSession || isSquaddThread,
                 loadKey: viewModel.attachmentLoadKey
             ),
             loadTranscriptMediaImage: { reference in
@@ -2605,12 +2622,14 @@ struct ChatView: View {
                 UIPasteboard.general.string = text
                 ChatHaptics.copied(isEnabled: isHapticsEnabled)
             },
+            onRemoveQueuedPrompt: viewModel.isSquaddRoom ? { row in Task { await viewModel.cancelSquaddQueuedPrompt(row) } } : nil,
             waitingSend: viewModel.waitingSendMessage,
             onCancelWaitingSend: viewModel.cancelWaitingSend,
             continuity: continuity,
             delegatedWork: delegatedWork,
             onOpenDelegatedWork: openDelegatedWork
         )
+        .environment(viewModel.squaddTurn)
         // Off the main body chain, which is at the type-checker's limit.
         .onChange(of: viewModel.latestRunOutcome) {
             handleLatestRunOutcomeChange(viewModel.latestRunOutcome)
@@ -3160,6 +3179,13 @@ struct ChatView: View {
             }
         }
 
+        // A Squadd thread runs `/branch` and `/fork` itself (#20); any other `/` text goes to the agent.
+        if isSquaddThread, submittedContent.quotes.isEmpty, let result = await viewModel.runSquaddSlashCommand(submittedDraft) {
+            handleSlashExecutionResult(result, parsedCommand: nil, submittedDraft: submittedDraft,
+                                       submittedDraftRevision: submittedDraftRevision)
+            return
+        }
+
         // A Hermes chat runs `/` text through its own commands and its host's (#1036); a name
         // neither knows is sent as typed.
         if isHermesSession, submittedContent.quotes.isEmpty,
@@ -3190,7 +3216,7 @@ struct ChatView: View {
         let parsedCommand = SlashCommandExecutor.parse(submittedDraft)?.command
         if submittedContent.quotes.isEmpty,
            submittedDraft.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("/"),
-           !isHermesSession {
+           !isHermesSession, !isSquaddThread {
             // `/clear` wipes the conversation on the server, so it always asks
             // first. The draft stays in the composer until the user confirms.
             // A refusal the app already knows about (cached view, CLI session,
@@ -3419,6 +3445,14 @@ struct ChatView: View {
             }
         case .openedSession(let session):
             pushedSession = session
+            if consumesDraft {
+                reconcileConsumedDraft(
+                    ComposerDraftContent(text: submittedDraft, quotes: submittedQuotes),
+                    submittedDraftRevision: submittedDraftRevision
+                )
+            }
+        case .openedSquaddThread(let chat):
+            pushedSquaddThread = chat
             if consumesDraft {
                 reconcileConsumedDraft(
                     ComposerDraftContent(text: submittedDraft, quotes: submittedQuotes),
@@ -3800,6 +3834,10 @@ struct ChatView: View {
             if let branch = await viewModel.forkHermesSession(from: context) { pushedHermesSession = branch }
             return
         }
+        if isSquaddThread {
+            if let fork = await viewModel.forkSquaddThread(from: context) { pushedSquaddThread = fork }
+            return
+        }
         let session = await viewModel.forkFromMessage(context, modelContext: modelContext)
 
         if let lastError = viewModel.lastError {
@@ -4163,6 +4201,7 @@ struct ChatView: View {
 
         switch phase {
         case .background:
+            viewModel.stopSquaddListening()
             if isHermesSession {
                 // The app closes the gateway socket in the background (#902); the turn
                 // runs on, and returning reattaches to it.
@@ -4556,7 +4595,8 @@ struct ChatView: View {
         editDraft = context.copyText
         editContext = context
         let messagesAfter = transcriptMessagesAfter(context)
-        if messagesAfter > 0 {
+        // A Squadd edit discards nothing: the old version stays a version away (#19).
+        if messagesAfter > 0, !isSquaddThread {
             showEditDiscardConfirmation = true
         } else {
             showEditSheet = true
@@ -4847,7 +4887,7 @@ private enum PastedFileError: LocalizedError {
 private extension SlashCommandExecutionResult {
     var isSuccessfulSubmission: Bool {
         switch self {
-        case .executed, .openedSession, .openedHermesSession, .replacedHermesSession, .openedHermesSessionList:
+        case .executed, .openedSession, .openedHermesSession, .replacedHermesSession, .openedHermesSessionList, .openedSquaddThread:
             true
         case .sendAsMessage, .unsupported, .needsSubArg, .notDelivered, .prefill:
             false

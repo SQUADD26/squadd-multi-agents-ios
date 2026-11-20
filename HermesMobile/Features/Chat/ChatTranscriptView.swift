@@ -148,6 +148,8 @@ struct ChatTranscriptView: View {
     /// A Hermes scheduled task's run (#1413), whose prompt rows show as `CronRunPromptCard`s.
     var isCronRun = false
     var onCopyQueuedPrompt: (String) -> Void = { _ in }
+    /// A Squadd room's queued prompts can be removed before they run (#21); nil where the host owns the queue.
+    var onRemoveQueuedPrompt: ((ChatMessage) -> Void)? = nil
     /// A Hermes chat's Send waiting for the reconnect (`ChatViewModel.waitingSendMessage`, #1407),
     /// drawn last as a pending bubble whose only action is `onCancelWaitingSend`.
     var waitingSend: ChatMessage? = nil
@@ -536,7 +538,8 @@ struct ChatTranscriptView: View {
                     .id(ChatLostTurn.rowID)
             }
             ForEach(queuedPrompts) { queuedPrompt in
-                ChatQueuedPromptRow(message: queuedPrompt, onCopy: onCopyQueuedPrompt)
+                ChatQueuedPromptRow(message: queuedPrompt, onCopy: onCopyQueuedPrompt,
+                                    onRemove: onRemoveQueuedPrompt.map { remove in { remove(queuedPrompt) } })
                     .reportsReflowFrame(queuedPrompt.id, to: scrollPositionController, layout: layout, isFollowing: isFollowing)
                     .id(queuedPrompt.id)
             }
@@ -1033,6 +1036,7 @@ struct ChatTranscriptMessageBlock: View, Equatable {
 private struct ChatQueuedPromptRow: View {
     let message: ChatMessage
     let onCopy: (String) -> Void
+    var onRemove: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 4) {
@@ -1042,6 +1046,12 @@ private struct ChatQueuedPromptRow: View {
                 .accessibilityValue(Text("Queued"))
             ChatMessageMetaRow(isUserMessage: true, timeText: String(localized: "Queued"),
                                onCopy: { onCopy(message.content ?? "") })
+            if let onRemove {
+                Button("Remove", action: onRemove)
+                    .font(AppFont.caption(weight: .semibold))
+                    .chatMinimumHitTarget(horizontalPadding: 12, verticalPadding: 14, in: Rectangle())
+                    .padding(.horizontal, 2)
+            }
         }
     }
 }
@@ -1142,6 +1152,8 @@ private struct ChatTranscriptMessageRow: View {
     let onFork: (MessageActionContext) -> Void
     let onCopy: (MessageActionContext) -> Void
     let isCronRun: Bool
+    /// Set in a Squadd thread: the row's versions and reactions (#19).
+    @Environment(SquaddChatTurnCoordinator.self) private var squadd: SquaddChatTurnCoordinator?
 
     var body: some View {
         // Compaction marker messages render as collapsible cards (matching the
@@ -1165,6 +1177,12 @@ private struct ChatTranscriptMessageRow: View {
         } else {
             VStack(alignment: isUserMessage ? .trailing : .leading, spacing: metaRowSpacing) {
                 bubble
+
+                if let squadd, let marks = squadd.marks[message.id] {
+                    SquaddRowMarksView(marks: marks, canSwitchVersion: !hasActiveStream && !isViewingCachedData) { step in
+                        Task { await squadd.showVersion(step, ofRow: message.id) }
+                    }
+                }
 
                 if showsMetaRow {
                     ChatMessageMetaRow(
@@ -1237,8 +1255,83 @@ private struct ChatTranscriptMessageRow: View {
             onRegenerate: onRegenerate,
             onEdit: onEdit,
             onFork: onFork,
-            onCopy: onCopy
+            onCopy: onCopy,
+            extraItems: reactionItem.map { [$0] } ?? []
         )
+    }
+
+    private var reactionItem: ChatMessageActionItem? {
+        squadd.flatMap { ChatMessageActionItem.squaddReactions(ofRow: message.id, in: $0, isEnabled: !isViewingCachedData) }
+    }
+}
+
+/// Under a Squadd row: the version picker of a message an edit changed, and the reactions on it.
+struct SquaddRowMarksView: View {
+    let marks: SquaddRowMarks
+    let canSwitchVersion: Bool
+    let onStep: (Int) -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if let versions = marks.versions {
+                SquaddVersionPicker(versions: versions, isEnabled: canSwitchVersion, onStep: onStep)
+            }
+            if !marks.reactions.isEmpty {
+                HStack(spacing: 4) {
+                    ForEach(marks.reactions, id: \.emoji) { reaction in
+                        Text(reaction.count > 1 ? "\(reaction.emoji) \(reaction.count)" : reaction.emoji)
+                            .font(AppFont.caption())
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Color(.secondarySystemFill), in: Capsule())
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(Text("Reactions"))
+                .accessibilityValue(Text(marks.reactions.map(\.emoji).joined(separator: " ")))
+            }
+        }
+    }
+}
+
+/// "‹ 2/3 ›": which version of an edited message the thread shows, and the way to the others.
+/// One VoiceOver element, adjusted with a swipe up or down.
+struct SquaddVersionPicker: View {
+    let versions: SquaddRowMarks.Versions
+    let isEnabled: Bool
+    let onStep: (Int) -> Void
+
+    var body: some View {
+        HStack(spacing: 0) {
+            step(-1, systemImage: "chevron.left")
+            Text(verbatim: "\(versions.index + 1)/\(versions.ids.count)")
+                .font(AppFont.caption())
+                .monospacedDigit()
+            step(1, systemImage: "chevron.right")
+        }
+        .foregroundStyle(.secondary)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text("Version"))
+        .accessibilityValue(Text("\(versions.index + 1) of \(versions.ids.count)"))
+        .accessibilityAdjustableAction { direction in
+            guard isEnabled else { return }
+            switch direction {
+            case .increment: if versions.id(1) != nil { onStep(1) }
+            case .decrement: if versions.id(-1) != nil { onStep(-1) }
+            @unknown default: break
+            }
+        }
+    }
+
+    private func step(_ step: Int, systemImage: String) -> some View {
+        Button { onStep(step) } label: {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .semibold))
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(!isEnabled || versions.id(step) == nil)
     }
 }
 

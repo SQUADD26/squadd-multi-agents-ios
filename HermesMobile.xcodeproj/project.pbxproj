@@ -110,6 +110,7 @@
 		5D0ADD000000000000000101 /* AuthManager+Squadd.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADD000000000000000001 /* AuthManager+Squadd.swift */; };
 		5D0ADD000000000000000102 /* SquaddModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADD000000000000000002 /* SquaddModels.swift */; };
 		5D0B11000000000000000101 /* SquaddChat.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B11000000000000000001 /* SquaddChat.swift */; };
+		5D0B21000000000000000101 /* SquaddCompanionClient+Rooms.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B21000000000000000001 /* SquaddCompanionClient+Rooms.swift */; };
 		5D0ADE280000000000001201 /* SquaddConnectorModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000001200 /* SquaddConnectorModels.swift */; };
 		5D0ADE280000000000000201 /* SquaddSettingsModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000000200 /* SquaddSettingsModels.swift */; };
 		5D0ADD000000000000000103 /* SquaddCompanionClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADD000000000000000003 /* SquaddCompanionClient.swift */; };
@@ -141,7 +142,12 @@
 		5D0ADE280000000000000601 /* SquaddSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0ADE280000000000000600 /* SquaddSettingsTests.swift */; };
 		5D2200000000000000000103 /* SquaddAgentEditorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D2200000000000000000003 /* SquaddAgentEditorTests.swift */; };
 		5D0B11000000000000000102 /* SquaddChatTurnCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B11000000000000000002 /* SquaddChatTurnCoordinator.swift */; };
+		5D0B21000000000000000102 /* SquaddRoomViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B21000000000000000002 /* SquaddRoomViews.swift */; };
+		26A1E0000000000000000101 /* SquaddSlashCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26A1E0000000000000000001 /* SquaddSlashCommands.swift */; };
 		5D0B11000000000000000103 /* SquaddChatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B11000000000000000003 /* SquaddChatTests.swift */; };
+		5D0B21000000000000000103 /* SquaddRoomTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B21000000000000000003 /* SquaddRoomTests.swift */; };
+		5D0B19A00000000000000002 /* SquaddVersionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B19A00000000000000001 /* SquaddVersionsTests.swift */; };
+		5D0B20A00000000000000002 /* SquaddForkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B20A00000000000000001 /* SquaddForkTests.swift */; };
 		5D0B11000000000000000104 /* SquaddChatLivePhotoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B11000000000000000004 /* SquaddChatLivePhotoTests.swift */; };
 		C0DE88500000000000000001 /* AppLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE88500000000000000002 /* AppLock.swift */; };
 		C0DE88500000000000000005 /* AppLockWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE88500000000000000006 /* AppLockWindow.swift */; };
@@ -396,6 +402,7 @@
 		1A2B3C4D5E6F7000000000ED /* CachedMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7000000000EF /* CachedMessage.swift */; };
 		1A2B3C4D5E6F7000000000F1 /* CacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7000000000F3 /* CacheStore.swift */; };
 		E1054000000000000000A001 /* CacheStore+Hermes.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1054000000000000000A002 /* CacheStore+Hermes.swift */; };
+		E0034000000000000000A001 /* CacheStore+Squadd.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0034000000000000000A002 /* CacheStore+Squadd.swift */; };
 		1A2B3C4D5E6F7000000000F2 /* CacheStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A2B3C4D5E6F7000000000F4 /* CacheStoreTests.swift */; };
 		C28702000000000000000001 /* ChatDraftStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = C28702000000000000000002 /* ChatDraftStore.swift */; };
 		C28702000000000000000003 /* ChatDraftStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C28702000000000000000004 /* ChatDraftStoreTests.swift */; };
@@ -915,6 +922,7 @@
 		5D0ADD000000000000000001 /* AuthManager+Squadd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AuthManager+Squadd.swift"; sourceTree = "<group>"; };
 		5D0ADD000000000000000002 /* SquaddModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddModels.swift"; sourceTree = "<group>"; };
 		5D0B11000000000000000001 /* SquaddChat.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddChat.swift"; sourceTree = "<group>"; };
+		5D0B21000000000000000001 /* SquaddCompanionClient+Rooms.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddCompanionClient+Rooms.swift"; sourceTree = "<group>"; };
 		5D0ADE280000000000001200 /* SquaddConnectorModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddConnectorModels.swift"; sourceTree = "<group>"; };
 		5D0ADE280000000000000200 /* SquaddSettingsModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddSettingsModels.swift"; sourceTree = "<group>"; };
 		5D0ADD000000000000000003 /* SquaddCompanionClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddCompanionClient.swift"; sourceTree = "<group>"; };
@@ -946,7 +954,12 @@
 		5D0ADE280000000000000600 /* SquaddSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddSettingsTests.swift; sourceTree = "<group>"; };
 		5D2200000000000000000003 /* SquaddAgentEditorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddAgentEditorTests.swift; sourceTree = "<group>"; };
 		5D0B11000000000000000002 /* SquaddChatTurnCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddChatTurnCoordinator.swift"; sourceTree = "<group>"; };
+		5D0B21000000000000000002 /* SquaddRoomViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddRoomViews.swift"; sourceTree = "<group>"; };
+		26A1E0000000000000000001 /* SquaddSlashCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Squadd/SquaddSlashCommands.swift"; sourceTree = "<group>"; };
 		5D0B11000000000000000003 /* SquaddChatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddChatTests.swift; sourceTree = "<group>"; };
+		5D0B21000000000000000003 /* SquaddRoomTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddRoomTests.swift; sourceTree = "<group>"; };
+		5D0B19A00000000000000001 /* SquaddVersionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddVersionsTests.swift; sourceTree = "<group>"; };
+		5D0B20A00000000000000001 /* SquaddForkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddForkTests.swift; sourceTree = "<group>"; };
 		5D0B11000000000000000004 /* SquaddChatLivePhotoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddChatLivePhotoTests.swift; sourceTree = "<group>"; };
 		C0DE88500000000000000002 /* AppLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLock.swift; sourceTree = "<group>"; };
 		C0DE88500000000000000006 /* AppLockWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockWindow.swift; sourceTree = "<group>"; };
@@ -1201,6 +1214,7 @@
 		1A2B3C4D5E6F7000000000EF /* CachedMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CachedMessage.swift; sourceTree = "<group>"; };
 		1A2B3C4D5E6F7000000000F3 /* CacheStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheStore.swift; sourceTree = "<group>"; };
 		E1054000000000000000A002 /* CacheStore+Hermes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CacheStore+Hermes.swift"; sourceTree = "<group>"; };
+		E0034000000000000000A002 /* CacheStore+Squadd.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CacheStore+Squadd.swift"; sourceTree = "<group>"; };
 		1A2B3C4D5E6F7000000000F4 /* CacheStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CacheStoreTests.swift; sourceTree = "<group>"; };
 		C28702000000000000000002 /* ChatDraftStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatDraftStore.swift; sourceTree = "<group>"; };
 		C28702000000000000000004 /* ChatDraftStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatDraftStoreTests.swift; sourceTree = "<group>"; };
@@ -1957,6 +1971,9 @@
 				5D2200000000000000000003 /* SquaddAgentEditorTests.swift */,
 				5D0A30000000000000000040 /* SquaddPushTests.swift */,
 				5D0B11000000000000000003 /* SquaddChatTests.swift */,
+				5D0B21000000000000000003 /* SquaddRoomTests.swift */,
+				5D0B19A00000000000000001 /* SquaddVersionsTests.swift */,
+				5D0B20A00000000000000001 /* SquaddForkTests.swift */,
 				5D0B11000000000000000004 /* SquaddChatLivePhotoTests.swift */,
 				B5A1000000000000000FA002 /* TestHostStateGuard.swift */,
 				B5A220000000000000000006 /* ChatMarkerMessageClassifierTests.swift */,
@@ -2066,6 +2083,7 @@
 				C86900000000000000000002 /* NetworkPathMonitor.swift */,
 				5D0ADD000000000000000002 /* SquaddModels.swift */,
 				5D0B11000000000000000001 /* SquaddChat.swift */,
+				5D0B21000000000000000001 /* SquaddCompanionClient+Rooms.swift */,
 				5D0ADE280000000000001200 /* SquaddConnectorModels.swift */,
 				5D0ADE280000000000000200 /* SquaddSettingsModels.swift */,
 				5D0ADD000000000000000003 /* SquaddCompanionClient.swift */,
@@ -2193,6 +2211,8 @@
 				5D2200000000000000000002 /* SquaddAgentEditorView.swift */,
 				5D2200000000000000000001 /* SquaddAgentEditor.swift */,
 				5D0B11000000000000000002 /* SquaddChatTurnCoordinator.swift */,
+				5D0B21000000000000000002 /* SquaddRoomViews.swift */,
+				26A1E0000000000000000001 /* SquaddSlashCommands.swift */,
 				5D0ADD000000000000000005 /* SquaddServerHome.swift */,
 				5D0A09000000000000000002 /* SquaddRouteFinder.swift */,
 				5D0ADE280000000000001400 /* SquaddConnectorsView.swift */,
@@ -2464,6 +2484,7 @@
 				C28702000000000000000006 /* ChatDraftAttachmentStore.swift */,
 				1A2B3C4D5E6F7000000000F3 /* CacheStore.swift */,
 				E1054000000000000000A002 /* CacheStore+Hermes.swift */,
+				E0034000000000000000A002 /* CacheStore+Squadd.swift */,
 				1A2B3C4D5E6F7000000000EE /* CachedSession.swift */,
 				1A2B3C4D5E6F7000000000EF /* CachedMessage.swift */,
 			);
@@ -3018,6 +3039,7 @@
 				5D0ADD000000000000000101 /* AuthManager+Squadd.swift in Sources */,
 				5D0ADD000000000000000102 /* SquaddModels.swift in Sources */,
 				5D0B11000000000000000101 /* SquaddChat.swift in Sources */,
+				5D0B21000000000000000101 /* SquaddCompanionClient+Rooms.swift in Sources */,
 				5D0ADE280000000000001201 /* SquaddConnectorModels.swift in Sources */,
 				5D0ADE280000000000000201 /* SquaddSettingsModels.swift in Sources */,
 				5D0ADD000000000000000103 /* SquaddCompanionClient.swift in Sources */,
@@ -3034,6 +3056,8 @@
 				5D2200000000000000000102 /* SquaddAgentEditorView.swift in Sources */,
 				5D2200000000000000000101 /* SquaddAgentEditor.swift in Sources */,
 				5D0B11000000000000000102 /* SquaddChatTurnCoordinator.swift in Sources */,
+				5D0B21000000000000000102 /* SquaddRoomViews.swift in Sources */,
+				26A1E0000000000000000101 /* SquaddSlashCommands.swift in Sources */,
 				5D0ADD000000000000000105 /* SquaddServerHome.swift in Sources */,
 				5D0A09000000000000000102 /* SquaddRouteFinder.swift in Sources */,
 				5D0ADE280000000000001401 /* SquaddConnectorsView.swift in Sources */,
@@ -3138,6 +3162,7 @@
 				1A2B3C4D5E6F7000000000ED /* CachedMessage.swift in Sources */,
 				1A2B3C4D5E6F7000000000F1 /* CacheStore.swift in Sources */,
 				E1054000000000000000A001 /* CacheStore+Hermes.swift in Sources */,
+				E0034000000000000000A001 /* CacheStore+Squadd.swift in Sources */,
 				C28702000000000000000001 /* ChatDraftStore.swift in Sources */,
 				C28702000000000000000005 /* ChatDraftAttachmentStore.swift in Sources */,
 				1A2B3C4D5E6F7000000000F5 /* SettingsView.swift in Sources */,
@@ -3443,6 +3468,9 @@
 				5D2200000000000000000103 /* SquaddAgentEditorTests.swift in Sources */,
 				5D0A30000000000000000041 /* SquaddPushTests.swift in Sources */,
 				5D0B11000000000000000103 /* SquaddChatTests.swift in Sources */,
+				5D0B21000000000000000103 /* SquaddRoomTests.swift in Sources */,
+				5D0B19A00000000000000002 /* SquaddVersionsTests.swift in Sources */,
+				5D0B20A00000000000000002 /* SquaddForkTests.swift in Sources */,
 				5D0B11000000000000000104 /* SquaddChatLivePhotoTests.swift in Sources */,
 				A1213000000000000000A005 /* MoveToHermesTransferTests.swift in Sources */,
 				A1214000000000000000A003 /* MoveToHermesReconcileTests.swift in Sources */,

@@ -636,8 +636,31 @@ final class ChatViewModel {
     /// discards it. Their reference lines are chips, as on a sent row, and so are the photos a
     /// canonical send carried (#1644).
     var queuedPromptMessages: [ChatMessage] {
-        (hermesTurn?.queuedPrompts ?? []).map { Self.hermesPromptRow($0, id: "hermes-queued-prompt-\($0.id)", timestamp: nil) }
+        if let squaddTurn {
+            // A busy Squadd room's queue (#21), each until its send goes in.
+            return squaddTurn.queuedPrompts.map {
+                ChatMessage(role: "user", content: $0.text, timestamp: nil, messageId: "squadd-queued-\($0.sendId)")
+            }
+        }
+        return (hermesTurn?.queuedPrompts ?? []).map { Self.hermesPromptRow($0, id: "hermes-queued-prompt-\($0.id)", timestamp: nil) }
     }
+
+    /// Takes a busy Squadd room's queued message (a `queuedPromptMessages` row) out of the line,
+    /// as the desktop's composer does; a refusal, such as one that already went in, says why.
+    func cancelSquaddQueuedPrompt(_ row: ChatMessage) async {
+        guard let squaddTurn, let sendId = row.messageId?.replacingOccurrences(of: "squadd-queued-", with: "") else { return }
+        do {
+            try await squaddTurn.cancelQueued(sendId: sendId)
+        } catch {
+            sendErrorMessage = SquaddChatTurnCoordinator.failureMessage(error)
+        }
+    }
+
+    /// A Squadd room's members for the composer's `@` panel; nil elsewhere.
+    var squaddRoomMentions: BotMentions? { squaddTurn?.mentions }
+
+    /// A Squadd room has Stop, and a send while it works waits in the room's queue.
+    var isSquaddRoom: Bool { squaddTurn?.chat.room != nil }
 
     /// A turn a canonical host lost across its restart (#1602), as its row shows it: with its
     /// prompt's bubble only when the transcript doesn't already end on that prompt.
@@ -756,8 +779,9 @@ final class ChatViewModel {
     private let turn: any ChatTurnCoordinating
     /// Set on a Hermes session: its turns run here, and webui-only paths stay off.
     private let hermesTurn: HermesChatTurnCoordinator?
-    /// A Squadd thread's turns (#11). Nothing in such a chat reaches the webui API.
-    private let squaddTurn: SquaddChatTurnCoordinator?
+    /// A Squadd thread's turns (#11). Nothing in such a chat reaches the webui API. Its rows'
+    /// versions and reactions (#19) are read from here.
+    let squaddTurn: SquaddChatTurnCoordinator?
     private let drafts: ChatDraftStore
     private let pendingActionCoordinator: ChatPendingActionCoordinator
     private let attachmentCoordinator: ChatAttachmentCoordinator
@@ -918,8 +942,7 @@ final class ChatViewModel {
             hermesTurn = nil
             squaddTurn = coordinator
             turn = coordinator
-            // Listen speaks on the device: the companion has no webui speech route.
-            backendSpeech = { _ in nil }
+            backendSpeech = { try await coordinator.speech(for: $0) }
         case .hermes(let coordinator):
             squaddTurn = nil
             hermesTurn = coordinator
@@ -941,7 +964,7 @@ final class ChatViewModel {
             client: resolvedClient,
             draftAttachmentStore: draftAttachmentStore,
             draftStore: draftStore,
-            uploadsOnSend: hermesTurn != nil
+            uploadsOnSend: hermesTurn != nil || squaddTurn != nil
         )
         self.btwStreamClient = btwStreamClient ?? SSEClient()
         self.liveActivityManager = resolvedLiveActivityManager
@@ -1515,7 +1538,7 @@ final class ChatViewModel {
     /// chat shows its offline cache; the composer and transcript ask again on
     /// reconnect.
     func loadSkillSlashSuggestions() async {
-        guard hermesTurn == nil, squaddTurn == nil, !hasLoadedSkillSlashSuggestions, !showsOfflineCache else { return }
+        guard hermesTurn == nil, !hasLoadedSkillSlashSuggestions, !showsOfflineCache else { return }
 
         let load: Task<Void, Never>
         if let existing = skillSlashSuggestionsLoad {
@@ -1524,10 +1547,16 @@ final class ChatViewModel {
             load = Task { [weak self] in
                 guard let self else { return }
                 do {
-                    let response = try await self.client.skills()
-                    self.applySkillSlashSuggestions(
-                        SlashSkillFormatter.suggestions(from: response.skills ?? [])
-                    )
+                    if let squadd = self.squaddTurn {
+                        let catalog = try await squadd.slashCatalog()
+                        self.squaddSlashScope = catalog.scope
+                        self.applySkillSlashSuggestions(catalog.skills)
+                    } else {
+                        let response = try await self.client.skills()
+                        self.applySkillSlashSuggestions(
+                            SlashSkillFormatter.suggestions(from: response.skills ?? [])
+                        )
+                    }
                     self.hasLoadedSkillSlashSuggestions = true
                 } catch {
                     self.lastError = error
@@ -1957,17 +1986,21 @@ final class ChatViewModel {
     /// A sent attachment's thumbnail bytes: a Hermes session downloads from its host
     /// (#1030), a webui chat through the server's file API. Nil when it can't load.
     func attachmentImageData(path: String) async -> Data? {
-        guard let hermesTurn else { return await attachmentCoordinator.attachmentImageData(path: path) }
-        guard let data = try? await hermesTurn.attachmentData(path: path) else { return nil }
+        let read: () async throws -> Data
+        if let hermesTurn { read = { try await hermesTurn.attachmentData(path: path) } }
+        else if let squaddTurn { read = { try await squaddTurn.attachmentData(path: path) } }
+        else { return await attachmentCoordinator.attachmentImageData(path: path) }
+        guard let data = try? await read() else { return nil }
         return await ImagePreviewDownsampler.previewDataAsync(
             from: data,
             maxPixelSize: ImagePreviewDownsampler.attachmentMaxPixelSize
         ) ?? data
     }
 
-    /// A Hermes session's sent file in full, for its preview (#1030). Throws `.stale` on a
-    /// webui chat, which previews through `ChatAttachmentPreviewView` instead.
+    /// A Hermes session's or a Squadd thread's sent file in full, for its preview (#1030, #23).
+    /// Throws `.stale` on a webui chat, which previews through `ChatAttachmentPreviewView` instead.
     func hermesAttachmentData(path: String) async throws -> Data {
+        if let squaddTurn { return try await squaddTurn.attachmentData(path: path) }
         guard let hermesTurn else { throw BotFailure.stale }
         return try await hermesTurn.attachmentData(path: path)
     }
@@ -2020,6 +2053,7 @@ final class ChatViewModel {
     /// Nil when it can't load, including on a detached Hermes chat, which the player avoids by
     /// waiting on `attachmentLoadKey`.
     func attachmentRawData(path: String) async -> Data? {
+        if let squaddTurn { return try? await squaddTurn.attachmentData(path: path) }
         guard let hermesTurn else { return await attachmentCoordinator.attachmentRawData(path: path) }
         return try? await hermesTurn.attachmentData(path: path)
     }
@@ -2080,6 +2114,7 @@ final class ChatViewModel {
     /// `prepareInitialMessageLoad` already sent instead of sending another.
     func loadMessages(modelContext: ModelContext? = nil, usesInitialPrefetch: Bool = false) async {
         if let squaddTurn {
+            if let modelContext { squaddTurn.cache = modelContext }
             isLoading = messages.isEmpty
             defer { isLoading = false }
             await squaddTurn.activate()
@@ -2541,10 +2576,15 @@ final class ChatViewModel {
             message: message,
             visibleIndex: visibleIndex,
             messagesOffset: messagesOffset,
+            // A Squadd thread edits a stored typed message into a new version (#19) and regenerates nothing;
+            // a room has no edit route (`companion/src/routes.ts`), so its messages stay as sent.
             offersHistoryActions: hermesTurn.map { $0.policy.offersHistoryActions && hermesRewindableMessageIDs.contains(message.id) }
+                ?? squaddTurn.map { $0.chat.room == nil && message.role == "user" && $0.storedID(ofRow: message.id) != nil }
                 ?? true,
-            // A Hermes branch counts to a row the host saved (#1051). A Bot Chat offers neither (#1145).
-            offersFork: hermesTurn.map { $0.policy.offersHistoryActions && message.rowID != nil } ?? true
+            // A Hermes branch counts to a row the host saved (#1051); a Squadd fork to a stored text row (#20).
+            offersFork: hermesTurn.map { $0.policy.offersHistoryActions && message.rowID != nil }
+                ?? squaddTurn.map { $0.canFork(row: message.id) }
+                ?? true
         )
     }
 
@@ -3736,6 +3776,7 @@ final class ChatViewModel {
     /// returns nothing. Returns true only if the chat send started.
     @discardableResult
     func sendVoiceNote(audioData: Data, filename: String, modelContext: ModelContext? = nil) async -> Bool {
+        if let squaddTurn { return await sendSquaddVoiceNote(audioData, filename: filename, to: squaddTurn) }
         // Voice notes ride on webui transcription, which a Hermes host does not offer.
         guard hermesTurn == nil else { return false }
         // Reentrancy guard: bail if a voice note OR a regular chat send is already
@@ -4272,6 +4313,12 @@ final class ChatViewModel {
         if let hermesTurn {
             return await submitHermesStreamingMessage(draft, behavior: behavior, to: hermesTurn)
         }
+        if let squaddTurn {
+            // A Squadd room queues a send while it works; the companion runs it after the turn.
+            return await submitSquaddPrompt(draft, to: squaddTurn) == .started
+                ? .executed(message: nil)
+                : .unsupported(friendlyMessage: sendErrorMessage ?? String(localized: "Can't reach the computer."))
+        }
         switch behavior {
         case .steer:
             return await steerResponseFromSlashCommand(draft)
@@ -4603,6 +4650,9 @@ final class ChatViewModel {
     }
 
     // MARK: Hermes slash commands
+
+    /// The built-ins a Squadd thread's `/` panel offers, once its catalog loaded.
+    private(set) var squaddSlashScope: SlashCommandScope?
 
     /// The host's slash commands in a Hermes chat (#1036); nil on webui.
     var hermesSlashCommands: HermesSlashCommands? { hermesTurn?.slashCommands }
@@ -6160,6 +6210,47 @@ final class ChatViewModel {
         }
     }
 
+    // MARK: Squadd forks (#20)
+
+    /// Fork From Here (`context`) or `/branch` (nil) in a Squadd thread: a new thread of the agent
+    /// up to that message, to open on top of this chat. Nil after saying why in the menu's error.
+    func forkSquaddThread(from context: MessageActionContext?) async -> SquaddThreadChat? {
+        guard let squaddTurn else { return nil }
+        if let refusal = squaddForkRefusal { messageActionErrorMessage = refusal; return nil }
+        isForkingMessage = true
+        messageActionErrorMessage = nil
+        defer { isForkingMessage = false }
+        do {
+            return try await squaddTurn.fork(fromRow: context?.messageID)
+        } catch {
+            messageActionErrorMessage = SquaddChatTurnCoordinator.failureMessage(error)
+            return nil
+        }
+    }
+
+    /// `/branch` and `/fork` in a Squadd thread, the commands Hermes chats have (#20); nil for any
+    /// other text, which goes to the agent as typed.
+    func runSquaddSlashCommand(_ draft: String) async -> SlashCommandExecutionResult? {
+        guard let squaddTurn, let parsed = SlashCommandExecutor.parse(draft),
+              SquaddSlashCommands.forkNames.contains(parsed.name.lowercased()) else { return nil }
+        if let refusal = squaddForkRefusal { return notDelivered(refusal) }
+        isForkingMessage = true
+        sendErrorMessage = nil
+        defer { isForkingMessage = false }
+        do {
+            return .openedSquaddThread(try await squaddTurn.fork(fromRow: nil))
+        } catch {
+            return notDelivered(SquaddChatTurnCoordinator.failureMessage(error))
+        }
+    }
+
+    /// Why a fork can't start now: the companion forks only a thread at rest.
+    private var squaddForkRefusal: String? {
+        if isViewingCachedData { return String(localized: "Reconnect to the server to fork a conversation.") }
+        if activeStreamID != nil { return String(localized: "Wait for the current response to finish before forking.") }
+        return nil
+    }
+
     // MARK: Hermes branches (#1051)
 
     /// Fork From Here in a Hermes session: a branch through `context`'s row, to open on top of
@@ -6329,6 +6420,24 @@ final class ChatViewModel {
         if let hermesTurn {
             edited = await editHermesMessage(context, newText: newText, on: hermesTurn)
             return edited
+        }
+
+        if let squaddTurn {
+            let text = newText.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !text.isEmpty else {
+                messageActionErrorMessage = String(localized: "The edited message cannot be empty.")
+                return false
+            }
+            isEditingMessage = true
+            messageActionErrorMessage = nil
+            defer { isEditingMessage = false }
+            do {
+                try await squaddTurn.edit(rowID: context.messageID, to: text)
+                return true
+            } catch {
+                messageActionErrorMessage = SquaddChatTurnCoordinator.failureMessage(error)
+                return false
+            }
         }
 
         guard let sessionID else {
@@ -6801,13 +6910,24 @@ final class ChatViewModel {
 
     @discardableResult
     func cancelActiveStream() async -> Bool {
-        // Stop on Squadd (`POST /api/bots/:id/interrupt`) is its own ticket.
-        guard activeStreamID != nil, squaddTurn == nil else { return false }
+        // Stop on an agent's Squadd thread (`POST /api/bots/:id/interrupt`) is its own ticket; a room has it.
+        guard activeStreamID != nil, squaddTurn == nil || isSquaddRoom else { return false }
 
         isCancellingStream = true
         sendErrorMessage = nil
         lastError = nil
         defer { isCancellingStream = false }
+
+        if let squaddTurn {
+            // Accepted is not idle: the turn's `turn.completed` ends the reply.
+            do {
+                try await squaddTurn.interrupt()
+                return true
+            } catch {
+                sendErrorMessage = SquaddChatTurnCoordinator.failureMessage(error)
+                return false
+            }
+        }
 
         if let hermesTurn {
             // Accepted is not idle: the turn's own ending frames settle it.
@@ -6891,6 +7011,17 @@ final class ChatViewModel {
             if let audio, self.startListenAudioPlayback(audio) { return }
             self.finishListening()
         }
+    }
+
+    /// A Squadd chat dictates with the phone's speech recognition only (#25): the companion has
+    /// no transcription route, and the words never leave the phone.
+    var dictatesOnDevice: Bool { squaddTurn != nil }
+
+    /// A Squadd chat's Listen stops when the app leaves the screen or a call comes in (#25);
+    /// other chats keep playing behind the Lock Screen (#1352).
+    func stopSquaddListening() {
+        guard squaddTurn != nil else { return }
+        stopListening()
     }
 
     func stopListening() {
@@ -9928,6 +10059,13 @@ extension ChatViewModel: SquaddChatTurnDelegate {
         transcriptRevision &+= 1
         hasOlderMessages = hasOlder
         streamingAssistantMessageID = nil
+        isViewingCachedData = false
+    }
+
+    func squaddShowCached(_ messages: [ChatMessage]) {
+        squaddReplaceTranscript(messages, hasOlder: false)
+        isViewingCachedData = true
+        errorMessage = nil
     }
 
     func squaddPrependOlder(_ messages: [ChatMessage], hasOlder: Bool) {
@@ -9937,32 +10075,76 @@ extension ChatViewModel: SquaddChatTurnDelegate {
         hasOlderMessages = hasOlder
     }
 
+    func squaddAppendPrompt(_ message: ChatMessage) {
+        messages.append(message)
+    }
+
+    func squaddActionDidFail(_ message: String) {
+        messageActionErrorMessage = message
+    }
+
     func squaddConnectionDidChange(failure: String?) {
         guard errorMessage != failure else { return }
         errorMessage = failure
     }
 
-    /// Shows the prompt at once and sends it. A prompt the companion didn't take leaves the
-    /// transcript and goes back to the composer (`.kept`) with the reason.
-    fileprivate func submitSquaddPrompt(_ draft: String, to squadd: SquaddChatTurnCoordinator) async -> ChatSendOutcome {
+    /// A Squadd voice note (#23): the recording as WAV, the audio the computer stores and plays,
+    /// staged like any file and sent on its own. One the companion didn't take stays staged, so Send
+    /// retries it.
+    fileprivate func sendSquaddVoiceNote(_ recording: Data, filename: String, to squadd: SquaddChatTurnCoordinator) async -> Bool {
+        guard !isSendingVoiceNote, !isStartingChat, !recording.isEmpty else { return false }
+        isSendingVoiceNote = true
+        defer { isSendingVoiceNote = false }
+        guard let wav = try? await Task.detached(operation: { try ComposerVoiceNoteRecorder.wav(from: recording, filename: filename) }).value else {
+            setUploadAttachmentError(String(localized: "Couldn't prepare that voice note. Try recording again."))
+            return false
+        }
+        guard let staged = await attachmentCoordinator.uploadAttachment(data: wav.data, filename: wav.name) else { return false }
+        return await submitSquaddPrompt("", to: squadd, files: [staged]) == .started
+    }
+
+    /// Shows the prompt at once, uploads the staged files and sends it (#23). A prompt the companion
+    /// didn't take leaves the transcript and goes back to the composer (`.kept`) with the reason; its
+    /// files stay staged, so Send again retries them, and an upload already stored lands once.
+    fileprivate func submitSquaddPrompt(_ draft: String, to squadd: SquaddChatTurnCoordinator,
+                                        files: [PendingAttachment]? = nil) async -> ChatSendOutcome {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty else { return .kept }
-        // Files to a Squadd agent are their own ticket: refuse rather than drop them.
-        guard pendingAttachments.isEmpty else {
-            sendErrorMessage = String(localized: "Agents on the computer can't receive files yet. Remove them to send.")
+        let files = files ?? attachmentCoordinator.pendingAttachments
+        guard !text.isEmpty || !files.isEmpty, !isStartingChat else { return .kept }
+        // The companion refuses an empty goal; say so instead of a server error.
+        if SquaddSlashCommands.outgoing(text) == (text: "", mode: "goal") {
+            sendErrorMessage = String(localized: "Write the goal after /goal.")
             return .kept
         }
         let sendId = squadd.makeSendID()
         let rowID = "local-\(sendId)"
         sendErrorMessage = nil
-        messages.append(ChatMessage(role: "user", content: text, timestamp: Date().timeIntervalSince1970, messageId: rowID))
+        if !files.isEmpty { attachmentCoordinator.setUploadAttachmentError(nil) }
+        isStartingChat = true
+        defer { isStartingChat = false }
+        messages.append(ChatMessage(
+            role: "user", content: text, timestamp: Date().timeIntervalSince1970, messageId: rowID,
+            attachments: files.isEmpty ? nil : files.map { MessageAttachment(name: $0.name, mime: $0.mime, size: $0.size, isImage: $0.isImage) }
+        ))
+        attachmentCoordinator.keepLocalPreviews(of: files, forMessageID: rowID)
+        let outgoing = attachmentCoordinator.outgoingAttachments(files).enumerated().map { index, file in
+            SquaddChatTurnCoordinator.OutgoingFile(id: files[index].id, name: file.name, mime: file.mime, data: file.data)
+        }
         do {
-            try await squadd.send(text, sendId: sendId, localRowID: rowID)
-            return .started
+            // A queued send shows in the queue until it goes in, not as a sent row.
+            if try await squadd.send(text, files: outgoing, sendId: sendId, localRowID: rowID) {
+                messages.removeAll { $0.messageId == rowID }
+            }
+        } catch let failure as SquaddChatTurnCoordinator.UploadFailed {
+            rollbackOptimisticMessage(id: rowID)
+            sendErrorMessage = String(localized: "Couldn't upload \(failure.name). Your message and files are still here: send again to retry.")
+            return .kept
         } catch {
-            messages.removeAll { $0.messageId == rowID }
+            rollbackOptimisticMessage(id: rowID)
             sendErrorMessage = SquaddChatTurnCoordinator.failureMessage(error)
             return .kept
         }
+        await attachmentCoordinator.consumeSentAttachments(files)
+        return .started
     }
 }

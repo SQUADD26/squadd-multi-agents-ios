@@ -3,21 +3,73 @@ import Foundation
 /// `GET /api/bots` on a Squadd companion: the computer's agents, each with its own thread and
 /// the threads of its tasks. Everything but the ids is optional and an agent or task that fails
 /// to decode is skipped, so a companion that adds, drops or retypes a field never breaks the list.
-struct SquaddBotList: Decodable, Equatable {
+struct SquaddBotList: Codable, Equatable {
     let bots: [SquaddBot]
+    /// The rooms: chats with several agents (`groups`).
+    let rooms: [SquaddRoom]
 
-    private enum CodingKeys: String, CodingKey { case bots }
+    private enum CodingKeys: String, CodingKey { case bots, rooms = "groups" }
 
-    init(bots: [SquaddBot]) { self.bots = bots }
+    init(bots: [SquaddBot], rooms: [SquaddRoom] = []) {
+        self.bots = bots
+        self.rooms = rooms
+    }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         bots = (try? container.decodeIfPresent([Lossy<SquaddBot>].self, forKey: .bots))?.compactMap(\.value) ?? []
+        // A bot-to-bot channel (`dm`) is the agents' own, not a room the person opened.
+        rooms = ((try? container.decodeIfPresent([Lossy<SquaddRoom>].self, forKey: .rooms))?.compactMap(\.value) ?? [])
+            .filter { $0.isDirect != true }
     }
 }
 
+/// A room (`WireGroup`): several agents in one chat. Each of its `tasks` is a conversation of
+/// its own, one thread the members share; `threadId` is the one open on the desktop.
+struct SquaddRoom: Codable, Equatable, Identifiable {
+    let id: String
+    let threadId: String?
+    var name: String?
+    let memberIds: [String]
+    let unread: Bool?
+    let working: Bool?
+    var tasks: [SquaddTask]
+    let isDirect: Bool?
+
+    private enum CodingKeys: String, CodingKey { case id, threadId, name, memberIds, unread, working, tasks, isDirect = "dm" }
+
+    init(id: String, threadId: String?, name: String?, memberIds: [String], unread: Bool? = nil, working: Bool? = nil,
+         tasks: [SquaddTask] = []) {
+        self.id = id
+        self.threadId = threadId
+        self.name = name
+        self.memberIds = memberIds
+        self.unread = unread
+        self.working = working
+        self.tasks = tasks
+        isDirect = nil
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        threadId = try? container.decodeIfPresent(String.self, forKey: .threadId)
+        name = try? container.decodeIfPresent(String.self, forKey: .name)
+        memberIds = (try? container.decodeIfPresent([String].self, forKey: .memberIds)) ?? []
+        unread = try? container.decodeIfPresent(Bool.self, forKey: .unread)
+        working = try? container.decodeIfPresent(Bool.self, forKey: .working)
+        tasks = (try? container.decodeIfPresent([Lossy<SquaddTask>].self, forKey: .tasks))?.compactMap(\.value) ?? []
+        isDirect = try? container.decodeIfPresent(Bool.self, forKey: .isDirect)
+    }
+}
+
+/// `PATCH /api/groups/:id` and `POST /api/groups/:id/tasks` answer with the room as it now stands.
+struct SquaddRoomEnvelope: Decodable {
+    let group: SquaddRoom
+}
+
 /// One agent. `threadId` is its own chat; `tasks` are the other threads it works in.
-struct SquaddBot: Decodable, Equatable, Identifiable {
+struct SquaddBot: Codable, Equatable, Identifiable {
     let id: String
     let name: String?
     let title: String?
@@ -113,16 +165,21 @@ struct SquaddInstance: Decodable, Equatable {
     let displayName: String?
     let isAvailable: Bool
     let models: [Model]
+    /// The engine can run the computer's agent tools (`capabilities.agentsMcp`): the desktop
+    /// offers `/setup`, `/burst` and `/learn` only to an agent on such an engine.
+    let runsAgents: Bool
 
-    private enum CodingKeys: String, CodingKey { case instanceId, displayName, snapshot, models }
+    private enum CodingKeys: String, CodingKey { case instanceId, displayName, snapshot, models, capabilities }
     private enum SnapshotKeys: String, CodingKey { case state }
+    private enum CapabilityKeys: String, CodingKey { case agentsMcp }
     private enum ModelsKeys: String, CodingKey { case options }
 
-    init(instanceId: String, displayName: String?, isAvailable: Bool, models: [Model]) {
+    init(instanceId: String, displayName: String?, isAvailable: Bool, models: [Model], runsAgents: Bool = false) {
         self.instanceId = instanceId
         self.displayName = displayName
         self.isAvailable = isAvailable
         self.models = models
+        self.runsAgents = runsAgents
     }
 
     init(from decoder: Decoder) throws {
@@ -133,6 +190,8 @@ struct SquaddInstance: Decodable, Equatable {
         isAvailable = (try? snapshot?.decodeIfPresent(String.self, forKey: .state)) == "available"
         let models = try? container.nestedContainer(keyedBy: ModelsKeys.self, forKey: .models)
         self.models = (try? models?.decodeIfPresent([Lossy<Model>].self, forKey: .options))?.compactMap(\.value) ?? []
+        let capabilities = try? container.nestedContainer(keyedBy: CapabilityKeys.self, forKey: .capabilities)
+        runsAgents = (try? capabilities?.decodeIfPresent(Bool.self, forKey: .agentsMcp)) == true
     }
 }
 
@@ -168,7 +227,7 @@ extension SquaddBot {
 
 /// One of an agent's folders: a name, maybe an emoji, and the threads whose `projectId` is its id.
 /// Organizing only; a folder never owns settings or a working directory.
-struct SquaddProject: Decodable, Equatable, Identifiable {
+struct SquaddProject: Codable, Equatable, Identifiable {
     let id: String
     let name: String
     let emoji: String?
@@ -187,7 +246,7 @@ struct SquaddProjectResponse: Decodable {
 
 /// One task thread of an agent. The desktop lists an agent's threads pinned first, then by
 /// `lastThreadOrderAt` (else `createdAt`), newest first, and hides the archived ones.
-struct SquaddTask: Decodable, Equatable, Identifiable {
+struct SquaddTask: Codable, Equatable, Identifiable {
     let threadId: String
     var title: String?
     /// Milliseconds since 1970, like every companion time.
@@ -207,6 +266,8 @@ struct SquaddTask: Decodable, Equatable, Identifiable {
     private enum CodingKeys: String, CodingKey {
         case threadId, title, updatedAt, createdAt, lastThreadOrderAt, unread, busy, pinned, archivedAt, projectId
     }
+    /// A room's conversation says `working` where an agent's thread says `busy`.
+    private enum RoomKeys: String, CodingKey { case working }
 
     init(threadId: String, title: String?, updatedAt: Double? = nil, createdAt: Double? = nil, lastThreadOrderAt: Double? = nil,
          unread: Bool? = nil, busy: Bool? = nil, pinned: Bool? = nil, archivedAt: Double? = nil, projectId: String? = nil) {
@@ -230,7 +291,8 @@ struct SquaddTask: Decodable, Equatable, Identifiable {
         createdAt = try? container.decodeIfPresent(Double.self, forKey: .createdAt)
         lastThreadOrderAt = try? container.decodeIfPresent(Double.self, forKey: .lastThreadOrderAt)
         unread = try? container.decodeIfPresent(Bool.self, forKey: .unread)
-        busy = try? container.decodeIfPresent(Bool.self, forKey: .busy)
+        busy = (try? container.decodeIfPresent(Bool.self, forKey: .busy))
+            ?? (try? decoder.container(keyedBy: RoomKeys.self).decodeIfPresent(Bool.self, forKey: .working))
         pinned = try? container.decodeIfPresent(Bool.self, forKey: .pinned)
         archivedAt = try? container.decodeIfPresent(Double.self, forKey: .archivedAt)
         projectId = try? container.decodeIfPresent(String.self, forKey: .projectId)

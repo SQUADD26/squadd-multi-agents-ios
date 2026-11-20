@@ -154,9 +154,12 @@ struct ChatComposerSendButton: Equatable {
     /// every default, with nothing else to choose.
     let stagedFilesDropSteer: Bool
     private let queuesStagedFilesOnly: Bool
+    private let offersChoices: Bool
 
+    /// `offersChoices` false: Send does only `defaultBehavior`, with no card of choices.
     init(isWaitingForStream: Bool, hasText: Bool, hasQuotes: Bool, defaultBehavior: StreamingSendBehavior,
-         stagedFilesDropSteer: Bool = false) {
+         stagedFilesDropSteer: Bool = false, offersChoices: Bool = true) {
+        self.offersChoices = offersChoices
         showsStop = ChatComposerSendGate.showsStopButton(
             isWaitingForStream: isWaitingForStream, hasText: hasText, hasQuotes: hasQuotes
         ) && !stagedFilesDropSteer
@@ -182,7 +185,7 @@ struct ChatComposerSendButton: Equatable {
     /// The long-press choices, in the Bot card's order. On a webui session, staged
     /// files keep Steer: a steer carries them as an attached-files note (#856).
     var choices: [StreamingSendBehavior] {
-        guard runningBehavior != nil, !queuesStagedFilesOnly else { return [] }
+        guard runningBehavior != nil, !queuesStagedFilesOnly, offersChoices else { return [] }
         return stagedFilesDropSteer ? [.queue, .interrupt] : [.steer, .queue, .interrupt]
     }
 
