@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import HermesMobile
 
@@ -69,6 +70,63 @@ final class SquaddPresenceTests: XCTestCase {
         XCTAssertEqual(attempts, 2, "a computer that didn't answer gets the next minute's ping")
     }
 
+    /// The real home with the scene phase driven by the test: it pings only while the scene is
+    /// active, nothing while it is in the background, and again as soon as the app is back.
+    func testTheHomePingsInFrontAndNotInTheBackground() async throws {
+        let studio = URL(string: "http://mac-studio.tailnet.test:8810")!
+        let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/Squadd")
+        let bots = try Data(contentsOf: fixtures.appendingPathComponent("bots.json"))
+        let presence = try Data(contentsOf: fixtures.appendingPathComponent("presence.json"))
+        let loaded = expectation(description: "agents read")
+        loaded.assertForOverFulfill = false
+        Self.phase = .background
+        Self.pingedIn = []
+        SquaddHTTPFixture.handler = { request in
+            switch request.url?.path {
+            case "/api/bots": loaded.fulfill(); return (200, bots)
+            case "/api/presence/active":
+                Self.pingedIn.append(Self.phase)
+                Self.onPing?()
+                return (200, presence)
+            default: return (404, Data())
+            }
+        }
+        URLProtocol.registerClass(SquaddHTTPFixture.self)
+        defer { URLProtocol.unregisterClass(SquaddHTTPFixture.self) }
+        let keychain = InMemoryKeychainStore()
+        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(),
+                                  serverRegistry: ServerRegistry.inMemory(keychain: keychain),
+                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
+        try manager.addSquaddServer(address: studio, token: "token-studio")
+        let scene = PhaseHolder()
+        let window = UIWindow(windowScene: try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first))
+        window.rootViewController = UIHostingController(rootView: PhaseHost(holder: scene) {
+            SquaddServerHome(authManager: manager, server: studio, pendingThread: .constant(nil))
+        })
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; Self.onPing = nil }
+
+        // Opened in the background: the home reads its agents but tells the computer nothing.
+        await fulfillment(of: [loaded], timeout: 5)
+        for _ in 0..<20 { await Task.yield() }
+
+        for round in 1...2 {
+            let pinged = expectation(description: "ping \(round) once in front")
+            Self.onPing = { pinged.fulfill() }
+            Self.phase = .active
+            scene.phase = .active
+            await fulfillment(of: [pinged], timeout: 5)
+            Self.phase = .background
+            scene.phase = .background
+            for _ in 0..<20 { await Task.yield() }
+        }
+        XCTAssertEqual(Self.pingedIn, [.active, .active], "one ping each time the app comes to the front, none in the background")
+    }
+
+    nonisolated(unsafe) private static var phase: ScenePhase = .background
+    nonisolated(unsafe) private static var pingedIn: [ScenePhase] = []
+    nonisolated(unsafe) private static var onPing: (() -> Void)?
+
     private nonisolated static func read(_ stream: InputStream) -> Data {
         stream.open()
         defer { stream.close() }
@@ -81,4 +139,16 @@ final class SquaddPresenceTests: XCTestCase {
         }
         return data
     }
+}
+
+@Observable
+private final class PhaseHolder {
+    var phase: ScenePhase = .background
+}
+
+/// Hands its content the scene phase the test sets, as the system does for the app's scene.
+private struct PhaseHost<Content: View>: View {
+    let holder: PhaseHolder
+    @ViewBuilder let content: () -> Content
+    var body: some View { content().environment(\.scenePhase, holder.phase) }
 }
