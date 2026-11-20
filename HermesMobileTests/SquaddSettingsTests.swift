@@ -219,10 +219,16 @@ final class SquaddSettingsPhotoTests: XCTestCase {
             try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
         }
 
+        // Every screen's data before the first photo: each page then opens already loaded and stills sooner.
+        async let engines: Void = model.loadEngines()
+        async let keys: Void = model.loadKeys()
+        async let memory: Void = model.loadMemory()
+        _ = await (engines, keys, memory, model.loadAgents())
+        let agent = try XCTUnwrap(model.agents.first)
+        await model.loadTools(for: agent)
+
         try await shoot("f2-engines", NavigationStack { SquaddEnginesPage(model: model) }) { model.enginesPhase == .loaded }
         try await shoot("f3-keys", NavigationStack { SquaddKeysPage(model: model) }) { model.keysPhase == .loaded }
-        await model.loadAgents()
-        let agent = try XCTUnwrap(model.agents.first)
         try await shoot("f5-agent-tools", NavigationStack { SquaddAgentToolsPage(model: model, agent: agent) }) {
             model.tools[agent.id]?.phase == .loaded
         }
