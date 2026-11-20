@@ -516,7 +516,6 @@ final class SquaddChatTurnCoordinator {
         }
     }
 
-    /// Takes a changed copy of a row already read; only its marks can differ on screen.
     // MARK: Approvals (#14)
 
     /// Answers the pinned approval: Allow once and Deny as they say, Allow session asks the engine
@@ -555,6 +554,7 @@ final class SquaddChatTurnCoordinator {
         pendingApproval = next
     }
 
+    /// Takes a changed copy of a row already read; only its marks can differ on screen.
     private func store(_ message: SquaddMessage) {
         if let index = pageMessages.firstIndex(where: { $0.id == message.id }) {
             pageMessages[index] = message

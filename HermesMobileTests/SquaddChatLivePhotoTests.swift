@@ -210,10 +210,34 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         note("run finished: \(finished == true), last: \(model.messages.last?.content?.prefix(80) ?? "none")")
         try await readyPhoto(of: window).write(to: folder.appendingPathComponent("14-c-live-after-allow.png"))
 
+        // Always allow: the card offers it where the computer gives a grant key (a read-only MCP tool here); once
+        // chosen, the same request runs on the next turn without a card.
+        let again = Task { await model.send("Read the notes") }
+        let grantable = try await settle(seconds: 60) { turn.pendingApproval?.content.choices.contains(.always) == true ? turn.pendingApproval : nil }
+        note("second card: \(grantable.map { "\($0.card.subtitle ?? "?") / \($0.content.choices) / key \($0.card.allowKey ?? "none")" } ?? "none")")
+        try await readyPhoto(of: window).write(to: folder.appendingPathComponent("14-d-live-always-allow.png"))
+        let always = await turn.answerApproval(.always)
+        note("always: \(always), error: \(turn.approvalError ?? "none"), card after: \(turn.pendingApproval == nil ? "gone" : "still there")")
+        note("send outcome: \(await again.value)")
+        _ = try await settle(seconds: 60) { model.activeStreamID == nil ? true : nil }
+
+        let rows = model.messages.count
+        let third = Task { await model.send("Read the notes once more") }
+        var askedAgain = false
+        let thirdDone = try await settle(seconds: 60) { () -> Bool? in
+            if turn.pendingApproval != nil { askedAgain = true }
+            return model.activeStreamID == nil && model.messages.count > rows + 1 && model.messages.last?.role == "assistant" ? true : nil
+        }
+        note("third run: \(await third.value), finished \(thirdDone == true), asked again: \(askedAgain), last: \(model.messages.last?.content?.prefix(80) ?? "none")")
+        try await readyPhoto(of: window).write(to: folder.appendingPathComponent("14-e-live-granted-run.png"))
+
         XCTAssertNotNil(approval, "the companion's card showed")
         XCTAssertTrue(answered)
-        XCTAssertNil(turn.pendingApproval)
         XCTAssertEqual(finished, true, "the run went on after Allow")
+        XCTAssertNotNil(grantable, "the companion offered Always allow")
+        XCTAssertTrue(always)
+        XCTAssertEqual(thirdDone, true)
+        XCTAssertFalse(askedAgain, "the saved grant let the tool run without a card")
     }
 
     /// Finds the companion through the tunnel, pushes the first agent thread's chat, and waits for it to load.
