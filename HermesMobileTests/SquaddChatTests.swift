@@ -1413,12 +1413,9 @@ final class SquaddCardPhotoTests: XCTestCase {
         let dir = URL(fileURLWithPath: path!)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let hosted = URL(string: "https://computer.example.com")!, lan = URL(string: "http://192.0.2.10:8810")!
-        // A QR pairing's key for the hosted computer, so its card offers the field.
-        let keychain = KeychainStore()
+        // A QR pairing's key, as the hosted computer's card needs to offer the field.
         let pairing = SquaddSecretPairing(deviceId: "81fc5c68-67d2-4cb3-816b-3f8ef798bb71",
                                           secretKey: P256.KeyAgreement.PrivateKey().publicKey.x963Representation)
-        try keychain.save(String(decoding: JSONEncoder().encode(pairing), as: UTF8.self), forKey: .squaddSecretPairing, scope: hosted.absoluteString)
-        defer { try? keychain.delete(.squaddSecretPairing, scope: hosted.absoluteString) }
         let shots: [(String, URL, String, String, String)] = [
             ("16-a-secret-card.png", hosted, "thread-secret-open.json", "4e9fe664-9e3b-45ed-9c8f-9366369317d4", "0c77ddcf-6ac3-4f84-8d53-1cd9d9d4a0e8"),
             ("16-b-secret-on-lan.png", lan, "thread-secret-open.json", "4e9fe664-9e3b-45ed-9c8f-9366369317d4", "0c77ddcf-6ac3-4f84-8d53-1cd9d9d4a0e8"),
@@ -1446,6 +1443,7 @@ final class SquaddCardPhotoTests: XCTestCase {
                 try await Task.sleep(for: .milliseconds(50))
             }
             XCTAssertNotNil(continuity.model?.squaddTurn?.pendingCard, name)
+            continuity.model?.squaddTurn?.secretPairing = { pairing }
             try await readyPhoto(of: window).write(to: dir.appendingPathComponent(name))
             continuity.model?.squaddTurn?.stop()
             window.isHidden = true

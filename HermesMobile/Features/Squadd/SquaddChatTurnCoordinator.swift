@@ -152,7 +152,7 @@ final class SquaddChatTurnCoordinator {
     private(set) var cardError: String?
     @ObservationIgnored private var openCards: [String: SquaddMessage] = [:]
     /// The device id and computer key a QR pairing saved, read when a secret goes out; tests pass their own.
-    @ObservationIgnored var secretPairing: () -> SquaddSecretPairing? = { nil }
+    var secretPairing: () -> SquaddSecretPairing? = { nil }
     /// The rows of the last exchange on screen, from this person's last typed message on, which offer
     /// Undo; and whether it can go: not when that message is the thread's first (#20).
     private(set) var lastExchangeRowIDs: Set<String> = []
