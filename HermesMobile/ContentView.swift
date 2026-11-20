@@ -126,12 +126,14 @@ struct ContentView: View {
         }
     }
 
+    private var opened: URL? { authManager.state.openedServer(kind: authManager.kind(of:)) }
+
     @ViewBuilder
     private var content: some View {
         switch authManager.state {
         case .unconfigured:
             OnboardingView(authManager: authManager)
-        case .loggedOut where authManager.state.openedServer == nil, .loggedIn where authManager.state.openedServer == nil:
+        case .loggedOut where opened == nil, .loggedIn where opened == nil:
             OnboardingView(authManager: authManager)
         case .loggedOut(let server) where authManager.kind(of: server) == .hermes:
             HermesServerSignIn(authManager: authManager, server: server)
@@ -1228,13 +1230,13 @@ struct PendingLinks {
 
 extension AuthManager.State {
     /// The saved server the root opens, its home or its sign-in; nil when the root shows
-    /// onboarding. With the Hermes backends off (ADR 0002) no saved server opens, since every one
-    /// is webui or Hermes, whichever way it became active: launch, a switch or a link.
-    var openedServer: URL? {
-        guard HermesBackends.isEnabled else { return nil }
+    /// onboarding. With the Hermes backends off (ADR 0002) only a Squadd computer opens: a webui or
+    /// Hermes one stays shut whichever way it became active, launch, a switch or a link.
+    func openedServer(kind: (URL) -> ServerKind) -> URL? {
         switch self {
         case .unconfigured: return nil
-        case .loggedOut(let server), .loggedIn(let server): return server
+        case .loggedOut(let server), .loggedIn(let server):
+            return HermesBackends.isEnabled || kind(server) == .squadd ? server : nil
         }
     }
 }

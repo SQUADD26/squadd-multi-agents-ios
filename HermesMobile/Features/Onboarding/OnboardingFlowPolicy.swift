@@ -6,6 +6,14 @@ enum OnboardingFlowPolicy {
     static let setupPageCount = 2
     static let agentPromptPageIndex = 0
 
+    /// Where the welcome page's main button goes: the Add Server sheet, or, without the Hermes
+    /// backends (the Squadd build), the pairing screen (#10).
+    enum WelcomeDestination { case addServer, pairing }
+
+    static func welcomeDestination(backendsEnabled: Bool) -> WelcomeDestination {
+        backendsEnabled ? .addServer : .pairing
+    }
+
     static let webUISetupPrompt = """
 Set up Hermes Web UI on this machine for access from my iPhone via Tailscale.
 
