@@ -44,7 +44,8 @@ struct ApprovalRequestInset: View {
     var summary: ApprovalSummaryPresentation? = nil
     let isHapticsEnabled: Bool
     let onChoice: (ApprovalChoice) -> Void
-    let onSkipAll: () -> Void
+    /// Nil hides Skip all, where the server has no session bypass (Squadd).
+    let onSkipAll: (() -> Void)?
     let onStop: () -> Void
     let onDismissKeyboard: () -> Void
     /// The bar's height, the only part of this view that takes layout space.
@@ -148,7 +149,8 @@ struct ApprovalRequestCard: View {
     let isResponding: Bool
     let errorMessage: String?
     let onChoice: (ApprovalChoice) -> Void
-    let onSkipAll: () -> Void
+    /// Nil hides Skip all, where the server has no session bypass (Squadd).
+    let onSkipAll: (() -> Void)?
     var summary: ApprovalSummaryPresentation? = nil
     /// The header's collapse control; nil leaves it out.
     var onCollapse: (() -> Void)? = nil
@@ -255,14 +257,16 @@ struct ApprovalRequestCard: View {
                 }
             }
 
-            Button {
-                onSkipAll()
-            } label: {
-                Label("Skip all this session", systemImage: "bolt.slash")
-                    .frame(maxWidth: .infinity)
+            if let onSkipAll {
+                Button {
+                    onSkipAll()
+                } label: {
+                    Label("Skip all this session", systemImage: "bolt.slash")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.chatDecision(.secondary))
+                .disabled(isResponding)
             }
-            .buttonStyle(.chatDecision(.secondary))
-            .disabled(isResponding)
         }
     }
 

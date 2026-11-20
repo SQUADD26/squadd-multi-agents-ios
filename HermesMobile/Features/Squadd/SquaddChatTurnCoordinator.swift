@@ -135,6 +135,14 @@ final class SquaddChatTurnCoordinator {
     }
     /// Versions and reactions by on-screen row id; rows with neither are absent.
     private(set) var marks: [String: SquaddRowMarks] = [:]
+    /// The oldest approval the agent waits on in this thread (#14), pinned above the composer.
+    private(set) var pendingApproval: SquaddPendingApproval?
+    private(set) var isAnsweringApproval = false
+    /// Why the last answer didn't go through; cleared when another approval takes the slot.
+    private(set) var approvalError: String?
+    /// Every approval still waiting here, by stored message id: answered here, on the desktop or
+    /// on another phone, its card's patch takes it out.
+    @ObservationIgnored private var openApprovals: [String: SquaddMessage] = [:]
     /// The rows of the last exchange on screen, from this person's last typed message on, which offer
     /// Undo; and whether it can go: not when that message is the thread's first (#20).
     private(set) var lastExchangeRowIDs: Set<String> = []
@@ -351,6 +359,8 @@ final class SquaddChatTurnCoordinator {
             newestPageStart = page.messages.first?.id
             pageMessages = page.messages
             activeLeafID = page.activeLeafId
+            openApprovals = [:]
+            (olderMessages + pageMessages).forEach(trackApproval)
             delegate?.squaddConnectionDidChange(failure: nil)
             let rows = transcriptRows(of: olderMessages + pageMessages)
             shownRows = rows
@@ -513,6 +523,44 @@ final class SquaddChatTurnCoordinator {
         }
     }
 
+    // MARK: Approvals (#14)
+
+    /// Answers the pinned approval: Allow once and Deny as they say, Allow session asks the engine
+    /// to remember it (`always`), Always allow first saves the card's grant for the bot. The card
+    /// leaves once the computer took the answer; a refusal stays on it as `approvalError`.
+    func answerApproval(_ choice: ApprovalChoice) async -> Bool {
+        guard let approval = pendingApproval, !isAnsweringApproval else { return false }
+        isAnsweringApproval = true
+        approvalError = nil
+        defer { isAnsweringApproval = false }
+        do {
+            if choice == .always, let allowKey = approval.card.allowKey {
+                try await client.alwaysAllow(botId: approval.botId ?? chat.botId, threadId: chat.threadId, allowKey: allowKey)
+            }
+            try await client.respond(threadId: chat.threadId, requestId: approval.requestId,
+                                     behavior: choice == .deny ? "deny" : "allow", always: choice == .session)
+            openApprovals[approval.messageId] = nil
+            refreshPendingApproval()
+            return true
+        } catch {
+            approvalError = Self.failureMessage(error)
+            return false
+        }
+    }
+
+    private func trackApproval(_ message: SquaddMessage) {
+        guard let card = message.card, card.requestType == "permission", card.requestId != nil else { return }
+        openApprovals[message.id] = card.isOpen ? message : nil
+        refreshPendingApproval()
+    }
+
+    private func refreshPendingApproval() {
+        let next = openApprovals.values.min { ($0.at ?? 0, $0.id) < ($1.at ?? 0, $1.id) }.flatMap(SquaddPendingApproval.init)
+        guard next != pendingApproval else { return }
+        if next?.messageId != pendingApproval?.messageId { approvalError = nil }
+        pendingApproval = next
+    }
+
     /// Takes a changed copy of a row already read; only its marks can differ on screen.
     private func store(_ message: SquaddMessage) {
         if let index = pageMessages.firstIndex(where: { $0.id == message.id }) {
@@ -650,6 +698,7 @@ final class SquaddChatTurnCoordinator {
             delegate?.streamCoordinatorAppendToken(text)
         case .message(let threadId, let message) where threadId == chat.threadId:
             store(message)
+            trackApproval(message)
             if let sendId = message.sendId, let index = queuedPrompts.firstIndex(where: { $0.sendId == sendId }) {
                 // A queued send went in: it shows as sent, and the stored copy replaces it in place.
                 let queued = queuedPrompts.remove(at: index)
@@ -776,4 +825,33 @@ extension SquaddChatTurnCoordinator: ChatTurnCoordinating {
 
     func recoverStaleStreamIfNeeded(now: Date, modelContext: ModelContext?) async {}
     func clearReplayConnection() {}
+}
+
+/// An approval a Squadd agent waits on: the stored card and what the phone offers for it.
+struct SquaddPendingApproval: Equatable {
+    let messageId: String
+    let requestId: String
+    /// The agent that asked; in a room, the member's own.
+    let botId: String?
+    let card: SquaddCard
+
+    init?(_ message: SquaddMessage) {
+        guard let card = message.card, let requestId = card.requestId else { return nil }
+        messageId = message.id
+        self.requestId = requestId
+        botId = message.from?.botId
+        self.card = card
+    }
+
+    /// Allow once and Deny always; Allow session where the engine can remember it, Always allow
+    /// where the computer can.
+    var choices: [ApprovalChoice] {
+        [.once] + (card.allowSession == true ? [.session] : []) + (card.allowKey != nil ? [.always] : []) + [.deny]
+    }
+
+    /// The card's words as the computer wrote them: its title, then what the agent wants to run.
+    var content: ApprovalRequestContent {
+        ApprovalRequestContent(description: card.title, command: card.subtitle, scopeLine: nil, pendingCount: 1,
+                               choices: choices)
+    }
 }
