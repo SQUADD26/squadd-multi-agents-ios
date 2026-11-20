@@ -30,6 +30,19 @@ struct SquaddCompanionClient {
         return try JSONDecoder().decode(SquaddBotList.self, from: data).bots
     }
 
+    /// Tells the computer the person has the app open (`POST /api/presence/active`, the route the
+    /// companion's whitelist allows), so it knows to reach them on the phone. `threadId` is the chat
+    /// on screen, if one is.
+    func presenceActive(timeZone: String = TimeZone.current.identifier,
+                        language: String? = Bundle.main.preferredLocalizations.first,
+                        threadId: String? = nil) async throws {
+        var body = ["source": "phone", "timeZone": timeZone]
+        // The companion takes a BCP 47 tag in lower case (`it`, `pt-br`).
+        if let language { body["language"] = language.lowercased() }
+        if let threadId { body["threadId"] = threadId }
+        _ = try await Self.send(request("api/presence/active", method: "POST", body: body), session: session)
+    }
+
     /// Opens a new thread for `botId`. `select: false` leaves the desktop on the thread it shows.
     func createTask(botId: String, title: String? = nil) async throws -> SquaddTask {
         var body: [String: Any] = ["select": false]

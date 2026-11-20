@@ -38,6 +38,7 @@ struct SquaddServerHome: View {
     /// The row a thread link pointed at, marked until the next link.
     @State private var linkedRow: String?
     @State private var isLinkedThreadMissing = false
+    @Environment(\.scenePhase) private var scenePhase
     /// Made once in `.task`, not in `init`, so a pass of the parent reads no Keychain.
     @State private var model: SquaddAgentListModel?
     @State private var client: SquaddCompanionClient?
@@ -109,6 +110,12 @@ struct SquaddServerHome: View {
             if !searchText.isEmpty { try? await Task.sleep(for: .milliseconds(300)) }
             guard !Task.isCancelled, let model else { return }
             if await !model.search(searchText) { toast.show(.failure(String(localized: "Couldn’t search the computer."))) }
+        }
+        // Present for Squadd while the app is in front; leaving cancels the pings (`SquaddPresence`).
+        .task(id: scenePhase == .active) {
+            guard scenePhase == .active, let token = authManager.squaddToken(for: server) else { return }
+            let client = SquaddCompanionClient(server: server, token: token)
+            await SquaddPresence.keepAlive { try await client.presenceActive() }
         }
         .sheet(isPresented: $isShowingSettings) {
             NavigationStack {
