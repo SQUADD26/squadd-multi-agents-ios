@@ -165,7 +165,7 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         await missing.dismiss(animated: false)
         mark("dismissed")
         router.requestDeepLink(SquaddThreadLink(threadID: "t", server: URL(string: "http://other.tailnet.test:8810")!).url)
-        let unpaired = try await presentedAlert()
+        let unpaired = try await presentedAlert(after: missing)
         XCTAssertEqual(unpaired.title, String(localized: "Computer Not Paired"))
         mark("alert2")
         XCTAssertEqual(manager.state, .loggedIn(server: studio), "a link to an unpaired computer switches nothing")
@@ -227,15 +227,21 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         return router
     }
 
-    /// The alert the window presents next, as soon as UIKit has it.
-    private func presentedAlert() async throws -> UIAlertController {
+    /// The alert the window shows next, once it has finished appearing (an alert still appearing
+    /// can't be dismissed), other than `previous`.
+    private func presentedAlert(after previous: UIAlertController? = nil) async throws -> UIAlertController {
+        func shown() -> UIAlertController? {
+            guard let alert = window?.rootViewController?.presentedViewController as? UIAlertController,
+                  alert !== previous, !alert.isBeingPresented else { return nil }
+            return alert
+        }
         let end = ContinuousClock.now + .seconds(5)
         while ContinuousClock.now < end {
-            if let alert = window?.rootViewController?.presentedViewController as? UIAlertController { return alert }
+            if let alert = shown() { return alert }
             // test-wait: UIKit says nothing when SwiftUI presents an alert; checks each 20 ms.
             try await Task.sleep(for: .milliseconds(20))
         }
-        return try XCTUnwrap(window?.rootViewController?.presentedViewController as? UIAlertController, "an alert")
+        return try XCTUnwrap(shown(), "an alert")
     }
 
     /// Writes `<name>.png` once `ready` holds and the screen has settled (`readyPhoto`).
