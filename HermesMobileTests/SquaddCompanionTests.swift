@@ -656,6 +656,8 @@ final class SquaddShareTests: XCTestCase {
                                   hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
         try manager.addSquaddServer(address: studio, token: "token-share")
         let key = ChatView.draftKey(for: SessionSummary(sessionId: created, title: "Prova A"), server: studio)
+        // The simulator keeps drafts between runs: a stale one would come back next to the share.
+        ChatDraftStore.shared.clearDraft(for: key)
         addTeardownBlock { @MainActor in ChatDraftStore.shared.clearDraft(for: key) }
         let share = SharedImportReservation(
             itemID: "share-1", reservationID: "reservation-1", createdAt: .now,
