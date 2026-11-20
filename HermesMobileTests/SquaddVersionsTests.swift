@@ -146,7 +146,7 @@ final class SquaddVersionsTests: XCTestCase {
         configuration.protocolClasses = [SquaddChatFixture.self]
         let chat = SquaddThreadChat(server: Self.server, token: "device-token", botId: Self.botId, threadId: Self.threadId, title: "Prova")
         let coordinator = SquaddChatTurnCoordinator(chat, session: URLSession(configuration: configuration),
-                                                    retryDelay: { _ in try await Task.sleep(for: .seconds(3600)) })
+                                                    reconnectDelay: { _ in try await Task.sleep(for: .seconds(3600)) })
         addTeardownBlock { coordinator.stop() }
         let model = ChatViewModel(session: chat.session, server: Self.server, streamingRevealTick: {}, backend: .squadd(coordinator))
         return (model, coordinator)
