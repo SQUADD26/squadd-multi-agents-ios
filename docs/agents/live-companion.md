@@ -4,7 +4,7 @@ Use this when a proof needs the real app talking to a real Squadd companion: pai
 
 The sandbox runs a disposable server and companion, a public HTTPS tunnel exposes the companion, and a workflow on a `foto/<issue>-live` branch runs one test class on the maintainer's Mac runner against it.
 
-1. **Disposable server and companion.** In your own worktree of `openmausbot` (`git worktree add --detach <dir> origin/dev`), with `HOME` in your scratchpad and ports of your own (other sessions use 18899-18911, 19737, 20410-20411):
+1. **Disposable server and companion.** In your own worktree of `openmausbot` (`git worktree add --detach <dir> origin/dev`, then in it `pnpm install --frozen-lockfile --ignore-scripts`, about 2 s: a new worktree has no `node_modules`, and a link to another checkout's misses packages added on `dev` since, so the server stops with `ERR_MODULE_NOT_FOUND`), with `HOME` in your scratchpad and ports of your own (other sessions use 18899-18911, 19737, 20410-20411):
    `OMB_PORT=<p> OMB_WEBHOOK_PORT=<p+1> FAKE_CLAUDE_MODE=happy OMB_TEST_SEALED_PATH=1 OMB_DISABLE_ANNOUNCEMENTS=1 timeout 7200 node server/index.ts`
    `OMB_PORT=<p> OMB_COMPANION_PORT=<c> OMB_CONTROL_PORT=<c+1> OMB_CONTROL_TOKEN=<random> OMB_COMPANION_DIR=<dir> OMB_COMPANION_BONJOUR=0 timeout 7200 node companion/src/index.ts`
 2. **Pair.** `POST :<c+1>/pairing` with header `x-openmausbot-control-token` gives a `code`; `POST :<c>/api/pair` with `{"code","deviceName"}` gives the device `token`.
