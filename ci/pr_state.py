@@ -79,6 +79,10 @@ def main(branch, head):
         workspace.rename(parked / "src")
     if derived.exists():
         derived.rename(parked / "dd")
+    for live in (workspace, derived):
+        if live.exists():  # recreated behind the parked state, e.g. by a cancelled run's build still writing
+            discard(work, live, f"{mine}-{live.name}")
+            print(f"Build state: {live.name} was back after parking; discarding it")
     if (states / mine).is_dir():
         (states / mine / "src").rename(workspace)
         (states / mine / "dd").rename(derived)
