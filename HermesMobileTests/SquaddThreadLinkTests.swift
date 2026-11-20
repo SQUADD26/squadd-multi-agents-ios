@@ -219,6 +219,9 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
     /// Writes `<name>.png` once `ready` holds and the screen has settled (`readyPhoto`).
     private func shoot(_ name: String, dir: URL, until ready: () -> Bool) async throws {
         let window = try XCTUnwrap(window)
-        try await readyPhoto(of: window, until: ready, limit: .seconds(5)).write(to: dir.appendingPathComponent("\(name).png"))
+        let start = ContinuousClock.now
+        var readyAt: Duration?
+        try await readyPhoto(of: window, until: { if ready() { readyAt = readyAt ?? ContinuousClock.now - start; return true }; return false }, limit: .seconds(5)).write(to: dir.appendingPathComponent("\(name).png"))
+        print("TIMING \(name) ready \(readyAt.map { "\($0)" } ?? "-") total \(ContinuousClock.now - start)")
     }
 }
