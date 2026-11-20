@@ -167,6 +167,18 @@ struct SquaddTask: Decodable, Equatable, Identifiable {
 struct SquaddPairResponse: Decodable {
     let token: String
     let serverName: String?
+    /// The computer's routes, best first (#9); a companion without them sends none.
+    let endpoints: [SquaddEndpoint]
+
+    private enum CodingKeys: String, CodingKey { case token, serverName, endpoints }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        token = try container.decode(String.self, forKey: .token)
+        serverName = try container.decodeIfPresent(String.self, forKey: .serverName)
+        endpoints = ((try? container.decodeIfPresent([SquaddLossy<SquaddEndpoint>].self, forKey: .endpoints)) ?? nil)?
+            .compactMap(\.value) ?? []
+    }
 }
 
 /// An element that decodes to nil instead of failing the array around it.

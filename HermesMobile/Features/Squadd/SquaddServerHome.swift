@@ -29,6 +29,7 @@ struct SquaddServerHome: View {
     /// Made once in `.task`, not in `init`, so a pass of the parent reads no Keychain.
     @State private var model: SquaddAgentListModel?
     @State private var client: SquaddCompanionClient?
+    @State private var finder: SquaddRouteFinder?
     @State private var editingAgent: SquaddBot?
     @State private var isCreatingAgent = false
     @State private var isShowingSettings = false
@@ -40,6 +41,7 @@ struct SquaddServerHome: View {
                 SessionsHeader(logoColor: HeaderLogoColor.color(for: identity.headerLogoColorHex), avatar: avatar,
                                isSearchDisabled: true, openSearch: {})
                     .sessionsTopChromeListRow()
+                routeRow
                 rows
             }
             .refreshable { await model?.load() }
@@ -54,7 +56,13 @@ struct SquaddServerHome: View {
                     onUnpaired: { [weak authManager, server] in authManager?.squaddUnpaired(server: server) }
                 )
             }
+            let finder = finder ?? SquaddRouteFinder(server: server, book: authManager.squaddRoutes(for: server))
+            self.finder = finder
+            let model = model
+            // The agents load over the route just found, then follow it while the home is on screen.
+            await finder.find()
             await model?.load()
+            await finder.follow { await model?.load() }
         }
         .sheet(isPresented: $isShowingSettings) {
             NavigationStack {
@@ -79,6 +87,38 @@ struct SquaddServerHome: View {
                 onChange: { Task { await model?.load() } },
                 onUnpaired: { [weak authManager, server] in authManager?.squaddUnpaired(server: server) }
             )
+        }
+    }
+
+    /// How the iPhone reaches the computer right now (#9): over the internet, through the tailnet, or on
+    /// this Wi-Fi.
+    @ViewBuilder
+    private var routeRow: some View {
+        if let finder, !(finder.route == nil && !finder.isSearching) {
+            Label {
+                switch finder.route?.kind {
+                case .hosted: Text("Connected over the internet")
+                case .tailnet: Text("Connected through Tailscale")
+                case .lan, .bonjour: Text("Connected on this Wi-Fi")
+                case nil: Text("Finding the computer…")
+                }
+            } icon: {
+                Image(systemName: finder.route.map(Self.symbol) ?? "antenna.radiowaves.left.and.right")
+            }
+            .font(AppFont.footnote())
+            .foregroundStyle(.secondary)
+            .accessibilityElement(children: .combine)
+            .padding(.horizontal, 24)
+            .padding(.top, 8)
+            .sessionsScreenListRow()
+        }
+    }
+
+    private static func symbol(_ route: SquaddEndpoint) -> String {
+        switch route.kind {
+        case .hosted: "globe"
+        case .tailnet: "point.3.connected.trianglepath.dotted"
+        case .lan, .bonjour: "wifi"
         }
     }
 

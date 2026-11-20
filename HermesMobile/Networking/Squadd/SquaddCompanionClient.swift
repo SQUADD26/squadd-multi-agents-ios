@@ -20,13 +20,18 @@ enum SquaddError: Error, Equatable {
 /// carries the device token as a bearer and no `Origin` header: the companion refuses any
 /// request with one as a browser (403) before it looks at the token.
 struct SquaddCompanionClient {
+    /// The paired computer, as the server list knows it.
     let server: URL
     let token: String
     var session: URLSession = .shared
 
+    /// Where requests go: the route `SquaddRoutes` found for this computer (#9), else the address it was
+    /// paired at. Read per request, so a client made before a network change follows it.
+    var base: URL { SquaddRoutes.shared.route(for: server)?.url ?? server }
+
     /// The computer's agents and their task threads.
     func bots() async throws -> [SquaddBot] {
-        var request = URLRequest(url: server.appendingPathComponent("api/bots"))
+        var request = URLRequest(url: base.appendingPathComponent("api/bots"))
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         let data = try await Self.send(request, session: session)
         return try JSONDecoder().decode(SquaddBotList.self, from: data).bots
@@ -79,7 +84,7 @@ struct SquaddCompanionClient {
     }
 
     private func request(_ path: String, method: String = "GET") -> URLRequest {
-        var request = URLRequest(url: server.appendingPathComponent(path))
+        var request = URLRequest(url: base.appendingPathComponent(path))
         request.httpMethod = method
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         return request

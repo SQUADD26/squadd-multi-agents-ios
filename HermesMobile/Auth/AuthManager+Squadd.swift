@@ -40,8 +40,11 @@ extension AuthManager {
             server: invite.server, credential: invite.credential, deviceName: deviceName, requestID: invite.requestID,
             // No token after a revocation: the computer already dropped that device, so nothing to replace.
             replacesToken: existing == nil ? nil : squaddToken(for: invite.server), session: session)
+        let book = SquaddRouteBook(name: reply.serverName ?? invite.name,
+                                   endpoints: reply.endpoints.isEmpty ? invite.endpoints : reply.endpoints)
         guard let existing else {
             try addSquaddServer(address: invite.server, token: reply.token)
+            saveSquaddRoutes(book, for: invite.server)
             // A new server is named after its host; the computer's own name reads better.
             if let name = (reply.serverName ?? invite.name)?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty,
                let account = servers.first(where: { $0.id == invite.server.absoluteString }) {
@@ -52,7 +55,21 @@ extension AuthManager {
             return
         }
         try repairSquaddServer(invite.server, token: reply.token)
+        saveSquaddRoutes(book, for: invite.server)
         switchActiveServer(to: existing)
+    }
+
+    /// The routes and name a Squadd computer gave at its last pairing; empty before any.
+    func squaddRoutes(for server: URL) -> SquaddRouteBook {
+        let json = (try? keychain.load(.squaddRoutes, scope: server.absoluteString)) ?? nil
+        return json.flatMap { try? JSONDecoder().decode(SquaddRouteBook.self, from: Data($0.utf8)) }
+            ?? SquaddRouteBook(name: nil, endpoints: [])
+    }
+
+    /// Losing the routes costs only the fallback walk, never the pairing: the address paired at still works.
+    private func saveSquaddRoutes(_ book: SquaddRouteBook, for server: URL) {
+        guard let data = try? JSONEncoder().encode(book) else { return }
+        try? keychain.save(String(decoding: data, as: UTF8.self), forKey: .squaddRoutes, scope: server.absoluteString)
     }
 
     /// Pairs the saved Squadd server at `server` again with a new token: the pair-again screen's way
@@ -84,5 +101,7 @@ extension AuthManager {
     func removeSignIn(for server: URL) {
         removeBotConnection(for: server)
         try? keychain.delete(.squaddDeviceToken, scope: server.absoluteString)
+        try? keychain.delete(.squaddRoutes, scope: server.absoluteString)
+        SquaddRoutes.shared.set(nil, for: server)
     }
 }
