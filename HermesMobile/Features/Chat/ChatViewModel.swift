@@ -636,7 +636,13 @@ final class ChatViewModel {
     /// discards it. Their reference lines are chips, as on a sent row, and so are the photos a
     /// canonical send carried (#1644).
     var queuedPromptMessages: [ChatMessage] {
-        (hermesTurn?.queuedPrompts ?? []).map { Self.hermesPromptRow($0, id: "hermes-queued-prompt-\($0.id)", timestamp: nil) }
+        if let squaddTurn {
+            // A Squadd thread's queue (#13), each row with Steer and Delete.
+            return squaddTurn.queued.map {
+                ChatMessage(role: "user", content: $0.text, timestamp: nil, messageId: Self.squaddQueuedRowPrefix + $0.queueId)
+            }
+        }
+        return (hermesTurn?.queuedPrompts ?? []).map { Self.hermesPromptRow($0, id: "hermes-queued-prompt-\($0.id)", timestamp: nil) }
     }
 
     /// A turn a canonical host lost across its restart (#1602), as its row shows it: with its
@@ -758,6 +764,7 @@ final class ChatViewModel {
     private let hermesTurn: HermesChatTurnCoordinator?
     /// A Squadd thread's turns (#11). Nothing in such a chat reaches the webui API.
     private let squaddTurn: SquaddChatTurnCoordinator?
+    var isSquaddThread: Bool { squaddTurn != nil }
     private let drafts: ChatDraftStore
     private let pendingActionCoordinator: ChatPendingActionCoordinator
     private let attachmentCoordinator: ChatAttachmentCoordinator
@@ -4272,6 +4279,15 @@ final class ChatViewModel {
         if let hermesTurn {
             return await submitHermesStreamingMessage(draft, behavior: behavior, to: hermesTurn)
         }
+        if let squaddTurn {
+            let followUp: SquaddFollowUp = switch behavior {
+            case .steer: .steer
+            case .queue: .queue
+            case .interrupt: .restart
+            }
+            let outcome = await submitSquaddPrompt(draft, to: squaddTurn, followUp: followUp)
+            return outcome == .kept ? .notDelivered : .executed(message: nil)
+        }
         switch behavior {
         case .steer:
             return await steerResponseFromSlashCommand(draft)
@@ -4482,6 +4498,9 @@ final class ChatViewModel {
 
         if let hermesTurn {
             return await askHermesBtw(question, sideTasks: hermesTurn.sideTasks)
+        }
+        guard squaddTurn == nil else {
+            return .unsupported(friendlyMessage: String(localized: "Agents on the computer take side questions as a queued message: send it while the agent works and choose Queue."))
         }
 
         guard let sessionID else {
@@ -5656,6 +5675,7 @@ final class ChatViewModel {
 
     private func compressSessionFromSlashCommand(_ args: String) async -> SlashCommandExecutionResult {
         if let hermesTurn { return await compressHermesSession(focus: args, on: hermesTurn) }
+        if let squaddTurn { return await compactSquaddThread(squaddTurn) }
 
         guard !isViewingCachedData else {
             return .unsupported(friendlyMessage: String(localized: "Reconnect to the server to compress context."))
@@ -6801,13 +6821,23 @@ final class ChatViewModel {
 
     @discardableResult
     func cancelActiveStream() async -> Bool {
-        // Stop on Squadd (`POST /api/bots/:id/interrupt`) is its own ticket.
-        guard activeStreamID != nil, squaddTurn == nil else { return false }
+        guard activeStreamID != nil else { return false }
 
         isCancellingStream = true
         sendErrorMessage = nil
         lastError = nil
         defer { isCancellingStream = false }
+
+        if let squaddTurn {
+            // Accepted is not stopped: the turn's `turn.completed` ends it.
+            do {
+                try await squaddTurn.interrupt()
+                return true
+            } catch {
+                sendErrorMessage = SquaddChatTurnCoordinator.failureMessage(error)
+                return false
+            }
+        }
 
         if let hermesTurn {
             // Accepted is not idle: the turn's own ending frames settle it.
@@ -9942,9 +9972,51 @@ extension ChatViewModel: SquaddChatTurnDelegate {
         errorMessage = failure
     }
 
+    func squaddAppendRow(_ message: ChatMessage) {
+        messages.append(message)
+        transcriptRevision &+= 1
+    }
+
+    fileprivate static let squaddQueuedRowPrefix = "squadd-queued-"
+
+    /// Steer on a queued row: the companion sends it (and the rest of the queue) into the
+    /// running turn. The row leaves when the companion's queue says so; a refusal leaves it.
+    func steerQueuedPrompt(_ rowID: String) async {
+        await runSquaddQueueAction(on: rowID) { try await $0.steerQueued($1) }
+    }
+
+    /// Delete on a queued row: the companion drops it before it is sent.
+    func deleteQueuedPrompt(_ rowID: String) async {
+        await runSquaddQueueAction(on: rowID) { try await $0.deleteQueued($1) }
+    }
+
+    private func runSquaddQueueAction(on rowID: String,
+                                      _ action: (SquaddChatTurnCoordinator, String) async throws -> Void) async {
+        guard let squaddTurn, rowID.hasPrefix(Self.squaddQueuedRowPrefix) else { return }
+        sendErrorMessage = nil
+        do {
+            try await action(squaddTurn, String(rowID.dropFirst(Self.squaddQueuedRowPrefix.count)))
+        } catch {
+            sendErrorMessage = SquaddChatTurnCoordinator.failureMessage(error)
+        }
+    }
+
+    /// `/compact` (or `/compress`) on a Squadd thread: the marker row comes over the stream.
+    fileprivate func compactSquaddThread(_ squadd: SquaddChatTurnCoordinator) async -> SlashCommandExecutionResult {
+        isCompressingSession = true
+        defer { isCompressingSession = false }
+        do {
+            try await squadd.compact()
+            return .executed(message: nil)
+        } catch {
+            return .unsupported(friendlyMessage: SquaddChatTurnCoordinator.failureMessage(error))
+        }
+    }
+
     /// Shows the prompt at once and sends it. A prompt the companion didn't take leaves the
     /// transcript and goes back to the composer (`.kept`) with the reason.
-    fileprivate func submitSquaddPrompt(_ draft: String, to squadd: SquaddChatTurnCoordinator) async -> ChatSendOutcome {
+    fileprivate func submitSquaddPrompt(_ draft: String, to squadd: SquaddChatTurnCoordinator,
+                                        followUp: SquaddFollowUp? = nil) async -> ChatSendOutcome {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return .kept }
         // Files to a Squadd agent are their own ticket: refuse rather than drop them.
@@ -9957,7 +10029,10 @@ extension ChatViewModel: SquaddChatTurnDelegate {
         sendErrorMessage = nil
         messages.append(ChatMessage(role: "user", content: text, timestamp: Date().timeIntervalSince1970, messageId: rowID))
         do {
-            try await squadd.send(text, sendId: sendId, localRowID: rowID)
+            // A queued one shows in the queue's rows instead.
+            if try await squadd.send(text, sendId: sendId, localRowID: rowID, followUp: followUp) {
+                messages.removeAll { $0.messageId == rowID }
+            }
             return .started
         } catch {
             messages.removeAll { $0.messageId == rowID }

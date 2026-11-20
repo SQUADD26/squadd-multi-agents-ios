@@ -13,6 +13,8 @@ import SwiftData
     func squaddConnectionDidChange(failure: String?)
     /// A turn began: the next reply opens a new assistant row (as a Hermes turn does).
     func hermesTurnDidStart(prompt: HermesQueuedPrompt?)
+    /// A row stored mid-turn that the transcript lacks, such as a queued message steered in.
+    func squaddAppendRow(_ message: ChatMessage)
 }
 
 /// A Squadd agent thread the main chat opens: the companion, the device token, the agent and
@@ -56,6 +58,8 @@ final class SquaddChatTurnCoordinator {
     private(set) var latestRunEnding: ChatRunEnding?
     private(set) var successfulResponseCompletion: ChatStreamCoordinator.SuccessfulResponseCompletion?
     private(set) var isReconnecting = false
+    /// The messages the companion holds for this thread until its turn can take them.
+    private(set) var queued: [SquaddQueuedMessage] = []
 
     @ObservationIgnored private weak var delegate: (any SquaddChatTurnDelegate)?
     @ObservationIgnored private let client: SquaddCompanionClient
@@ -79,6 +83,8 @@ final class SquaddChatTurnCoordinator {
     /// streamed reply's row), so the stored copy replaces it in place instead of redrawing.
     @ObservationIgnored private var rowIDs: [String: String] = [:]
     @ObservationIgnored private var streamingItemID: String?
+    /// The running turn's id, which Stop names.
+    @ObservationIgnored private var runningTurnID: String?
     /// Whether the open connection asked to resume after `cursor`.
     @ObservationIgnored private var isResuming = false
     /// The running reply began before this chat saw it (opened mid-turn, or frames lost on a
@@ -102,17 +108,41 @@ final class SquaddChatTurnCoordinator {
         await reload()
     }
 
-    /// Sends a typed message. Throws when the companion didn't take it, so the chat puts it back.
-    func send(_ text: String, sendId: String, localRowID: String) async throws {
+    /// Sends a typed message; `followUp` says how it meets a running turn. Returns whether the
+    /// companion queued it, so it shows in `queued` instead of the transcript. Throws when the
+    /// companion didn't take it, so the chat puts it back.
+    func send(_ text: String, sendId: String, localRowID: String, followUp: SquaddFollowUp? = nil) async throws -> Bool {
         ownSendIDs.insert(sendId)
+        let receipt: SquaddSendReceipt
         do {
-            let receipt = try await client.send(text, botId: chat.botId, threadId: chat.threadId, sendId: sendId)
+            receipt = try await client.send(text, botId: chat.botId, threadId: chat.threadId, sendId: sendId, followUp: followUp)
             if let stored = receipt.message?.id { rowIDs[stored] = localRowID; shownIDs.insert(stored) }
         } catch {
             ownSendIDs.remove(sendId)
             throw error
         }
         if stream == nil { await activate() }
+        return receipt.queued == true
+    }
+
+    // MARK: Stop, queue, compaction (#13). Each only asks: the stream's frames change the state.
+
+    /// Stop. The turn ends when its `turn.completed` comes.
+    func interrupt() async throws {
+        try await client.interrupt(botId: chat.botId, threadId: chat.threadId, turnId: runningTurnID)
+    }
+
+    func steerQueued(_ queueId: String) async throws {
+        try await client.steerQueued(queueId, botId: chat.botId, threadId: chat.threadId)
+    }
+
+    func deleteQueued(_ queueId: String) async throws {
+        try await client.deleteQueued(queueId, botId: chat.botId, threadId: chat.threadId)
+    }
+
+    /// The marker row comes as a stored message, which reloads the transcript.
+    func compact() async throws {
+        try await client.compact(botId: chat.botId, threadId: chat.threadId)
     }
 
     func stop() {
@@ -192,6 +222,8 @@ final class SquaddChatTurnCoordinator {
             String(localized: "This conversation is no longer on the computer.")
         case SquaddError.status(let status) where status == 409:
             String(localized: "The computer is busy. Try again when the agents have finished.")
+        case SquaddError.refused(let reason):
+            reason
         default:
             String(localized: "Can't reach the computer.")
         }
@@ -237,8 +269,9 @@ final class SquaddChatTurnCoordinator {
                 finish(nil)
                 await reload()
             }
-        case .turnStarted(let threadId) where threadId == chat.threadId:
+        case .turnStarted(let threadId, let turnId) where threadId == chat.threadId:
             beginTurn()
+            runningTurnID = turnId
         case .replyDelta(let threadId, let itemId, let text) where threadId == chat.threadId:
             if activeStreamID == nil { beginTurn(); joinedMidReply = true }
             guard !joinedMidReply else { return }
@@ -253,10 +286,21 @@ final class SquaddChatTurnCoordinator {
                       !(message.sendId.map(ownSendIDs.contains) ?? false), message.chatMessage != nil {
                 // A row written elsewhere, such as on the desktop, while no turn runs here.
                 await reload()
+            } else if activeStreamID != nil, message.role == "user", !shownIDs.contains(message.id),
+                      !(message.sendId.map(ownSendIDs.contains) ?? false), let row = message.chatMessage {
+                // A queued message steered into the running turn; the turn's end reloads the order.
+                shownIDs.insert(message.id)
+                delegate?.squaddAppendRow(row)
             }
         case .turnCompleted(let threadId, let ok) where threadId == chat.threadId:
             finish(ok ? .completed : .failed)
             await reload()
+        case .turnStopped(let threadId) where threadId == chat.threadId:
+            finish(.cancelled)
+            await reload()
+        case .queued(let queues):
+            let mine = queues[chat.threadId] ?? []
+            if mine != queued { queued = mine }
         case .runtimeError(let threadId, let message) where threadId == chat.threadId:
             delegate?.streamCoordinatorDidReceiveErrorMessage(message)
         default:
@@ -288,6 +332,7 @@ final class SquaddChatTurnCoordinator {
         activeStreamID = nil
         activeRunStartedAt = nil
         streamingItemID = nil
+        runningTurnID = nil
         joinedMidReply = false
         delegate?.streamCoordinatorStreamingAssistantMessageID = nil
         if ending == .completed { delegate?.streamCoordinatorDidCompleteCurrentResponse(needsTranscriptRefresh: false) }

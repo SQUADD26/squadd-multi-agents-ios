@@ -2598,6 +2598,8 @@ struct ChatView: View {
             turnOutcome: hermesTurnOutcome,
             screenCard: botScreenCard,
             queuedPrompts: viewModel.queuedPromptMessages,
+            onSteerQueuedPrompt: viewModel.isSquaddThread ? { id in Task { await viewModel.steerQueuedPrompt(id) } } : nil,
+            onDeleteQueuedPrompt: viewModel.isSquaddThread ? { id in Task { await viewModel.deleteQueuedPrompt(id) } } : nil,
             lostTurn: viewModel.lostTurn,
             onDiscardLostTurn: { Task { await viewModel.discardLostTurn() } },
             isCronRun: isCronRun,
