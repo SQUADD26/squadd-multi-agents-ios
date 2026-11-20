@@ -833,6 +833,7 @@ struct ChatView: View {
                 Task { await gitAvailabilityViewModel.loadBranches() }
             },
             showsSessionControls: !isHermesSession && !isSquaddThread,
+            allowsVoiceNotes: isSquaddThread,
             slashScope: viewModel.hermesSlashCommands?.scope ?? .webui,
             hostSlashCompletion: viewModel.hermesSlashCommands?.completion,
             onCompleteHostSlashArgument: { text in
@@ -905,8 +906,10 @@ struct ChatView: View {
         among siblings: [MessageAttachmentPreview]
     ) {
         let attachment = tapped.attachment
-        guard isHermesSession, let path = attachment.path, !path.isEmpty else {
-            let pageable = siblings.filter { !isHermesSession || $0.attachment.path?.isEmpty != false }
+        // A Squadd thread's sent files live on its computer, as a Hermes chat's on its host (#23).
+        let opensFromServer = isHermesSession || isSquaddThread
+        guard opensFromServer, let path = attachment.path, !path.isEmpty else {
+            let pageable = siblings.filter { !opensFromServer || $0.attachment.path?.isEmpty != false }
             guard let index = pageable.firstIndex(where: { $0.attachment == attachment }) else {
                 let item = ChatAttachmentPreviewItem(message: attachment, localData: tapped.localData)
                 return presentAttachmentPreview([item], at: 0)
@@ -2530,7 +2533,7 @@ struct ChatView: View {
             },
             attachmentAudio: AttachmentAudioSource(
                 load: { path in await viewModel.attachmentRawData(path: path) },
-                isHost: isHermesSession,
+                isHost: isHermesSession || isSquaddThread,
                 loadKey: viewModel.attachmentLoadKey
             ),
             loadTranscriptMediaImage: { reference in

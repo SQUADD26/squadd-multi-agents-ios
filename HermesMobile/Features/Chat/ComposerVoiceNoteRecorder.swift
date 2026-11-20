@@ -241,6 +241,37 @@ enum VoiceNoteFilename {
     }
 }
 
+extension ComposerVoiceNoteRecorder {
+    /// A recorded note as 16-bit PCM WAV, the audio a Squadd computer stores and plays (#23), and
+    /// its name with the `.wav` extension. Slow for long notes, so callers run it off the main actor.
+    nonisolated static func wav(from recording: Data, filename: String) throws -> (data: Data, name: String) {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let source = folder.appendingPathComponent(filename)
+        let target = folder.appendingPathComponent("note.wav")
+        try recording.write(to: source)
+        let input = try AVAudioFile(forReading: source)
+        let format = input.processingFormat
+        // `AVAudioFile` turns the float buffers it is given into the file's 16-bit samples.
+        let output = try AVAudioFile(forWriting: target, settings: [
+            AVFormatIDKey: Int(kAudioFormatLinearPCM), AVSampleRateKey: format.sampleRate,
+            AVNumberOfChannelsKey: format.channelCount, AVLinearPCMBitDepthKey: 16,
+            AVLinearPCMIsFloatKey: false, AVLinearPCMIsBigEndianKey: false
+        ], commonFormat: format.commonFormat, interleaved: format.isInterleaved)
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 32_768) else {
+            throw ComposerVoiceNoteRecorderError.couldNotStart
+        }
+        while input.framePosition < input.length {
+            try input.read(into: buffer)
+            guard buffer.frameLength > 0 else { break }
+            try output.write(from: buffer)
+        }
+        output.close()
+        return (try Data(contentsOf: target), (filename as NSString).deletingPathExtension + ".wav")
+    }
+}
+
 /// Pure decision helpers for the hold-to-talk mic gesture, kept out of the view
 /// so the thresholds and the cancel logic are unit-testable.
 enum ComposerVoiceNoteGesture {
