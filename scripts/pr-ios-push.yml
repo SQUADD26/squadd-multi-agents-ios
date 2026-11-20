@@ -48,7 +48,7 @@ jobs:
             echo "44369a2df0b62e3a1764de61bd09280999c7e9b27ea8f20bff1ea3a9db0302a2  ${RUNNER_TEMP}/companion.tgz" | shasum -a 256 -c -
             tar xzf "${RUNNER_TEMP}/companion.tgz" -C "${IDB}/companion" 2>/dev/null
             python3 -m venv "${IDB}/venv"
-            "${IDB}/venv/bin/pip" install -q fb-idb==1.7.8
+            "${IDB}/venv/bin/pip" install -q fb-idb==1.7.7
           fi
           # A simulator of this run: its notification permission and Keychain go with it.
           runtime=$(xcrun simctl list runtimes available --json | python3 -c '
