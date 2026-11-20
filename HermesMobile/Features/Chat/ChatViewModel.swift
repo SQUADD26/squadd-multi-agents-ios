@@ -2437,8 +2437,12 @@ final class ChatViewModel {
 
     @discardableResult
     func loadOlderMessages(modelContext: ModelContext? = nil) async -> Bool {
-        // shortcut: a Squadd chat shows the newest 50 rows; paging back with `before` is the history ticket's.
-        guard squaddTurn == nil else { return false }
+        if let squaddTurn {
+            guard !isLoadingOlderMessages, hasOlderMessages else { return false }
+            isLoadingOlderMessages = true
+            defer { isLoadingOlderMessages = false }
+            return await squaddTurn.loadOlder()
+        }
         if let hermesTurn {
             guard !isLoadingOlderMessages, hasOlderMessages else { return false }
             isLoadingOlderMessages = true
@@ -9922,8 +9926,15 @@ extension ChatViewModel: SquaddChatTurnDelegate {
         messagesOffset = 0
         self.messages = messages
         transcriptRevision &+= 1
-        hasOlderMessages = false
+        hasOlderMessages = hasOlder
         streamingAssistantMessageID = nil
+    }
+
+    func squaddPrependOlder(_ messages: [ChatMessage], hasOlder: Bool) {
+        let shown = Set(self.messages.compactMap(\.messageId))
+        self.messages = messages.filter { $0.messageId.map(shown.contains) != true } + self.messages
+        transcriptRevision &+= 1
+        hasOlderMessages = hasOlder
     }
 
     func squaddConnectionDidChange(failure: String?) {

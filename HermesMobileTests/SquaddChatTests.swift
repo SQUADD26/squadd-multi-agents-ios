@@ -120,6 +120,30 @@ final class SquaddChatTests: XCTestCase {
         }
     }
 
+    func testOlderPagesComeInFrontWithTheCursorOfTheOldestRow() async throws {
+        func page(_ ids: [String], hasMore: Bool) -> Data {
+            let rows = ids.map { #"{"id":"\#($0)","role":"user","kind":"text","text":"row \#($0)","at":1}"# }
+            return Data(#"{"messages":[\#(rows.joined(separator: ","))],"hasMore":\#(hasMore)}"#.utf8)
+        }
+        let threadId = threadId
+        var older: URLRequest?
+        SquaddChatFixture.handler = { request in
+            guard request.url?.path == "/api/threads/\(threadId)/messages" else { return .hold }
+            guard request.url?.query == nil else { older = request; return .reply(200, page(["m1", "m2"], hasMore: false)) }
+            return .reply(200, page(["m3", "m4"], hasMore: true))
+        }
+        let (model, _) = makeChat()
+
+        await model.loadMessages()
+        XCTAssertTrue(model.hasOlderMessages, "the companion said older rows remain")
+        let loaded = await model.loadOlderMessages()
+
+        XCTAssertTrue(loaded)
+        XCTAssertEqual(older?.url?.query, "before=m3")
+        XCTAssertEqual(model.messages.map(\.messageId), ["m1", "m2", "m3", "m4"])
+        XCTAssertFalse(model.hasOlderMessages)
+    }
+
     func testKeyboardShortcutsStepThroughTheHomeThreadsInOnScreenOrder() throws {
         let bots = try JSONDecoder().decode(SquaddBotList.self, from: Self.fixture("bots.json")).bots
         let chats = SquaddThreadChat.all(in: bots.map(SquaddAgentSection.init(bot:)), server: server, token: "device-token")

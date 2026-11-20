@@ -50,7 +50,7 @@ struct SquaddMessage: Decodable, Equatable {
     }
 }
 
-/// `GET /api/threads/:id/messages`: the newest page, oldest first.
+/// `GET /api/threads/:id/messages`: a page, oldest first; `hasMore` when older rows remain.
 struct SquaddMessagePage: Decodable, Equatable {
     let messages: [SquaddMessage]
     let hasMore: Bool
@@ -165,9 +165,15 @@ struct SquaddSSEParser {
 }
 
 extension SquaddCompanionClient {
-    /// A thread's newest page of messages.
-    func messages(threadId: String) async throws -> SquaddMessagePage {
-        let data = try await Self.send(authorized("api/threads/\(threadId)/messages"), session: session)
+    /// A thread's newest page of messages, or with `before` (a stored message id) the page just
+    /// older than that message.
+    func messages(threadId: String, before: String? = nil) async throws -> SquaddMessagePage {
+        var request = authorized("api/threads/\(threadId)/messages")
+        if let before, var parts = URLComponents(url: request.url!, resolvingAgainstBaseURL: false) {
+            parts.queryItems = [URLQueryItem(name: "before", value: before)]
+            request.url = parts.url
+        }
+        let data = try await Self.send(request, session: session)
         return try JSONDecoder().decode(SquaddMessagePage.self, from: data)
     }
 

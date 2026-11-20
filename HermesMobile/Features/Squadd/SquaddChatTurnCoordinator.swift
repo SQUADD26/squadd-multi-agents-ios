@@ -7,6 +7,8 @@ import SwiftData
 @MainActor protocol SquaddChatTurnDelegate: ChatStreamCoordinatorDelegate {
     /// Replaces the transcript with the thread's stored rows.
     func squaddReplaceTranscript(_ messages: [ChatMessage], hasOlder: Bool)
+    /// Puts an older page's rows in front of the transcript.
+    func squaddPrependOlder(_ messages: [ChatMessage], hasOlder: Bool)
     /// The thread couldn't be read, or the companion can't be reached; nil once it is again.
     func squaddConnectionDidChange(failure: String?)
     /// A turn began: the next reply opens a new assistant row (as a Hermes turn does).
@@ -62,6 +64,13 @@ final class SquaddChatTurnCoordinator {
     /// The last frame id seen: a reconnect resumes after it.
     @ObservationIgnored private var cursor: String?
     @ObservationIgnored private var hasLoaded = false
+    /// Rows of the older pages read so far, oldest first, kept across reloads of the newest page.
+    @ObservationIgnored private var olderRows: [ChatMessage] = []
+    /// The oldest stored message read (its id is the next `before`), and whether more remain.
+    @ObservationIgnored private var oldestID: String?
+    @ObservationIgnored private var hasOlder = false
+    /// The first stored message of the newest page last read.
+    @ObservationIgnored private var newestPageStart: String?
     /// Stored rows the transcript already shows, so a frame about one doesn't reload it.
     @ObservationIgnored private var shownIDs: Set<String> = []
     /// This chat's own sends, whose echo is already on screen.
@@ -124,11 +133,39 @@ final class SquaddChatTurnCoordinator {
                 guard let shown = rowIDs[message.id] else { return row }
                 return ChatMessage(role: row.role, content: row.content, timestamp: row.timestamp, messageId: shown)
             }
+            // Older pages stay while the new page still reaches back to where the last one began;
+            // past a gap they'd sit out of order, so paging starts again from this page.
+            if olderRows.isEmpty || !page.messages.contains(where: { $0.id == newestPageStart }) {
+                olderRows = []
+                oldestID = page.messages.first?.id
+                hasOlder = page.hasMore
+            }
+            newestPageStart = page.messages.first?.id
             delegate?.squaddConnectionDidChange(failure: nil)
-            delegate?.squaddReplaceTranscript(rows, hasOlder: page.hasMore)
+            delegate?.squaddReplaceTranscript(olderRows + rows, hasOlder: hasOlder)
         } catch is CancellationError {
         } catch {
             delegate?.squaddConnectionDidChange(failure: Self.failureMessage(error))
+        }
+    }
+
+    /// Reads the page before the oldest row shown and puts it in front. Returns whether rows came.
+    func loadOlder() async -> Bool {
+        guard hasOlder, let before = oldestID else { return false }
+        do {
+            let page = try await client.messages(threadId: chat.threadId, before: before)
+            guard oldestID == before else { return false }
+            let rows = page.messages.compactMap(\.chatMessage)
+            olderRows = rows + olderRows
+            oldestID = page.messages.first?.id ?? before
+            hasOlder = page.hasMore && !page.messages.isEmpty
+            delegate?.squaddPrependOlder(rows, hasOlder: hasOlder)
+            return !rows.isEmpty
+        } catch is CancellationError {
+            return false
+        } catch {
+            delegate?.squaddConnectionDidChange(failure: Self.failureMessage(error))
+            return false
         }
     }
 
