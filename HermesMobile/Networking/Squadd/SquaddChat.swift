@@ -16,6 +16,8 @@ struct SquaddMessage: Decodable, Equatable {
     let sendId: String?
     /// A `compaction` marker's summary of the turns it folded.
     let compactionSummary: String?
+    /// A bot row's author: in a room, the member that wrote it.
+    let from: Author?
     /// The message this one follows; nil at the thread's root. An edit is a second user row
     /// under the same parent: the versions of that message.
     let parentId: String?
@@ -27,6 +29,11 @@ struct SquaddMessage: Decodable, Equatable {
     /// files ride in `text` as tags (`SquaddAttachmentTags`).
     let attachments: [Attachment]
 
+    struct Author: Decodable, Equatable {
+        let botId: String?
+        let name: String?
+    }
+
     /// One of `WireMessage.attachments`: `kind` is `image`, `file` or `audio`.
     struct Attachment: Decodable, Equatable {
         let kind: String?
@@ -36,12 +43,12 @@ struct SquaddMessage: Decodable, Equatable {
         let bytes: Int?
     }
 
-    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, parentId, reactions, reaction, attachments, compaction }
+    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, from, parentId, reactions, reaction, attachments, compaction }
     private struct Compaction: Decodable { let summary: String? }
 
     init(id: String, role: String?, kind: String? = "text", text: String?, at: Double? = nil,
-         itemId: String? = nil, sendId: String? = nil, parentId: String? = nil, reactions: [SquaddReaction] = [],
-         reaction: String? = nil, attachments: [Attachment] = []) {
+         itemId: String? = nil, sendId: String? = nil, from: Author? = nil, parentId: String? = nil,
+         reactions: [SquaddReaction] = [], reaction: String? = nil, attachments: [Attachment] = []) {
         self.id = id
         self.role = role
         self.kind = kind
@@ -50,6 +57,7 @@ struct SquaddMessage: Decodable, Equatable {
         self.itemId = itemId
         self.sendId = sendId
         compactionSummary = nil
+        self.from = from
         self.parentId = parentId
         self.reactions = reactions
         self.reaction = reaction
@@ -65,6 +73,7 @@ struct SquaddMessage: Decodable, Equatable {
         at = try? container.decodeIfPresent(Double.self, forKey: .at)
         itemId = try? container.decodeIfPresent(String.self, forKey: .itemId)
         sendId = try? container.decodeIfPresent(String.self, forKey: .sendId)
+        from = try? container.decodeIfPresent(Author.self, forKey: .from)
         parentId = try? container.decodeIfPresent(String.self, forKey: .parentId)
         reactions = (try? container.decodeIfPresent([SquaddLossy<SquaddReaction>].self, forKey: .reactions))?
             .compactMap(\.value) ?? []
@@ -82,7 +91,11 @@ struct SquaddMessage: Decodable, Equatable {
     /// card) shows its words until the card has its own view; a compaction marker shows as the
     /// "Context compaction" card `ChatMarkerMessageClassifier` knows by its first words.
     /// A row's files show as its attachments, the tags they rode in taken out of its words.
-    var chatMessage: ChatMessage? {
+    var chatMessage: ChatMessage? { chatMessage(namesAuthor: false) }
+
+    /// `namesAuthor`: a room's reply carries the member that wrote it as its `name`, which the
+    /// bubble shows over it.
+    func chatMessage(namesAuthor: Bool) -> ChatMessage? {
         if kind == "compaction" {
             let summary = compactionSummary?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             return ChatMessage(role: "assistant", content: "[Context compaction]\n\n\(summary)",
@@ -94,8 +107,10 @@ struct SquaddMessage: Decodable, Equatable {
             + attachments.map { MessageAttachment(name: $0.name, path: $0.path, mime: $0.mime, size: $0.bytes,
                                                   isImage: $0.kind == "image") }
         guard !parsed.text.isEmpty || !files.isEmpty else { return nil }
-        return ChatMessage(role: role == "bot" ? "assistant" : "user", content: parsed.text,
-                           timestamp: at.map { $0 / 1000 }, messageId: id, attachments: files.isEmpty ? nil : files)
+        let isBot = role == "bot"
+        return ChatMessage(role: isBot ? "assistant" : "user", content: parsed.text,
+                           timestamp: at.map { $0 / 1000 }, messageId: id, name: namesAuthor && isBot ? from?.name : nil,
+                           attachments: files.isEmpty ? nil : files)
     }
 }
 
@@ -126,11 +141,13 @@ struct SquaddMessagePage: Decodable, Equatable {
     }
 }
 
-/// `POST /api/bots/:id/messages`'s 202 (and an edit's): the stored user row, or a queue slot when the bot was busy.
+/// `POST /api/bots/:id/messages`'s 202 (and an edit's): the stored user row, or a queue slot when the
+/// bot was busy. A room's send (`POST /api/groups/:id/messages`) answers the same way.
 struct SquaddSendReceipt: Decodable {
     let threadId: String?
     let message: SquaddMessage?
     let queued: Bool?
+    let queueId: String?
 }
 
 /// A message the companion holds until the busy thread can take it (`bot.queued`), which Steer

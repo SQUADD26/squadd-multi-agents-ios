@@ -637,6 +637,12 @@ final class ChatViewModel {
     /// canonical send carried (#1644).
     var queuedPromptMessages: [ChatMessage] {
         if let squaddTurn {
+            // A busy Squadd room's queue (#21), each until its send goes in, with Remove.
+            if isSquaddRoom {
+                return squaddTurn.queuedPrompts.map {
+                    ChatMessage(role: "user", content: $0.text, timestamp: nil, messageId: "squadd-queued-\($0.sendId)")
+                }
+            }
             // A Squadd thread's queue (#13), each row with Steer and Delete.
             return squaddTurn.queued.map {
                 ChatMessage(role: "user", content: $0.text, timestamp: nil, messageId: Self.squaddQueuedRowPrefix + $0.queueId)
@@ -644,6 +650,23 @@ final class ChatViewModel {
         }
         return (hermesTurn?.queuedPrompts ?? []).map { Self.hermesPromptRow($0, id: "hermes-queued-prompt-\($0.id)", timestamp: nil) }
     }
+
+    /// Takes a busy Squadd room's queued message (a `queuedPromptMessages` row) out of the line,
+    /// as the desktop's composer does; a refusal, such as one that already went in, says why.
+    func cancelSquaddQueuedPrompt(_ row: ChatMessage) async {
+        guard let squaddTurn, let sendId = row.messageId?.replacingOccurrences(of: "squadd-queued-", with: "") else { return }
+        do {
+            try await squaddTurn.cancelQueued(sendId: sendId)
+        } catch {
+            sendErrorMessage = SquaddChatTurnCoordinator.failureMessage(error)
+        }
+    }
+
+    /// A Squadd room's members for the composer's `@` panel; nil elsewhere.
+    var squaddRoomMentions: BotMentions? { squaddTurn?.mentions }
+
+    /// A Squadd room has Stop, and a send while it works waits in the room's queue.
+    var isSquaddRoom: Bool { squaddTurn?.chat.room != nil }
 
     /// A turn a canonical host lost across its restart (#1602), as its row shows it: with its
     /// prompt's bubble only when the transcript doesn't already end on that prompt.
@@ -2561,9 +2584,10 @@ final class ChatViewModel {
             message: message,
             visibleIndex: visibleIndex,
             messagesOffset: messagesOffset,
-            // A Squadd thread edits a stored typed message into a new version (#19) and regenerates nothing.
+            // A Squadd thread edits a stored typed message into a new version (#19) and regenerates nothing;
+            // a room has no edit route (`companion/src/routes.ts`), so its messages stay as sent.
             offersHistoryActions: hermesTurn.map { $0.policy.offersHistoryActions && hermesRewindableMessageIDs.contains(message.id) }
-                ?? squaddTurn.map { message.role == "user" && $0.storedID(ofRow: message.id) != nil }
+                ?? squaddTurn.map { $0.chat.room == nil && message.role == "user" && $0.storedID(ofRow: message.id) != nil }
                 ?? true,
             // A Hermes branch counts to a row the host saved (#1051). A Bot Chat offers neither (#1145).
             offersFork: hermesTurn.map { $0.policy.offersHistoryActions && message.rowID != nil }
@@ -4302,7 +4326,8 @@ final class ChatViewModel {
             case .queue: .queue
             case .interrupt: .restart
             }
-            let outcome = await submitSquaddPrompt(draft, to: squaddTurn, followUp: followUp)
+            // A room queues a send while it works on its own; the follow-up choice is an agent thread's.
+            let outcome = await submitSquaddPrompt(draft, to: squaddTurn, followUp: isSquaddRoom ? nil : followUp)
             return outcome == .kept ? .notDelivered : .executed(message: nil)
         }
         switch behavior {

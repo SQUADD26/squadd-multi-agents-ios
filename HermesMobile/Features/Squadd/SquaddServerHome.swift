@@ -60,6 +60,9 @@ struct SquaddServerHome: View {
     @State private var namingFolderFor: String?
     @State private var newFolderName = ""
     @State private var deletingFolder: SquaddFolderRef?
+    @State private var renamingRoom: SquaddRoomSection?
+    @State private var newRoomName = ""
+    @State private var deletingRoom: SquaddRoomSection?
     @State private var hasStarted = false
     @State private var token = ""
     /// The open thread, so the keyboard's chat shortcuts know where they stand.
@@ -208,6 +211,31 @@ struct SquaddServerHome: View {
         } message: { _ in
             Text("Its threads stay, outside any folder.")
         }
+        .alert("Rename Group Chat", isPresented: Binding(get: { renamingRoom != nil }, set: { if !$0 { renamingRoom = nil } })) {
+            TextField("Group chat name", text: $newRoomName)
+            Button("Save") {
+                let name = newRoomName.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard let room = renamingRoom, !name.isEmpty else { return }
+                Task { await run { await $0.renameRoom(room.id, to: name) } }
+            }
+            // The companion takes up to 100 characters; a longer name is refused here, never cut.
+            .disabled(newRoomName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                      || newRoomName.trimmingCharacters(in: .whitespacesAndNewlines).count > 100)
+            Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog(Text("Delete \(deletingRoom?.name ?? "")?"),
+                            isPresented: Binding(get: { deletingRoom != nil }, set: { if !$0 { deletingRoom = nil } }),
+                            titleVisibility: .visible, presenting: deletingRoom) { room in
+            Button("Delete Group Chat", role: .destructive) {
+                Task {
+                    guard let model, let failure = await model.deleteRoom(room.id) else { return }
+                    toast.show(.failure(failure))
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { room in
+            Text("This permanently deletes the \(room.name) group chat, its messages, and every thread in it, and turns off the routines that run there. The agents in it are not deleted. This cannot be undone.")
+        }
         .sheet(item: $editingAgent) { agentEditor(for: $0) }
         .sheet(isPresented: $isCreatingAgent) { agentEditor(for: nil) }
     }
@@ -327,6 +355,28 @@ struct SquaddServerHome: View {
                             threadRow(thread, in: section)
                         }
                     }
+                }
+            }
+            ForEach(model?.rooms ?? []) { room in
+                SquaddRoomHeader(room: room) {
+                    Task { await run { await $0.createRoomThread(room.id) } }
+                } rename: {
+                    newRoomName = room.name
+                    renamingRoom = room
+                } delete: {
+                    deletingRoom = room
+                }
+                .id(room.headerRowID)
+                .sessionsScreenListRow()
+                ForEach(room.threads) { thread in
+                    NavigationLink(value: SquaddThreadChat(room: room, thread: thread, server: server, token: token)) {
+                        SessionRowView(session: thread, showsMessageCount: false, showsWorkspace: false,
+                                       isUnread: room.unreadThreadIDs.contains(thread.id))
+                    }
+                    .buttonStyle(.plain)
+                    .id(thread.id)
+                    .padding(.horizontal, 12)
+                    .sessionsScreenListRow()
                 }
             }
         }
@@ -491,6 +541,12 @@ struct SquaddServerHome: View {
                     return
                 }
             }
+        case .renameRoom:
+            guard let room = model?.rooms.first else { return }
+            newRoomName = room.name
+            renamingRoom = room
+        case .deleteRoom:
+            deletingRoom = model?.rooms.first
         case .act(let action, let title):
             for section in sections {
                 if let thread = (section.threads + section.folders.flatMap(\.threads) + section.archived).first(where: { $0.title == title }) {
@@ -556,6 +612,9 @@ struct SquaddServerHome: View {
     private var keyboardShortcutChats: [SquaddThreadChat] {
         guard case .loaded(let sections) = model?.phase else { return [] }
         return SquaddThreadChat.all(in: sections, server: server, token: token)
+            + (model?.rooms ?? []).flatMap { room in
+                room.threads.map { SquaddThreadChat(room: room, thread: $0, server: server, token: token) }
+            }
     }
 
     private func linkedMark(_ row: String) -> some View {
@@ -649,6 +708,8 @@ enum SquaddHomeStart {
     case newFolder
     /// The delete confirmation of the first folder with this name.
     case deleteFolder(String)
+    /// The first room's rename alert, or its delete confirmation.
+    case renameRoom, deleteRoom
     /// The action on the first thread with this title.
     case act(SquaddThreadAction, threadTitle: String)
 }
