@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import OSLog
 import SwiftData
 
 /// What a `SquaddChatTurnCoordinator` asks of the chat beyond the shared stream delegate.
@@ -7,6 +8,8 @@ import SwiftData
 @MainActor protocol SquaddChatTurnDelegate: ChatStreamCoordinatorDelegate {
     /// Replaces the transcript with the thread's stored rows.
     func squaddReplaceTranscript(_ messages: [ChatMessage], hasOlder: Bool)
+    /// Shows the thread's cached rows, read-only and marked offline, until the next replace (#34).
+    func squaddShowCached(_ messages: [ChatMessage])
     /// Puts an older page's rows in front of the transcript.
     func squaddPrependOlder(_ messages: [ChatMessage], hasOlder: Bool)
     /// The thread couldn't be read, or the companion can't be reached; nil once it is again.
@@ -68,6 +71,11 @@ final class SquaddChatTurnCoordinator {
     /// The last frame id seen: a reconnect resumes after it.
     @ObservationIgnored private var cursor: String?
     @ObservationIgnored private var hasLoaded = false
+    /// The server's offline cache (#34): every read of the newest page is kept there, and shown
+    /// when the first read fails. Set by the chat's first call that carries it.
+    @ObservationIgnored var cache: ModelContext?
+    /// The transcript on screen is the cached copy: the next connection reads it again.
+    @ObservationIgnored private var showsCache = false
     /// Rows of the older pages read so far, oldest first, kept across reloads of the newest page.
     @ObservationIgnored private var olderRows: [ChatMessage] = []
     /// The oldest stored message read (its id is the next `before`), and whether more remain.
@@ -108,16 +116,42 @@ final class SquaddChatTurnCoordinator {
         await reload()
     }
 
-    /// Sends a typed message, `/goal rest` as a goal the desktop's way; `followUp` says how it meets
-    /// a running turn. Returns whether the companion queued it, so it shows in `queued` instead of
-    /// the transcript. Throws when the companion didn't take it, so the chat puts it back.
-    func send(_ text: String, sendId: String, localRowID: String, followUp: SquaddFollowUp? = nil) async throws -> Bool {
-        let outgoing = SquaddSlashCommands.outgoing(text)
+    /// A staged file a send uploads ahead of its words (#23). `id` makes a retried upload land once.
+    struct OutgoingFile {
+        let id: UUID
+        let name: String
+        let mime: String
+        let data: () async throws -> Data
+    }
+
+    /// A send's file the companion didn't take: the send stopped before its words went.
+    struct UploadFailed: Error {
+        let name: String
+        let underlying: Error
+    }
+
+    /// Uploads `files`, then sends `text` with a tag for each, `/goal rest` as a goal the desktop's
+    /// way; `followUp` says how it meets a running turn. Returns whether the companion queued it, so
+    /// it shows in `queued` instead of the transcript. Throws when the companion didn't take a file
+    /// (`UploadFailed`) or the message, so the chat puts it back.
+    func send(_ text: String, files: [OutgoingFile] = [], sendId: String, localRowID: String,
+              followUp: SquaddFollowUp? = nil) async throws -> Bool {
+        var tags: [SquaddAttachmentTags.File] = []
+        for file in files {
+            do {
+                let stored = try await client.upload(try await file.data(), name: file.name, mime: file.mime, uploadId: file.id)
+                tags.append(.init(path: stored.path, name: stored.name ?? file.name,
+                                  isImage: SquaddCompanionClient.attachmentImageTypes.contains(file.mime)))
+            } catch {
+                throw UploadFailed(name: file.name, underlying: error)
+            }
+        }
         ownSendIDs.insert(sendId)
         let receipt: SquaddSendReceipt
         do {
-            receipt = try await client.send(outgoing.text, botId: chat.botId, threadId: chat.threadId,
-                                            sendId: sendId, mode: outgoing.mode, followUp: followUp)
+            let outgoing = SquaddSlashCommands.outgoing(text)
+            receipt = try await client.send(SquaddAttachmentTags.compose(outgoing.text, files: tags), botId: chat.botId,
+                                            threadId: chat.threadId, sendId: sendId, mode: outgoing.mode, followUp: followUp)
             if let stored = receipt.message?.id { rowIDs[stored] = localRowID; shownIDs.insert(stored) }
         } catch {
             ownSendIDs.remove(sendId)
@@ -147,6 +181,11 @@ final class SquaddChatTurnCoordinator {
         try await client.compact(botId: chat.botId, threadId: chat.threadId)
     }
 
+    /// A stored file's bytes, for its thumbnail, its preview and the voice note player.
+    func attachmentData(path: String) async throws -> Data {
+        try await client.attachmentData(path: path)
+    }
+
     /// What this thread's `/` panel offers: the built-ins the agent's engine and the computer allow,
     /// and the agent's skills as this thread sees them.
     func slashCatalog() async throws -> (scope: SlashCommandScope, skills: [SkillSlashSuggestion]) {
@@ -173,11 +212,13 @@ final class SquaddChatTurnCoordinator {
             // A turn that began meanwhile keeps its streaming row; its end reloads again.
             guard activeStreamID == nil else { return }
             hasLoaded = true
+            showsCache = false
             shownIDs = Set(page.messages.map(\.id))
             let rows = page.messages.compactMap { message -> ChatMessage? in
                 guard let row = message.chatMessage else { return nil }
                 guard let shown = rowIDs[message.id] else { return row }
-                return ChatMessage(role: row.role, content: row.content, timestamp: row.timestamp, messageId: shown)
+                return ChatMessage(role: row.role, content: row.content, timestamp: row.timestamp, messageId: shown,
+                                   attachments: row.attachments)
             }
             // Older pages stay while the new page still reaches back to where the last one began;
             // past a gap they'd sit out of order, so paging starts again from this page.
@@ -189,11 +230,40 @@ final class SquaddChatTurnCoordinator {
             newestPageStart = page.messages.first?.id
             delegate?.squaddConnectionDidChange(failure: nil)
             delegate?.squaddReplaceTranscript(olderRows + rows, hasOlder: hasOlder)
+            writeCache(olderRows + rows)
         } catch is CancellationError {
         } catch {
-            delegate?.squaddConnectionDidChange(failure: Self.failureMessage(error))
+            if !hasLoaded, let cached = readCache(), !cached.isEmpty {
+                showsCache = true
+                delegate?.squaddShowCached(cached)
+            } else {
+                delegate?.squaddConnectionDidChange(failure: Self.failureMessage(error))
+            }
         }
     }
+
+    private var cacheScope: String { CacheStore.squaddThreadScope(threadId: chat.threadId) }
+
+    private func readCache() -> [ChatMessage]? {
+        guard let cache else { return nil }
+        do {
+            return try CacheStore.cachedMessages(serverURL: chat.server, sessionID: cacheScope, in: cache)
+        } catch {
+            Self.logger.error("Squadd thread cache read failed: \(error.localizedDescription, privacy: .public)")
+            return nil
+        }
+    }
+
+    private func writeCache(_ rows: [ChatMessage]) {
+        guard let cache else { return }
+        do {
+            try CacheStore.cacheMessages(rows, serverURL: chat.server, sessionID: cacheScope, in: cache)
+        } catch {
+            Self.logger.error("Squadd thread cache write failed: \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
+    private static let logger = Logger(subsystem: "com.squaddcrm.multiagents", category: "cache")
 
     /// Reads the page before the oldest row shown and puts it in front. Returns whether rows came.
     func loadOlder() async -> Bool {
@@ -277,8 +347,10 @@ final class SquaddChatTurnCoordinator {
         case .hello(let cursor, let resumed):
             // Resumed, the replay after our cursor follows (and is at most the hello's cursor).
             if !resumed { self.cursor = cursor }
+            // The computer answers again while the cached copy shows: read the real transcript.
+            if showsCache { await reload() }
             // A reconnect whose frames were lost: what they carried is in the stored transcript.
-            if !resumed, isResuming, hasLoaded {
+            else if !resumed, isResuming, hasLoaded {
                 // The turn may still run or may have ended unseen: close it quietly, and a reply
                 // that goes on rejoins as working.
                 finish(nil)
@@ -379,11 +451,16 @@ extension SquaddChatTurnCoordinator: ChatTurnCoordinating {
     /// the reconnect resumes after the last frame seen.
     func suspendActiveStreamConnection() { stop() }
 
-    func reconnectIfNeeded(modelContext: ModelContext?) async { await activate() }
+    /// The chat reconnects as it appears, before its first load, so the cache is taken here too.
+    func reconnectIfNeeded(modelContext: ModelContext?) async {
+        if let modelContext { cache = modelContext }
+        await activate()
+    }
 
     /// A connection on the interface that went away can hang without an error, so an open
     /// stream reopens at once and resumes after the last frame seen.
     func networkPathDidChange(modelContext: ModelContext?) async {
+        if let modelContext { cache = modelContext }
         guard stream != nil else { return }
         stop()
         await activate()

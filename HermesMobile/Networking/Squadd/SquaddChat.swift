@@ -16,12 +16,24 @@ struct SquaddMessage: Decodable, Equatable {
     let sendId: String?
     /// A `compaction` marker's summary of the turns it folded.
     let compactionSummary: String?
+    /// Files the computer attached to the row itself, such as a bot's voice note (#23). A person's
+    /// files ride in `text` as tags (`SquaddAttachmentTags`).
+    let attachments: [Attachment]
 
-    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, compaction }
+    /// One of `WireMessage.attachments`: `kind` is `image`, `file` or `audio`.
+    struct Attachment: Decodable, Equatable {
+        let kind: String?
+        let path: String
+        let mime: String?
+        let name: String?
+        let bytes: Int?
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, attachments, compaction }
     private struct Compaction: Decodable { let summary: String? }
 
     init(id: String, role: String?, kind: String? = "text", text: String?, at: Double? = nil,
-         itemId: String? = nil, sendId: String? = nil) {
+         itemId: String? = nil, sendId: String? = nil, attachments: [Attachment] = []) {
         self.id = id
         self.role = role
         self.kind = kind
@@ -30,6 +42,7 @@ struct SquaddMessage: Decodable, Equatable {
         self.itemId = itemId
         self.sendId = sendId
         compactionSummary = nil
+        self.attachments = attachments
     }
 
     init(from decoder: Decoder) throws {
@@ -41,6 +54,8 @@ struct SquaddMessage: Decodable, Equatable {
         at = try? container.decodeIfPresent(Double.self, forKey: .at)
         itemId = try? container.decodeIfPresent(String.self, forKey: .itemId)
         sendId = try? container.decodeIfPresent(String.self, forKey: .sendId)
+        attachments = (try? container.decodeIfPresent([SquaddLossy<Attachment>].self, forKey: .attachments))?
+            .compactMap(\.value) ?? []
         compactionSummary = (try? container.decodeIfPresent(Compaction.self, forKey: .compaction))?.summary
     }
 
@@ -48,16 +63,21 @@ struct SquaddMessage: Decodable, Equatable {
     /// turn digests, screens and the other cards their own tickets bring. `options` (a question
     /// card) shows its words until the card has its own view; a compaction marker shows as the
     /// "Context compaction" card `ChatMarkerMessageClassifier` knows by its first words.
+    /// A row's files show as its attachments, the tags they rode in taken out of its words.
     var chatMessage: ChatMessage? {
         if kind == "compaction" {
             let summary = compactionSummary?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             return ChatMessage(role: "assistant", content: "[Context compaction]\n\n\(summary)",
                                timestamp: at.map { $0 / 1000 }, messageId: id)
         }
-        guard kind == nil || kind == "text" || kind == "options",
-              let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-        return ChatMessage(role: role == "bot" ? "assistant" : "user", content: text,
-                           timestamp: at.map { $0 / 1000 }, messageId: id)
+        guard kind == nil || kind == "text" || kind == "options" else { return nil }
+        let parsed = SquaddAttachmentTags.parse(text ?? "")
+        let files = parsed.files.map { MessageAttachment(name: $0.name, path: $0.path, isImage: $0.isImage) }
+            + attachments.map { MessageAttachment(name: $0.name, path: $0.path, mime: $0.mime, size: $0.bytes,
+                                                  isImage: $0.kind == "image") }
+        guard !parsed.text.isEmpty || !files.isEmpty else { return nil }
+        return ChatMessage(role: role == "bot" ? "assistant" : "user", content: parsed.text,
+                           timestamp: at.map { $0 / 1000 }, messageId: id, attachments: files.isEmpty ? nil : files)
     }
 }
 
@@ -303,5 +323,103 @@ extension SquaddCompanionClient {
         var request = URLRequest(url: server.appendingPathComponent(path))
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         return request
+    }
+}
+
+// MARK: - Attachments (#23)
+
+/// `POST /api/attachments` or `/api/files`'s 201: where the computer stored the bytes. `path` is
+/// what the message's tag names; `name` (files only) is the cleaned file name.
+struct SquaddUpload: Decodable, Equatable {
+    let path: String
+    let mime: String?
+    let name: String?
+}
+
+extension SquaddCompanionClient {
+    /// The images `POST /api/attachments` takes; every other file goes to `/api/files`.
+    static let attachmentImageTypes: Set<String> = ["image/png", "image/jpeg", "image/gif", "image/webp"]
+    /// Bytes one ranged read of an attachment asks for.
+    static let attachmentChunkBytes = 1 << 20
+
+    /// Uploads one file's raw bytes. `uploadId` (a UUID) makes a retry store it once.
+    func upload(_ data: Data, name: String, mime: String, uploadId: UUID) async throws -> SquaddUpload {
+        // iOS names WAV `audio/vnd.wave`, a type the computer stores as `.bin`, which no player opens.
+        let mime = name.lowercased().hasSuffix(".wav") ? "audio/wav" : mime
+        let image = Self.attachmentImageTypes.contains(mime)
+        var parts = URLComponents(url: base.appendingPathComponent(image ? "api/attachments" : "api/files"),
+                                  resolvingAgainstBaseURL: false)!
+        parts.queryItems = (image ? [] : [URLQueryItem(name: "name", value: name)])
+            + [URLQueryItem(name: "uploadId", value: uploadId.uuidString.lowercased())]
+        var request = URLRequest(url: parts.url!)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue(mime, forHTTPHeaderField: "Content-Type")
+        request.httpBody = data
+        return try JSONDecoder().decode(SquaddUpload.self, from: await Self.send(request, session: session))
+    }
+
+    /// A stored image's or voice note's bytes (`GET /api/attachments/<name>`, the stored file's own
+    /// name), read in ranged pieces as the desktop's player reads them. A computer that answers a
+    /// range with the whole file (200) is read in one go.
+    func attachmentData(path: String) async throws -> Data {
+        let name = URL(fileURLWithPath: path).lastPathComponent
+        var data = Data()
+        while true {
+            var request = URLRequest(url: base.appendingPathComponent("api/attachments/\(name)"))
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.setValue("bytes=\(data.count)-\(data.count + Self.attachmentChunkBytes - 1)", forHTTPHeaderField: "Range")
+            let (body, response) = try await session.data(for: request)
+            guard let http = response as? HTTPURLResponse else { throw SquaddError.invalidResponse }
+            switch http.statusCode {
+            case 200: return body
+            case 206:
+                // `Content-Range: bytes 0-1048575/2400000`: the total follows the slash.
+                guard let total = http.value(forHTTPHeaderField: "Content-Range")?.split(separator: "/").last.flatMap({ Int($0) }),
+                      !body.isEmpty else { throw SquaddError.invalidResponse }
+                data.append(body)
+                if data.count >= total { return data }
+            case 401: throw SquaddError.unpaired
+            default: throw SquaddError.status(http.statusCode)
+            }
+        }
+    }
+}
+
+/// The tags a Squadd message carries its files in, as the desktop's composer writes them
+/// (`composeMessage`, `src/lib/composer-attachments.ts`): one per file after the text, each in its
+/// own paragraph, the path and name quoted with `&`, `"`, `<`, `>`, tab and line breaks escaped.
+enum SquaddAttachmentTags {
+    struct File: Equatable {
+        let path: String
+        let name: String
+        let isImage: Bool
+    }
+
+    static func compose(_ text: String, files: [File]) -> String {
+        let tags = files.map { "<attached-\($0.isImage ? "image" : "file") path=\"\(escape($0.path))\" name=\"\(escape($0.name))\" />" }
+        return ([text.trimmingCharacters(in: .whitespacesAndNewlines)] + tags).filter { !$0.isEmpty }.joined(separator: "\n\n")
+    }
+
+    /// The text without its tags, and the files they name.
+    static func parse(_ text: String) -> (text: String, files: [File]) {
+        var files: [File] = []
+        let pattern = #/<attached-(image|file) path="([^"]*)" name="([^"]*)" />/#
+        let stripped = text.replacing(pattern) { match in
+            files.append(File(path: unescape(String(match.2)), name: unescape(String(match.3)), isImage: match.1 == "image"))
+            return ""
+        }
+        return (stripped.trimmingCharacters(in: .whitespacesAndNewlines), files)
+    }
+
+    private static let escapes = [("&", "&amp;"), ("\"", "&quot;"), ("<", "&lt;"), (">", "&gt;"),
+                                  ("\t", "&#9;"), ("\r", "&#13;"), ("\n", "&#10;")]
+
+    private static func escape(_ value: String) -> String {
+        escapes.reduce(value) { $0.replacingOccurrences(of: $1.0, with: $1.1) }
+    }
+
+    private static func unescape(_ value: String) -> String {
+        escapes.reversed().reduce(value) { $0.replacingOccurrences(of: $1.1, with: $1.0) }
     }
 }
