@@ -24,6 +24,8 @@ struct ChatMessageActionItem: Identifiable {
         /// A Squadd thread's reactions (#19): a submenu of `reaction` items.
         case react
         case reaction(String)
+        /// A Squadd thread's Undo Last Exchange (#20).
+        case undo
     }
 
     let kind: Kind
@@ -54,6 +56,18 @@ extension ChatMessageActionItem {
                                       perform: { Task { await squadd.toggleReaction(emoji, onRow: rowID) } })
             }
         )
+    }
+}
+
+extension ChatMessageActionItem {
+    /// Undo Last Exchange on a row of a Squadd thread's last exchange (#20); nil on any other row. Off
+    /// when that exchange began the thread, which the computer can't undo.
+    @MainActor
+    static func squaddUndo(ofRow rowID: String, in squadd: SquaddChatTurnCoordinator, isEnabled: Bool) -> ChatMessageActionItem? {
+        guard squadd.lastExchangeRowIDs.contains(rowID) else { return nil }
+        return ChatMessageActionItem(kind: .undo, title: String(localized: "Undo the last exchange"), systemImage: "arrow.uturn.backward",
+                                     isEnabled: isEnabled && squadd.canUndo,
+                                     perform: { Task { await squadd.undoLastExchange() } })
     }
 }
 

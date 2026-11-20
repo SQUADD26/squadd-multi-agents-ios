@@ -141,6 +141,7 @@
 		5D0B11000000000000000103 /* SquaddChatTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B11000000000000000003 /* SquaddChatTests.swift */; };
 		5D0B19A00000000000000002 /* SquaddVersionsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B19A00000000000000001 /* SquaddVersionsTests.swift */; };
 		5D0B20A00000000000000002 /* SquaddForkTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B20A00000000000000001 /* SquaddForkTests.swift */; };
+		5D0B20B00000000000000002 /* SquaddUndoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B20B00000000000000001 /* SquaddUndoTests.swift */; };
 		5D0B11000000000000000104 /* SquaddChatLivePhotoTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5D0B11000000000000000004 /* SquaddChatLivePhotoTests.swift */; };
 		C0DE88500000000000000001 /* AppLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE88500000000000000002 /* AppLock.swift */; };
 		C0DE88500000000000000005 /* AppLockWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = C0DE88500000000000000006 /* AppLockWindow.swift */; };
@@ -946,6 +947,7 @@
 		5D0B11000000000000000003 /* SquaddChatTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddChatTests.swift; sourceTree = "<group>"; };
 		5D0B19A00000000000000001 /* SquaddVersionsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddVersionsTests.swift; sourceTree = "<group>"; };
 		5D0B20A00000000000000001 /* SquaddForkTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddForkTests.swift; sourceTree = "<group>"; };
+		5D0B20B00000000000000001 /* SquaddUndoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddUndoTests.swift; sourceTree = "<group>"; };
 		5D0B11000000000000000004 /* SquaddChatLivePhotoTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SquaddChatLivePhotoTests.swift; sourceTree = "<group>"; };
 		C0DE88500000000000000002 /* AppLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLock.swift; sourceTree = "<group>"; };
 		C0DE88500000000000000006 /* AppLockWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLockWindow.swift; sourceTree = "<group>"; };
@@ -1958,6 +1960,7 @@
 				5D0B11000000000000000003 /* SquaddChatTests.swift */,
 				5D0B19A00000000000000001 /* SquaddVersionsTests.swift */,
 				5D0B20A00000000000000001 /* SquaddForkTests.swift */,
+				5D0B20B00000000000000001 /* SquaddUndoTests.swift */,
 				5D0B11000000000000000004 /* SquaddChatLivePhotoTests.swift */,
 				B5A1000000000000000FA002 /* TestHostStateGuard.swift */,
 				B5A220000000000000000006 /* ChatMarkerMessageClassifierTests.swift */,
@@ -3443,6 +3446,7 @@
 				5D0B11000000000000000103 /* SquaddChatTests.swift in Sources */,
 				5D0B19A00000000000000002 /* SquaddVersionsTests.swift in Sources */,
 				5D0B20A00000000000000002 /* SquaddForkTests.swift in Sources */,
+				5D0B20B00000000000000002 /* SquaddUndoTests.swift in Sources */,
 				5D0B11000000000000000104 /* SquaddChatLivePhotoTests.swift in Sources */,
 				A1213000000000000000A005 /* MoveToHermesTransferTests.swift in Sources */,
 				A1214000000000000000A003 /* MoveToHermesReconcileTests.swift in Sources */,

@@ -1246,12 +1246,16 @@ private struct ChatTranscriptMessageRow: View {
             onEdit: onEdit,
             onFork: onFork,
             onCopy: onCopy,
-            extraItems: reactionItem.map { [$0] } ?? []
+            extraItems: [reactionItem, undoItem].compactMap { $0 }
         )
     }
 
     private var reactionItem: ChatMessageActionItem? {
         squadd.flatMap { ChatMessageActionItem.squaddReactions(ofRow: message.id, in: $0, isEnabled: !isViewingCachedData) }
+    }
+
+    private var undoItem: ChatMessageActionItem? {
+        squadd.flatMap { ChatMessageActionItem.squaddUndo(ofRow: message.id, in: $0, isEnabled: !isViewingCachedData && !hasActiveStream) }
     }
 }
 
