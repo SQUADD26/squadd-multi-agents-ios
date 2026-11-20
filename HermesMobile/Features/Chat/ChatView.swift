@@ -833,7 +833,10 @@ struct ChatView: View {
                 Task { await gitAvailabilityViewModel.loadBranches() }
             },
             showsSessionControls: !isHermesSession && !isSquaddThread,
-            slashScope: viewModel.hermesSlashCommands?.scope ?? .webui,
+            // A Squadd thread offers `/goal` alone until its catalog says what the agent can run.
+            slashScope: isSquaddThread
+                ? viewModel.squaddSlashScope ?? SquaddSlashCommands.scope(runsAgents: false, authorsSkills: false)
+                : viewModel.hermesSlashCommands?.scope ?? .webui,
             hostSlashCompletion: viewModel.hermesSlashCommands?.completion,
             onCompleteHostSlashArgument: { text in
                 await viewModel.hermesSlashCommands?.complete(text)
@@ -3191,7 +3194,7 @@ struct ChatView: View {
         let parsedCommand = SlashCommandExecutor.parse(submittedDraft)?.command
         if submittedContent.quotes.isEmpty,
            submittedDraft.trimmingCharacters(in: .whitespacesAndNewlines).hasPrefix("/"),
-           !isHermesSession {
+           !isHermesSession, !isSquaddThread {
             // `/clear` wipes the conversation on the server, so it always asks
             // first. The draft stays in the composer until the user confirms.
             // A refusal the app already knows about (cached view, CLI session,

@@ -212,10 +212,13 @@ extension SquaddCompanionClient {
         return try JSONDecoder().decode(SquaddMessagePage.self, from: data)
     }
 
-    /// Sends a typed message into one of the bot's threads. `sendId` makes a retry land once.
-    /// The reply comes over `events`, not here.
-    func send(_ text: String, botId: String, threadId: String, sendId: String) async throws -> SquaddSendReceipt {
-        try await post("api/bots/\(botId)/messages", ["text": text, "threadId": threadId, "sendId": sendId])
+    /// Sends a typed message into one of the bot's threads. `sendId` makes a retry land once;
+    /// `mode` "goal" starts a goal with `text` (`SquaddSlashCommands.outgoing`). The reply comes
+    /// over `events`, not here.
+    func send(_ text: String, botId: String, threadId: String, sendId: String, mode: String? = nil) async throws -> SquaddSendReceipt {
+        var body = ["text": text, "threadId": threadId, "sendId": sendId]
+        if let mode { body["mode"] = mode }
+        return try await post("api/bots/\(botId)/messages", body)
     }
 
     /// Sends `text` as a new version of the stored user message `messageId`: the thread moves to it
