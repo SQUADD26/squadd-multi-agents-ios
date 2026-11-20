@@ -1,0 +1,42 @@
+import tempfile
+import unittest
+from pathlib import Path
+
+from pr_tests import select
+
+FILES = {
+    "ChatViewModelTests.swift": "final class ChatViewModelTests: XCTestCase {}\nfinal class ChatViewModelMoreTests: APIClientTestCase {}\n",
+    "OtherTests.swift": "final class OtherTests: XCTestCase {}\n",
+    "EditorTests.swift": (
+        "final class EditorTests: XCTestCase {}\n"
+        "@MainActor\nfinal class EditorPhotoTests: XCTestCase { let d = env[\"FOTO_DIR\"]; let v = AgentEditorView() }\n"
+    ),
+}
+
+
+class SelectTests(unittest.TestCase):
+    def setUp(self):
+        root = Path(tempfile.mkdtemp())
+        self.tests = root / "HermesMobileTests"
+        self.tests.mkdir()
+        for name, text in FILES.items():
+            (self.tests / name).write_text(text)
+
+    def test_picks_touched_tests_named_tests_and_photos_of_touched_screens(self):
+        changed = [
+            "HermesMobileTests/OtherTests.swift",
+            "HermesMobile/Features/Chat/ChatViewModel.swift",
+            "HermesMobile/Features/Agents/AgentEditorView.swift",
+            "HermesMobile/Resources/Localizable.xcstrings",
+        ]
+        self.assertEqual(
+            select(changed, self.tests),
+            ["ChatViewModelMoreTests", "ChatViewModelTests", "EditorPhotoTests", "LocalizationCatalogTests", "OtherTests"],
+        )
+
+    def test_untested_change_selects_nothing(self):
+        self.assertEqual(select(["docs/readme.md", "HermesMobile/Unrelated.swift"], self.tests), [])
+
+
+if __name__ == "__main__":
+    unittest.main()
