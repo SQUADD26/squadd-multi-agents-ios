@@ -214,7 +214,6 @@ final class SquaddVersionsPhotoTests: XCTestCase {
         await squadd.toggleReaction("❤️", onRow: SquaddVersionsTests.firstReply)
         XCTAssertNotNil(squadd.marks[SquaddVersionsTests.firstReply])
         try await readyPhoto(of: window).write(to: dir.appendingPathComponent("19-c-reaction.png"))
-    }
         try assertOnePicker(in: window, reads: "1 of 2")
     }
 
