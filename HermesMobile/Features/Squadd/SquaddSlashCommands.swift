@@ -9,7 +9,7 @@ import Foundation
 /// which the computer expands from the message text, as it does `/learn`, `/setup` and `/burst`.
 /// Only `/goal` changes the send: its text goes without the prefix, with `mode: "goal"`.
 enum SquaddSlashCommands {
-    static let builtInNames: Set<String> = ["goal", "learn", "setup", "burst"].union(forkNames)
+    static let builtInNames = Set(["goal", "learn", "setup", "burst"]).union(forkNames)
     /// The app's own commands, which fork the thread the way Hermes chats' do (#20).
     static let forkNames: Set<String> = ["branch", "fork"]
 
