@@ -135,10 +135,8 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         try XCTSkipIf(path == nil, "Only for photo runs")
         let dir = URL(fileURLWithPath: path!)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        let begin = ContinuousClock.now
         let manager = try twoPairedComputers()
         let router = try host(manager)
-        try "host \(ContinuousClock.now - begin)\n".write(to: dir.appendingPathComponent("timing.txt"), atomically: true, encoding: .utf8)
 
         // a. A link to Pesto's "hi" thread on the Mac Studio, with the MacBook active: the app
         // switches computer, reads its agents and marks the thread.
@@ -221,12 +219,6 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
     /// Writes `<name>.png` once `ready` holds and the screen has settled (`readyPhoto`).
     private func shoot(_ name: String, dir: URL, until ready: () -> Bool) async throws {
         let window = try XCTUnwrap(window)
-        let start = ContinuousClock.now
-        var readyAt: Duration?
-        try await readyPhoto(of: window, until: { if ready() { readyAt = readyAt ?? ContinuousClock.now - start; return true }; return false }, limit: .seconds(5)).write(to: dir.appendingPathComponent("\(name).png"))
-        let line = "\(name) ready \(readyAt.map { "\($0)" } ?? "-") total \(ContinuousClock.now - start)\n"
-        let file = dir.appendingPathComponent("timing.txt")
-        let old = (try? String(contentsOf: file, encoding: .utf8)) ?? ""
-        try (old + line).write(to: file, atomically: true, encoding: .utf8)
+        try await readyPhoto(of: window, until: ready, limit: .seconds(5)).write(to: dir.appendingPathComponent("\(name).png"))
     }
 }
