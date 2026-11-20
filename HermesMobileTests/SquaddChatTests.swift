@@ -141,8 +141,10 @@ final class SquaddChatTests: XCTestCase {
 
     func testGoalGoesWithoutItsPrefixInGoalModeAndOtherCommandsAsTyped() async throws {
         var bodies: [[String: String]] = []
-        let botId = botId
+        let botId = botId, threadId = threadId
         SquaddChatFixture.handler = { request in
+            // After a send the chat reloads the thread, then listens.
+            if request.url?.path == "/api/threads/\(threadId)/messages" { return .reply(200, try! Self.fixture("thread-before.json")) }
             guard request.httpMethod == "POST", request.url?.path == "/api/bots/\(botId)/messages" else { return .hold }
             let body = request.httpBody ?? request.httpBodyStream.map(Self.read) ?? Data()
             bodies.append((try? JSONSerialization.jsonObject(with: body)) as? [String: String] ?? [:])
