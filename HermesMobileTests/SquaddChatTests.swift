@@ -417,6 +417,42 @@ final class SquaddChatTests: XCTestCase {
                        "the words written before Stop stay, though the companion stores none")
     }
 
+    /// Opened while the agent already writes, the chat never saw `turn.started`: Stop names no
+    /// turn, as the desktop does, and the companion stops the one running (recorded the same way).
+    func testStopOnATurnJoinedMidReplyNamesNoTurnAndEndsWhenTheStreamSays() async throws {
+        let events = try Self.text("control-stop-unnamed-events.sse")
+        let blocks = events.components(separatedBy: "\n\n").filter { !$0.isEmpty }
+        let firstDelta = try XCTUnwrap(blocks.firstIndex { $0.contains(#""type":"content.delta""#) })
+        let stopAt = try XCTUnwrap(blocks.firstIndex { $0.hasPrefix(": app interrupt") })
+        func stream(_ part: ArraySlice<String>) -> Data { Data(part.map { $0 + "\n\n" }.joined().utf8) }
+        let bot = resumeBot, thread = resumeThread
+        var asked: URLRequest?
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, try! Self.fixture("control-thread-before.json"))
+            case ("GET", _): return .hold
+            case ("POST", "/api/bots/\(bot)/interrupt"): asked = request; return .reply(200, Data(#"{"ok":true}"#.utf8))
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, coordinator) = makeChat(bot: resumeBot, thread: resumeThread, reconnectDelay: { _ in })
+        await model.loadMessages()
+        SquaddChatFixture.stream(stream(blocks[..<1]) + stream(blocks[firstDelta..<stopAt]))
+        await waitUntil("the turn shows as running") { model.activeStreamID != nil }
+
+        let accepted = await model.cancelActiveStream()
+        XCTAssertTrue(accepted)
+        XCTAssertEqual(try Self.fields(asked), ["threadId": thread], "no turn to name")
+        XCTAssertNotNil(model.activeStreamID, "accepted is not stopped")
+
+        let reopened = expectation(description: "the stream reopens after the stop's frames")
+        SquaddChatFixture.didHold = { if $0.url?.path == "/api/events" { reopened.fulfill() } }
+        SquaddChatFixture.stream(stream(blocks[stopAt...]), finish: true)
+        await fulfillment(of: [reopened], timeout: 5)
+        XCTAssertNil(model.activeStreamID, "the stream ended the turn")
+        XCTAssertEqual(coordinator.latestRunEnding?.ending, .cancelled)
+    }
+
     func testCompactAsksTheCompanionAndTheMarkerShowsWhenItLands() async throws {
         let events = try Self.text("control-events.sse")
         let bot = resumeBot, thread = resumeThread
