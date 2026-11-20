@@ -93,6 +93,9 @@ jobs:
           set -euo pipefail
           echo "::group::Tests of the touched files"
           mkdir -p "${TEST_RUNNER_FOTO_DIR}"
+          # A cancelled run can leave these behind: xcodebuild refuses an existing result bundle, and an old log
+          # would be recorded as this run's times.
+          rm -rf "${RUNNER_TEMP:?}"/{one,two}.{xcresult,log}
           run() {
             nice -n 10 xcodebuild test-without-building -project HermesMobile.xcodeproj -scheme HermesMobile \
               -destination "platform=iOS Simulator,id=$1" -derivedDataPath "${DERIVED_DATA}" \
