@@ -1,15 +1,27 @@
 import Foundation
 import Observation
 
-/// One agent in the Squadd home: its open threads in the desktop sidebar's order, and its
-/// archived ones apart, as session rows.
+/// One agent in the Squadd home as the desktop sidebar shows it: its folders with their open
+/// threads, then the open threads in no folder, and its archived threads apart, as session rows.
 struct SquaddAgentSection: Identifiable, Equatable {
+    /// A folder and its open threads.
+    struct Folder: Identifiable, Equatable {
+        let id: String
+        let name: String
+        let emoji: String?
+        let threads: [SessionSummary]
+        let canMoveUp: Bool
+        let canMoveDown: Bool
+    }
+
     let id: String
     let name: String
     /// The agent's own chat.
     let threadID: String?
     let subtitle: String?
     let isBusy: Bool
+    let folders: [Folder]
+    /// Open threads in no folder.
     let threads: [SessionSummary]
     let archived: [SessionSummary]
     /// The threads the companion marks unread, by `SessionSummary.id` (the thread id).
@@ -25,9 +37,14 @@ struct SquaddAgentSection: Identifiable, Equatable {
         name = Self.nonEmpty(bot.name) ?? String(localized: "Unnamed Agent")
         subtitle = Self.nonEmpty(bot.title)
         isBusy = bot.busy == true
-        let ordered = SquaddTask.desktopOrder(bot.tasks)
-        threads = ordered.filter { !$0.isArchived }.map(Self.row)
-        archived = ordered.filter(\.isArchived).map(Self.row)
+        let layout = bot.desktopLayout
+        threads = layout.loose.map(Self.row)
+        folders = layout.folders.map { folder in
+            Folder(id: folder.project.id, name: folder.project.name, emoji: folder.project.emoji, threads: folder.tasks.map(Self.row),
+                   canMoveUp: bot.projects(movingFolder: folder.project.id, by: -1) != nil,
+                   canMoveDown: bot.projects(movingFolder: folder.project.id, by: 1) != nil)
+        }
+        archived = SquaddTask.desktopOrder(bot.tasks).filter(\.isArchived).map(Self.row)
     }
 
     private static func row(_ task: SquaddTask) -> SessionSummary {
@@ -124,6 +141,63 @@ final class SquaddAgentListModel {
         }
     }
 
+    /// A new folder at the end of `botId`'s folders; waits for the companion like a new thread.
+    func createFolder(named name: String, botId: String) async -> Bool {
+        do {
+            let project = try await client.createProject(botId: botId, name: name)
+            editBot(botId) { $0.projects.append(project) }
+            return true
+        } catch {
+            _ = handled(error)
+            return false
+        }
+    }
+
+    /// Puts a thread in a folder, or in none with nil.
+    func move(threadId: String, botId: String, toFolder projectId: String?) async -> Bool {
+        await change(threadId, botId, ["projectId": projectId.map { $0 as Any } ?? NSNull()]) { $0.projectId = projectId }
+    }
+
+    /// Moves a folder one place in the shown order (`offset` -1 up, +1 down) and saves the whole
+    /// order, as the desktop's drag does.
+    func moveFolder(_ projectId: String, botId: String, by offset: Int) async -> Bool {
+        guard let bot = bots.first(where: { $0.id == botId }),
+              let after = bot.projects(movingFolder: projectId, by: offset) else { return false }
+        let before = bot.projects
+        editBot(botId) { $0.projects = after }
+        do {
+            try await client.reorderProjects(botId: botId, projectIds: after.map(\.id))
+            return true
+        } catch {
+            editBot(botId) { $0.projects = before }
+            _ = handled(error)
+            return false
+        }
+    }
+
+    /// Deletes a folder; its threads stay, in no folder, as the companion does.
+    func deleteFolder(_ projectId: String, botId: String) async -> Bool {
+        guard let bot = bots.first(where: { $0.id == botId }) else { return false }
+        let before = bot
+        editBot(botId) { bot in
+            bot.projects.removeAll { $0.id == projectId }
+            for index in bot.tasks.indices where bot.tasks[index].projectId == projectId { bot.tasks[index].projectId = nil }
+        }
+        do {
+            try await client.deleteProject(botId: botId, projectId: projectId)
+            return true
+        } catch {
+            editBot(botId) { bot in
+                bot.projects = before.projects
+                for task in before.tasks where task.projectId == projectId {
+                    if let index = bot.tasks.firstIndex(where: { $0.threadId == task.threadId }) { bot.tasks[index].projectId = projectId }
+                }
+            }
+            _ = handled(error)
+            return false
+        }
+    }
+
     /// Searches every conversation's messages; an empty query ends the search. False when the
     /// search failed: the last results stay, since an empty list would say nothing matched.
     func search(_ query: String) async -> Bool {
@@ -183,8 +257,12 @@ final class SquaddAgentListModel {
     }
 
     private func edit(_ botId: String, _ update: (inout [SquaddTask]) -> Void) {
+        editBot(botId) { update(&$0.tasks) }
+    }
+
+    private func editBot(_ botId: String, _ update: (inout SquaddBot) -> Void) {
         guard let index = bots.firstIndex(where: { $0.id == botId }) else { return }
-        update(&bots[index].tasks)
+        update(&bots[index])
         publish()
     }
 

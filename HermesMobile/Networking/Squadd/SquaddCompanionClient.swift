@@ -67,6 +67,22 @@ struct SquaddCompanionClient {
         _ = try await call("DELETE", "api/bots/\(botId)/tasks/\(threadId)")
     }
 
+    /// A new, empty folder at the end of `botId`'s folders. Names are 1 to 80 characters.
+    func createProject(botId: String, name: String) async throws -> SquaddProject {
+        let data = try await call("POST", "api/bots/\(botId)/projects", body: ["name": name])
+        return try JSONDecoder().decode(SquaddProjectResponse.self, from: data).project
+    }
+
+    /// Saves the folders' order; `projectIds` must name each of the agent's folders once.
+    func reorderProjects(botId: String, projectIds: [String]) async throws {
+        _ = try await call("PATCH", "api/bots/\(botId)/projects/order", body: ["projectIds": projectIds])
+    }
+
+    /// Deletes a folder. Its threads stay, outside any folder.
+    func deleteProject(botId: String, projectId: String) async throws {
+        _ = try await call("DELETE", "api/bots/\(botId)/projects/\(projectId)")
+    }
+
     /// Message matches across every conversation this phone can see.
     func search(_ query: String) async throws -> [SquaddSearchHit] {
         let data = try await call("GET", "api/search?q=\(Self.segment(query))")
