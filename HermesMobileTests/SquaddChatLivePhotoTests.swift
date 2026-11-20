@@ -55,6 +55,11 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         if loaded == nil {
             note("not loaded: model \(continuity.model == nil ? "missing" : "on screen"), loading \(continuity.model?.isLoading ?? false), rows \(continuity.model?.messages.count ?? 0)")
             try? photograph(window, named: "7-squadd-chat-open", in: folder)
+            if let model = continuity.model {
+                note("the view asked for the transcript: \(continuity.didLoadMessages)")
+                await model.loadMessages()
+                note("loaded by hand: rows \(model.messages.count), error \(model.errorMessage ?? "none")")
+            }
         }
         let model = try XCTUnwrap(loaded, "the thread loaded")
         note("transcript: \(model.messages.count) rows, error: \(model.errorMessage ?? "none")")
