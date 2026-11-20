@@ -249,6 +249,17 @@ final class ComposerVoiceDraftComposerTests: XCTestCase {
         XCTAssertEqual(select(current: "hi-IN-translit"), "hi-IN-translit")
     }
 
+    /// A Squadd chat dictates on the phone (#25): no transcriber reaches the voice input, even
+    /// with Server first stored.
+    @MainActor
+    func testOnDeviceOnlyDictationNeverGetsTheServerTranscriber() {
+        let server: ComposerTranscriber = { _, _ in throw CancellationError() }
+        let (transcriber, preference) = ComposerSTTProviderPolicy.dictation(
+            onDeviceOnly: true, transcriber: server, stored: .serverFirst)
+        XCTAssertNil(transcriber)
+        XCTAssertEqual(preference, .onDeviceOnly)
+    }
+
     func testServerFirstPolicyPrefersServerThenOnDevice() {
         XCTAssertEqual(
             ComposerSTTProviderPolicy.orderedProviders(

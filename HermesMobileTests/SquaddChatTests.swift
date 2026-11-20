@@ -1,6 +1,7 @@
 import SwiftData
 import XCTest
 import UIKit
+import AVFoundation
 @testable import HermesMobile
 
 /// A Squadd agent's chat (#11) against one turn recorded from a real `openmausbot` companion
@@ -653,6 +654,65 @@ final class SquaddChatTests: XCTestCase {
                                 "bytes=\(SquaddCompanionClient.attachmentChunkBytes)-\(2 * SquaddCompanionClient.attachmentChunkBytes - 1)"])
     }
 
+    // MARK: Listen (#25), against `/api/tts` answers recorded from a real companion
+
+    /// Listen reads a reply in the computer's voice: `prepare` splits it into utterances, `speak`
+    /// voices each, and they play as one track. Leaving the app stops it.
+    /// #25: a Squadd chat's composer dictates on the phone only; other chats keep their choice.
+    func testOnlyASquaddChatDictatesOnThePhoneAlone() {
+        let (squadd, _) = makeChat()
+        let webui = ChatViewModel(session: SessionSummary(sessionId: "webui-session", title: "Prova"), server: server)
+
+        XCTAssertTrue(squadd.dictatesOnDevice)
+        XCTAssertFalse(webui.dictatesOnDevice)
+    }
+
+    func testListenSpeaksEachPreparedUtteranceAsOneTrackAndStopsInTheBackground() async throws {
+        let reply = "## Fatto\n\nHo letto il file e ho trovato **tre** punti."
+        var prepared: String?
+        var spoken: [String] = []
+        let clip = try Self.fixture("tts-speak.wav")
+        SquaddChatFixture.handler = { request in
+            let text = (request.httpBody ?? request.httpBodyStream.map(Self.read))
+                .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: String] }?["text"]
+            switch (request.httpMethod, request.url?.path) {
+            case ("POST", "/api/tts/prepare"):
+                prepared = text; return .reply(200, try! Self.fixture("tts-prepare.json"))
+            case ("POST", "/api/tts/speak"):
+                spoken.append(text ?? ""); return .reply(200, clip, headers: ["Content-Type": "audio/wav"])
+            default: return .hold
+            }
+        }
+        var played: Data?
+        let player = ListenPlayerSpy()
+        let (model, _) = makeChat(listen: { played = $0; return player })
+        let context = try XCTUnwrap(MessageActionContext(
+            message: ChatMessage(role: "assistant", content: reply, timestamp: 1_770_000_002, messageId: "reply-1"),
+            visibleIndex: 0, messagesOffset: 0))
+
+        model.toggleListening(to: context)
+        await model.listenPreparationTask?.value
+
+        XCTAssertEqual(prepared, context.listenText)
+        XCTAssertEqual(spoken, ["Fatto. Ho letto il file note.md e ho trovato tre punti.",
+                                "Il primo riguarda la chiave «redacted 46 chars».",
+                                "Il secondo è la data.", "Il terzo è il prezzo."])
+        let track = try Self.audioFile(try XCTUnwrap(played, "the computer's voice plays"))
+        XCTAssertEqual(track.length, 4 * (try Self.audioFile(clip).length), "one track, every utterance in order")
+        XCTAssertEqual(model.listeningMessageID, "reply-1")
+
+        model.stopSquaddListening()
+
+        XCTAssertNil(model.listeningMessageID)
+        XCTAssertEqual(player.stops, 1)
+    }
+
+    private static func audioFile(_ data: Data) throws -> AVAudioFile {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(UUID().uuidString).wav")
+        try data.write(to: url)
+        return try AVAudioFile(forReading: url)
+    }
+
     /// Opaque, so staging re-encodes it as JPEG, as it does a camera photo.
     private static let photo = UIGraphicsImageRenderer(size: CGSize(width: 4, height: 4), format: {
         let format = UIGraphicsImageRendererFormat(); format.opaque = true; return format
@@ -686,6 +746,7 @@ final class SquaddChatTests: XCTestCase {
 
     private func makeChat(server: URL? = nil, bot: String? = nil, thread: String? = nil, retrying: XCTestExpectation? = nil,
                           copies: (any ChatDraftAttachmentStoring)? = nil,
+                          listen: (@MainActor (Data) throws -> any ListenAudioPlaying)? = nil,
                           reconnectDelay: @escaping ChatStreamReconnectDelay = { _ in try await Task.sleep(for: .seconds(3600)) })
         -> (ChatViewModel, SquaddChatTurnCoordinator) {
         let configuration = URLSessionConfiguration.ephemeral
@@ -699,11 +760,10 @@ final class SquaddChatTests: XCTestCase {
                                                         try await reconnectDelay(delay)
                                                     })
         addTeardownBlock { coordinator.stop() }
-        let model = copies.map {
-            ChatViewModel(session: SessionSummary(sessionId: threadId, title: "Prova"), server: server,
-                          streamingRevealTick: {}, draftAttachmentStore: $0, backend: .squadd(coordinator))
-        } ?? ChatViewModel(session: SessionSummary(sessionId: threadId, title: "Prova"), server: server,
-                           streamingRevealTick: {}, backend: .squadd(coordinator))
+        let model = ChatViewModel(session: SessionSummary(sessionId: threadId, title: "Prova"), server: server,
+                                  streamingRevealTick: {}, renderOnDeviceSpeech: { _ in throw CancellationError() },
+                                  listenAudioSession: ListenSessionSpy(), listenAudioPlayerFactory: listen,
+                                  draftAttachmentStore: copies ?? ChatDraftAttachmentStore.shared, backend: .squadd(coordinator))
         return (model, coordinator)
     }
 
@@ -819,4 +879,22 @@ final class SquaddChatFixture: URLProtocol {
                                        headerFields: ["Content-Type": type].merging(headers) { $1 })!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
     }
+}
+
+@MainActor
+private final class ListenPlayerSpy: ListenAudioPlaying {
+    var onFinish: (@MainActor () -> Void)?
+    var currentTime: TimeInterval = 0
+    var duration: TimeInterval = 4
+    var rate: Float = 1
+    private(set) var stops = 0
+    func prepareToPlay() {}
+    func play() -> Bool { true }
+    func pause() {}
+    func stop() { stops += 1 }
+}
+
+private struct ListenSessionSpy: ListenAudioSessionControlling {
+    func activate() {}
+    func deactivate() {}
 }

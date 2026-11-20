@@ -277,6 +277,14 @@ final class SquaddChatTurnCoordinator {
         try await client.attachmentData(path: path)
     }
 
+    /// A reply in the computer's voice for Listen (#25), its utterances joined into one track.
+    /// Nil when the computer has no voice set up, so Listen speaks on the phone.
+    func speech(for text: String) async throws -> Data? {
+        guard let clips = try await client.speech(for: text) else { return nil }
+        if clips.count == 1 { return clips[0].data }
+        return try await Task.detached { try ComposerVoiceNoteRecorder.wav(joining: clips) }.value
+    }
+
     /// What this thread's `/` panel offers: the built-ins the agent's engine and the computer allow,
     /// and the agent's skills as this thread sees them.
     func slashCatalog() async throws -> (scope: SlashCommandScope, skills: [SkillSlashSuggestion]) {

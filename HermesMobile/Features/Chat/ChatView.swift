@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 import SwiftData
 import UIKit
@@ -869,7 +870,8 @@ struct ChatView: View {
             showsNewChatControls: showsNewChatControls,
             uploadsAttachmentsOnSend: isHermesSession,
             onCancelAttachmentUpload: viewModel.isSendingAttachments ? { viewModel.cancelAttachmentUpload() } : nil,
-            hermesTranscriber: hermesTranscriber
+            hermesTranscriber: hermesTranscriber,
+            dictatesOnDevice: viewModel.dictatesOnDevice
         )
         // The composer flips wholesale with the transcript under the RTL
         // toggle (#259): input, placeholder, and chrome mirror together.
@@ -1214,6 +1216,11 @@ struct ChatView: View {
             }
             .onChange(of: scenePhase) {
                 handleScenePhaseChange(scenePhase)
+            }
+            .onReceive(NotificationCenter.default.publisher(for: AVAudioSession.interruptionNotification)) { note in
+                // A call or another app taking the audio.
+                guard (note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt) == AVAudioSession.InterruptionType.began.rawValue else { return }
+                viewModel.stopSquaddListening()
             }
             .onChange(of: NetworkPathMonitor.shared.changeCount) {
                 handleNetworkPathChange()
@@ -4175,6 +4182,7 @@ struct ChatView: View {
 
         switch phase {
         case .background:
+            viewModel.stopSquaddListening()
             if isHermesSession {
                 // The app closes the gateway socket in the background (#902); the turn
                 // runs on, and returning reattaches to it.
