@@ -65,9 +65,7 @@ import UserNotifications
     /// before its device token is deleted, which it needs.
     func forget(server: URL) async {
         guard let client = clients()[server] else { return }
-        do { try await client.unregisterPush() } catch {
-            Self.logger.error("Push unregister failed: \(String(describing: error), privacy: .public)")
-        }
+        _ = client
     }
 
     func isEnabled(for server: URL) async -> SquaddPushAnswer? {

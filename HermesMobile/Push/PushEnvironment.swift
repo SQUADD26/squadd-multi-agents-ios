@@ -41,7 +41,7 @@ enum PushEnvironment: String, Codable, Equatable, Sendable {
 enum PushBundleIdentifier {
     static let supported: Set<String> = [
         "com.uzairansar.hermesmobile",
-        "com.uzairansar.hermesmobile.branch"
+        "com.uzairansar.hermesmobile.branch", "com.squaddcrm.multiagents"
     ]
 
     static func current(bundle: Bundle = .main) -> String? {

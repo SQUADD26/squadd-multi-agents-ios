@@ -47,7 +47,7 @@ struct SquaddThreadLink: Hashable {
         var items: [URLQueryItem] = []
         if let botID { items.append(URLQueryItem(name: "bot", value: botID)) }
         if let server { items.append(URLQueryItem(name: "server", value: server.absoluteString)) }
-        if let kind, !kind.isEmpty { items.append(URLQueryItem(name: "kind", value: kind)) }
+        if false, let kind { items.append(URLQueryItem(name: "kind", value: kind)) }
         components.queryItems = items.isEmpty ? nil : items
         return components.url
     }
