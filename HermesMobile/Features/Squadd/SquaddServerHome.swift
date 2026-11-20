@@ -26,7 +26,7 @@ struct SquaddRoute<Webui: View>: View {
 /// header with the server's avatar, switcher and search, then each agent's threads in session rows,
 /// in the desktop sidebar's order, read from the companion's `GET /api/bots`. A thread's menu and
 /// swipes pin, rename, export, archive and delete it; archived threads wait under their agent.
-/// Threads don't open yet: chat is its own ticket, so a thread link scrolls to the thread's row and marks it.
+/// A thread opens in the chat (#11); a thread link marks its row and opens it.
 struct SquaddServerHome: View {
     @Bindable var authManager: AuthManager
     let server: URL
@@ -55,10 +55,17 @@ struct SquaddServerHome: View {
     @State private var exported: SessionExportShareItem?
     @State private var expandedArchives: Set<String> = []
     @State private var toast = ActionToastState()
+    /// The agent a New Folder alert is naming a folder for.
+    @State private var namingFolderFor: String?
+    @State private var newFolderName = ""
+    @State private var deletingFolder: SquaddFolderRef?
     @State private var hasStarted = false
+    @State private var token = ""
+    /// The open thread, so the keyboard's chat shortcuts know where they stand.
+    @State private var path: [SquaddThreadChat] = []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollViewReader { proxy in
                 AppList(rows: .plain) {
                     SessionsHeader(logoColor: HeaderLogoColor.color(for: identity.headerLogoColorHex), avatar: avatar,
@@ -78,7 +85,9 @@ struct SquaddServerHome: View {
                 .onChange(of: model?.phase) { openPendingThread(proxy) }
                 .onChange(of: pendingThread) { openPendingThread(proxy) }
             }
+            .navigationDestination(for: SquaddThreadChat.self) { ChatView(squaddThread: $0).id($0.id) }
         }
+        .focusedSceneValue(\.hermexSceneActions, sceneActions)
         .alert("Thread Not Found", isPresented: $isLinkedThreadMissing) {
             Button("OK", role: .cancel) {}
         } message: {
@@ -92,7 +101,9 @@ struct SquaddServerHome: View {
         }
         .task {
             if model == nil {
-                let client = SquaddCompanionClient(server: server, token: authManager.squaddToken(for: server) ?? "")
+                let token = authManager.squaddToken(for: server) ?? ""
+                self.token = token
+                let client = SquaddCompanionClient(server: server, token: token)
                 self.client = client
                 model = SquaddAgentListModel(
                     client: client,
@@ -166,6 +177,26 @@ struct SquaddServerHome: View {
             Button("Cancel", role: .cancel) {}
         } message: { _ in
             Text("The thread and its messages are deleted on the computer too.")
+        }
+        .alert("New Folder", isPresented: Binding(get: { namingFolderFor != nil }, set: { if !$0 { namingFolderFor = nil } })) {
+            TextField("Folder name", text: $newFolderName)
+            Button("Create") {
+                let name = newFolderName.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard let botId = namingFolderFor, !name.isEmpty else { return }
+                Task { await run { await $0.createFolder(named: name, botId: botId) } }
+            }
+            // The companion takes 1 to 80 characters; a longer name is refused here, never cut.
+            .disabled(newFolderName.trimmingCharacters(in: .whitespacesAndNewlines).count > 80)
+            Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog("Delete Folder?", isPresented: Binding(get: { deletingFolder != nil }, set: { if !$0 { deletingFolder = nil } }),
+                            titleVisibility: .visible, presenting: deletingFolder) { folder in
+            Button("Delete Folder", role: .destructive) {
+                Task { await run { await $0.deleteFolder(folder.id, botId: folder.botId) } }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("Its threads stay, outside any folder.")
         }
         .sheet(item: $editingAgent) { agentEditor(for: $0) }
         .sheet(isPresented: $isCreatingAgent) { agentEditor(for: nil) }
@@ -256,11 +287,20 @@ struct SquaddServerHome: View {
                     editingAgent = section.bot
                 } newThread: {
                     Task { await run { await $0.createThread(botId: section.id) } }
+                } newFolder: {
+                    newFolderName = ""
+                    namingFolderFor = section.id
                 }
                 .background(linkedMark(section.headerRowID))
                 .id(section.headerRowID)
                 .sessionsScreenListRow()
-                if section.threads.isEmpty {
+                ForEach(section.folders) { folder in
+                    folderHeader(folder, in: section)
+                    ForEach(folder.threads) { thread in
+                        threadRow(thread, in: section)
+                    }
+                }
+                if section.threads.isEmpty && section.folders.allSatisfy(\.threads.isEmpty) {
                     Text("No threads yet")
                         .font(AppFont.subheadline())
                         .foregroundStyle(.appSecondary)
@@ -284,13 +324,16 @@ struct SquaddServerHome: View {
 
     private func threadRow(_ thread: SessionSummary, in section: SquaddAgentSection) -> some View {
         let ref = SquaddThreadRef(botId: section.id, session: thread)
-        return SessionRowView(session: thread, showsMessageCount: false, showsWorkspace: false,
-                              isUnread: section.unreadThreadIDs.contains(thread.id), labelsArchived: true)
+        return NavigationLink(value: SquaddThreadChat(in: section, thread: thread, server: server, token: token)) {
+            SessionRowView(session: thread, showsMessageCount: false, showsWorkspace: false,
+                           isUnread: section.unreadThreadIDs.contains(thread.id), labelsArchived: true)
+        }
+            .buttonStyle(.plain)
             .background(linkedMark(thread.id))
             .accessibilityAddTraits(linkedRow == thread.id ? .isSelected : [])
             .id(thread.id)
             .padding(.horizontal, 12)
-            .contextMenu { SquaddThreadMenu(thread: ref, act: act) }
+            .contextMenu { SquaddThreadMenu(thread: ref, folders: section.folders, act: act) }
             .swipeActions(edge: .leading, allowsFullSwipe: false) {
                 if thread.archived != true {
                     Button { act(.pin, ref) } label: {
@@ -310,6 +353,43 @@ struct SquaddServerHome: View {
                 .tint(.orange)
             }
             .sessionsScreenListRow()
+    }
+
+    private func folderHeader(_ folder: SquaddAgentSection.Folder, in section: SquaddAgentSection) -> some View {
+        let ref = SquaddFolderRef(botId: section.id, id: folder.id, name: folder.name)
+        return HStack(spacing: 8) {
+            if let emoji = folder.emoji {
+                Text(verbatim: emoji)
+            } else {
+                Image(systemName: "folder")
+                    .foregroundStyle(.appSecondary)
+            }
+            Text(verbatim: folder.name)
+                .font(AppFont.subheadline(weight: .semibold))
+                .foregroundStyle(.appPrimary)
+                .lineLimit(1)
+            Spacer()
+            Text(verbatim: folder.threads.count.formatted())
+                .font(AppFont.caption())
+                .foregroundStyle(.appSecondary)
+        }
+        .padding(.horizontal, 24)
+        .padding(.top, 10)
+        .padding(.bottom, 2)
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .contextMenu {
+            Button { Task { await run { await $0.moveFolder(folder.id, botId: section.id, by: -1) } } } label: {
+                Label("Move Up", systemImage: "arrow.up")
+            }
+            .disabled(!folder.canMoveUp)
+            Button { Task { await run { await $0.moveFolder(folder.id, botId: section.id, by: 1) } } } label: {
+                Label("Move Down", systemImage: "arrow.down")
+            }
+            .disabled(!folder.canMoveDown)
+            Button(role: .destructive) { deletingFolder = ref } label: { Label("Delete Folder", systemImage: "trash") }
+        }
+        .sessionsScreenListRow()
     }
 
     private func archiveToggle(_ section: SquaddAgentSection) -> some View {
@@ -339,6 +419,8 @@ struct SquaddServerHome: View {
     private func act(_ action: SquaddThreadAction, _ thread: SquaddThreadRef) {
         switch action {
         case .rename: renaming = thread
+        case .move(let projectId):
+            Task { await run { await $0.move(threadId: thread.threadId, botId: thread.botId, toFolder: projectId) } }
         case .delete: deleting = thread
         case .pin:
             Task { await run {
@@ -389,9 +471,19 @@ struct SquaddServerHome: View {
             searchText = text
         case .showArchived:
             expandedArchives = Set(sections.map(\.id))
+        case .newFolder:
+            newFolderName = ""
+            namingFolderFor = sections.first?.id
+        case .deleteFolder(let name):
+            for section in sections {
+                if let folder = section.folders.first(where: { $0.name == name }) {
+                    deletingFolder = SquaddFolderRef(botId: section.id, id: folder.id, name: folder.name)
+                    return
+                }
+            }
         case .act(let action, let title):
             for section in sections {
-                if let thread = (section.threads + section.archived).first(where: { $0.title == title }) {
+                if let thread = (section.threads + section.folders.flatMap(\.threads) + section.archived).first(where: { $0.title == title }) {
                     act(action, SquaddThreadRef(botId: section.id, session: thread))
                     return
                 }
@@ -410,8 +502,8 @@ struct SquaddServerHome: View {
         withAnimation(SessionListMotion.searchChromeAnimation(reduceMotion: reduceMotion)) { isSearchExpanded = false }
     }
 
-    /// Opens a held thread link once this server's agents are loaded: scrolls to the thread's row
-    /// and marks it, or says the thread is gone. A link pinned to another server waits for its home.
+    /// Opens a held thread link once this server's agents are loaded: marks the thread's row and
+    /// opens its chat, or says the thread is gone. A link pinned to another server waits for its home.
     private func openPendingThread(_ proxy: ScrollViewProxy) {
         guard let link = pendingThread, link.server.map({ SquaddThreadLink.sameServer($0.absoluteString, server.absoluteString) }) ?? true,
               case .loaded(let sections) = model?.phase else { return }
@@ -424,6 +516,36 @@ struct SquaddServerHome: View {
         linkedRow = row
         if let section = sections.first(where: { $0.archived.contains { $0.id == row } }) { expandedArchives.insert(section.id) }
         withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(row, anchor: .center) }
+        if let section = sections.first(where: { section in
+            section.threadID == link.threadID || (section.threads + section.archived).contains { $0.id == link.threadID }
+        }) {
+            let title = (section.threads + section.archived).first { $0.id == link.threadID }?.title ?? section.name
+            path = [SquaddThreadChat(server: server, token: token, botId: section.id, threadId: link.threadID, title: title)]
+        }
+    }
+
+    /// The hardware-keyboard commands (`HermexCommands`): ⌘1–⌘9 and Next and Previous Chat open
+    /// the home's threads; there is no New Chat here yet.
+    private var sceneActions: HermexSceneActions {
+        HermexSceneActions(
+            canCreateNewChat: false,
+            createNewChat: {},
+            searchSessions: { if model != nil { openSearch() } },
+            openChat: { position in
+                if let chat = ChatShortcutNavigation.chat(atPosition: position, in: keyboardShortcutChats) { path = [chat] }
+            },
+            openAdjacentChat: { offset in
+                if let chat = ChatShortcutNavigation.adjacentChat(offset: offset, from: path.last?.id, in: keyboardShortcutChats) {
+                    path = [chat]
+                }
+            }
+        )
+    }
+
+    /// Read only on a key press, never in `body`.
+    private var keyboardShortcutChats: [SquaddThreadChat] {
+        guard case .loaded(let sections) = model?.phase else { return [] }
+        return SquaddThreadChat.all(in: sections, server: server, token: token)
     }
 
     private func linkedMark(_ row: String) -> some View {
@@ -458,6 +580,7 @@ private struct SquaddAgentHeader: View {
     let client: SquaddCompanionClient?
     let edit: () -> Void
     let newThread: () -> Void
+    let newFolder: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
@@ -469,12 +592,14 @@ private struct SquaddAgentHeader: View {
                     .controlSize(.small)
                     .accessibilityLabel("Working")
             }
-            Button(action: newThread) {
-                Image(systemName: "square.and.pencil")
+            Menu {
+                Button(action: newThread) { Label("New Thread", systemImage: "square.and.pencil") }
+                Button(action: newFolder) { Label("New Folder", systemImage: "folder.badge.plus") }
+            } label: {
+                Image(systemName: "plus")
                     .frame(width: 44, height: 44)
                     .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
             .foregroundStyle(.tint)
             .accessibilityLabel(Text("New Thread for \(section.name)"))
         }
@@ -510,6 +635,10 @@ private struct SquaddAgentHeader: View {
 enum SquaddHomeStart {
     case search(String)
     case showArchived
+    /// The New Folder alert for the first agent.
+    case newFolder
+    /// The delete confirmation of the first folder with this name.
+    case deleteFolder(String)
     /// The action on the first thread with this title.
     case act(SquaddThreadAction, threadTitle: String)
 }
@@ -517,6 +646,15 @@ enum SquaddHomeStart {
 /// What a thread's menu and swipes ask the home to do.
 enum SquaddThreadAction {
     case pin, rename, export, archive, delete
+    /// Into a folder, or out of every folder with nil.
+    case move(String?)
+}
+
+/// A folder and the agent it belongs to, for its delete confirmation.
+struct SquaddFolderRef: Identifiable {
+    let botId: String
+    let id: String
+    let name: String
 }
 
 /// A thread row and the agent it belongs to, which every companion route names.
@@ -530,6 +668,7 @@ struct SquaddThreadRef: Identifiable {
 /// A thread's long-press menu: the same actions, order and wording as a Hermes session's.
 private struct SquaddThreadMenu: View {
     let thread: SquaddThreadRef
+    let folders: [SquaddAgentSection.Folder]
     let act: (SquaddThreadAction, SquaddThreadRef) -> Void
 
     var body: some View {
@@ -539,6 +678,24 @@ private struct SquaddThreadMenu: View {
             }
         }
         Button { act(.rename, thread) } label: { Label("Rename", systemImage: "pencil") }
+        if !folders.isEmpty {
+            Menu {
+                Button { act(.move(nil), thread) } label: {
+                    Label("No Folder", systemImage: thread.session.projectId == nil ? "checkmark" : "tray")
+                }
+                .disabled(thread.session.projectId == nil)
+                Divider()
+                ForEach(folders) { folder in
+                    let isHere = thread.session.projectId == folder.id
+                    Button { act(.move(folder.id), thread) } label: {
+                        Label { Text(verbatim: folder.name) } icon: { Image(systemName: isHere ? "checkmark" : "folder") }
+                    }
+                    .disabled(isHere)
+                }
+            } label: {
+                Label("Move to Folder", systemImage: "folder")
+            }
+        }
         Button { act(.export, thread) } label: { Label("Export", systemImage: "square.and.arrow.up") }
         Button { act(.archive, thread) } label: {
             thread.session.archived == true

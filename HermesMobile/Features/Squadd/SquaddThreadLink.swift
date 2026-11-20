@@ -69,7 +69,7 @@ struct SquaddThreadLink: Hashable {
     /// The home row that shows the thread: its task row, else the header of the agent whose own
     /// chat it is. Nil when the computer has no such thread (deleted, or another computer's).
     func row(in sections: [SquaddAgentSection]) -> String? {
-        if sections.contains(where: { ($0.threads + $0.archived).contains { $0.id == threadID } }) { return threadID }
+        if sections.contains(where: { ($0.threads + $0.folders.flatMap(\.threads) + $0.archived).contains { $0.id == threadID } }) { return threadID }
         return sections.first { $0.threadID == threadID }.map(\.headerRowID)
     }
 

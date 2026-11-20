@@ -97,31 +97,23 @@ final class SquaddCompanionTests: XCTestCase {
     private let sugarThread = "efb8fa96-47ef-4968-bb13-ce9aacada117"
 
     func testThreadsFollowTheDesktopOrderAndArchivedWaitApart() async throws {
-        SquaddHTTPFixture.handler = { request in
-            (200, try! Self.fixture(request.httpMethod == "PATCH" ? "task-patch.json" : "bots-organized.json"))
-        }
+        SquaddHTTPFixture.handler = { _ in (200, try! Self.fixture("bots-organized.json")) }
         let model = SquaddAgentListModel(client: client(token: "t"), onUnpaired: {})
         await model.load()
         let loaded = try XCTUnwrap(sections(model).first)
 
-        _ = await model.setPinned(false, threadId: pinnedThread, botId: starter)
-        _ = await model.setPinned(true, threadId: sugarThread, botId: starter)
-
-        XCTAssertEqual(loaded.threads.map(\.title), ["Rinominato", "ciao zucchero"], "pinned first, then the newest")
+        XCTAssertEqual((loaded.folders.flatMap(\.threads) + loaded.threads).map(\.title), ["Rinominato", "ciao zucchero"],
+                       "pinned first, then the newest")
         XCTAssertEqual(loaded.archived.map(\.title), ["Prova B"])
-        XCTAssertEqual(try sections(model).first?.threads.map(\.title), ["ciao zucchero", "Rinominato"], "an older pinned thread goes above a newer one")
+        let olderPinned = SquaddTask(threadId: "a", title: nil, lastThreadOrderAt: 1, pinned: true)
+        let newer = SquaddTask(threadId: "b", title: nil, lastThreadOrderAt: 2)
+        XCTAssertEqual(SquaddTask.desktopOrder([newer, olderPinned]).map(\.threadId), ["a", "b"], "an older pinned thread goes above a newer one")
     }
 
     func testThreadActionsUseTheTaskRoutes() async throws {
         var seen: [(String, String, [String: Any])] = []
         SquaddHTTPFixture.handler = { request in
-            let body = request.httpBodyStream.flatMap { stream -> [String: Any]? in
-                stream.open(); defer { stream.close() }
-                var data = Data(), buffer = [UInt8](repeating: 0, count: 4096)
-                while case let n = stream.read(&buffer, maxLength: buffer.count), n > 0 { data.append(buffer, count: n) }
-                return try? JSONSerialization.jsonObject(with: data) as? [String: Any]
-            } ?? [:]
-            seen.append((request.httpMethod ?? "", request.url?.path ?? "", body))
+            seen.append((request.httpMethod ?? "", request.url?.path ?? "", Self.body(request)))
             switch (request.httpMethod, request.url?.path) {
             case ("GET", "/api/bots"): return (200, try! Self.fixture("bots-organized.json"))
             case ("POST", _): return (201, try! Self.fixture("task-create.json"))
@@ -215,6 +207,97 @@ final class SquaddCompanionTests: XCTestCase {
         try FileManager.default.removeItem(at: file.deletingLastPathComponent())
     }
 
+    // MARK: - Folders (#18), against the same recordings
+
+    private let clienti = "b0c17762-27e5-4edb-a095-55708b5b549b"
+    private let interni = "aa979bc8-6f82-4832-93ef-8db11aee6b31"
+
+    func testFoldersFollowTheDesktopSidebar() async throws {
+        SquaddHTTPFixture.handler = { _ in (200, try! Self.fixture("bots-organized.json")) }
+        let model = SquaddAgentListModel(client: client(token: "t"), onUnpaired: {})
+
+        await model.load()
+
+        let section = try XCTUnwrap(sections(model).first)
+        XCTAssertEqual(section.folders.map(\.name), ["Clienti", "Interni"], "a folder with the top thread comes first, as on the desktop")
+        XCTAssertEqual(section.folders.map { $0.threads.map(\.title) }, [["Rinominato"], []])
+        XCTAssertEqual(section.threads.map(\.title), ["ciao zucchero"])
+        XCTAssertFalse(section.folders.contains { $0.canMoveUp || $0.canMoveDown }, "no move here would change what shows")
+    }
+
+    func testFolderMovesChangeTheShownOrder() {
+        let full = SquaddProject(id: "full", name: "Full")
+        let first = SquaddProject(id: "first", name: "First"), last = SquaddProject(id: "last", name: "Last")
+        let bot = SquaddBot(id: "bot", name: "Bot", tasks: [SquaddTask(threadId: "t", title: nil, lastThreadOrderAt: 1, projectId: "full")],
+                            projects: [first, full, last])
+
+        XCTAssertEqual(bot.desktopLayout.folders.map(\.project.id), ["full", "first", "last"], "empty folders in the saved order")
+        XCTAssertEqual(bot.projects(movingFolder: "last", by: -1)?.map(\.id), ["last", "first", "full"],
+                       "Move Up steps past the folder its thread holds")
+        XCTAssertNil(bot.projects(movingFolder: "full", by: 1), "a folder with an open thread stays by it")
+    }
+
+    func testFolderActionsUseTheProjectRoutesAndKeepTheThreads() async throws {
+        var seen: [(String, String, [String: Any])] = []
+        SquaddHTTPFixture.handler = { request in
+            seen.append((request.httpMethod ?? "", request.url?.path ?? "", Self.body(request)))
+            switch (request.httpMethod, request.url?.path ?? "") {
+            case ("GET", _): return (200, try! Self.fixture("bots-organized.json"))
+            case ("POST", _): return (201, try! Self.fixture("project-create.json"))
+            case ("DELETE", _): return (200, try! Self.fixture("project-delete.json"))
+            case ("PATCH", let path) where path.hasSuffix("/order"): return (200, try! Self.fixture("project-order.json"))
+            default: return (200, try! Self.fixture("task-patch.json"))
+            }
+        }
+        let model = SquaddAgentListModel(client: client(token: "t"), onUnpaired: {})
+        await model.load()
+        let base = "/api/bots/\(starter)"
+
+        let ungrouped = await model.move(threadId: pinnedThread, botId: starter, toFolder: nil)
+        let reordered = await model.moveFolder(clienti, botId: starter, by: -1)
+        let afterMove = try XCTUnwrap(sections(model).first)
+        let filed = await model.move(threadId: sugarThread, botId: starter, toFolder: clienti)
+        let deleted = await model.deleteFolder(clienti, botId: starter)
+        let afterDelete = try XCTUnwrap(sections(model).first)
+        let created = await model.createFolder(named: "Clienti", botId: starter)
+
+        XCTAssertEqual([ungrouped, reordered, filed, deleted, created], [true, true, true, true, true])
+        let calls = Array(seen.dropFirst())
+        XCTAssertEqual(calls.map { "\($0.0) \($0.1)" }, ["PATCH \(base)/tasks/\(pinnedThread)", "PATCH \(base)/projects/order",
+                                                     "PATCH \(base)/tasks/\(sugarThread)", "DELETE \(base)/projects/\(clienti)",
+                                                     "POST \(base)/projects"])
+        XCTAssertTrue(calls[0].2["projectId"] is NSNull, "out of every folder sends null")
+        XCTAssertEqual(calls[1].2["projectIds"] as? [String], [clienti, interni], "the whole saved order, the moved folder one place up")
+        XCTAssertEqual(afterMove.folders.map(\.id), [clienti, interni], "two empty folders show in the new order")
+        XCTAssertEqual(calls[2].2["projectId"] as? String, clienti)
+        XCTAssertEqual(calls[4].2["name"] as? String, "Clienti")
+        XCTAssertEqual(afterDelete.folders.map(\.id), [interni])
+        let kept = try XCTUnwrap(afterDelete.threads.first { $0.id == sugarThread }, "the deleted folder's thread stays")
+        XCTAssertNil(kept.projectId, "in no folder, so its menu ticks No Folder")
+        XCTAssertEqual(try sections(model).first?.folders.map(\.id), [interni, clienti], "a new folder goes last")
+    }
+
+    func testRefusedFolderChangesPutThemBack() async throws {
+        var refusing = false
+        SquaddHTTPFixture.handler = { request in
+            refusing ? (400, try! Self.fixture("task-patch-400.json"))
+                : (200, try! Self.fixture(request.httpMethod == "PATCH" ? "task-patch.json" : "bots-organized.json"))
+        }
+        let model = SquaddAgentListModel(client: client(token: "t"), onUnpaired: {})
+        await model.load()
+        let emptied = await model.move(threadId: pinnedThread, botId: starter, toFolder: nil)
+        XCTAssertTrue(emptied, "both folders empty, so a move changes what shows")
+        let before = try sections(model)
+        refusing = true
+
+        let reordered = await model.moveFolder(interni, botId: starter, by: 1)
+        let deleted = await model.deleteFolder(clienti, botId: starter)
+        let moved = await model.move(threadId: sugarThread, botId: starter, toFolder: interni)
+
+        XCTAssertEqual([reordered, deleted, moved], [false, false, false])
+        XCTAssertEqual(try sections(model), before)
+    }
+
     private func sections(_ model: SquaddAgentListModel) throws -> [SquaddAgentSection] {
         guard case .loaded(let sections) = model.phase else { XCTFail("not loaded"); return [] }
         return sections
@@ -232,6 +315,20 @@ final class SquaddCompanionTests: XCTestCase {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [SquaddHTTPFixture.self]
         return SquaddCompanionClient(server: server, token: token, session: URLSession(configuration: configuration))
+    }
+
+    /// The JSON body `URLProtocol` hands over as a stream.
+    private nonisolated static func body(_ request: URLRequest) -> [String: Any] {
+        guard let stream = request.httpBodyStream else { return [:] }
+        stream.open()
+        defer { stream.close() }
+        var data = Data(), buffer = [UInt8](repeating: 0, count: 4096)
+        while stream.hasBytesAvailable {
+            let count = stream.read(&buffer, maxLength: buffer.count)
+            guard count > 0 else { break }
+            data.append(buffer, count: count)
+        }
+        return (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
     }
 
     private nonisolated static func fixture(_ name: String) throws -> Data {
@@ -355,27 +452,38 @@ final class SquaddScreenPhotoTests: XCTestCase {
         Self.botsServed = 0
         try await shoot("f1-threads", home(manager, studio), dir: dir) { Self.botsServed > 0 }
 
-        // The real home, each started on one step through the handlers a tap reaches.
-        let steps: [(String, SquaddHomeStart, String)] = [
-            ("f2-search-hits", .search("zucchero"), "GET /api/search"),
+        // The real home, each started on one step through the handlers a tap reaches. Photos for the
+        // goal's cases and Archived; sheets and alerts are checked on what UIKit presents, since a
+        // blinking caret or an out-of-process sheet keeps a photo from settling for 3 s.
+        func started(_ start: SquaddHomeStart) -> some View {
+            SquaddServerHome(authManager: manager, server: studio, pendingThread: .constant(nil), start: start)
+        }
+        let photos: [(String, SquaddHomeStart, String)] = [
             ("f3-search-empty", .search("nessunrisultatoxyz"), "GET /api/search"),
             ("f4-archived-open", .showArchived, "GET /api/bots"),
             ("f5-delete-confirm", .act(.delete, threadTitle: "ciao zucchero"), "GET /api/bots"),
-            ("f6-rename", .act(.rename, threadTitle: "ciao zucchero"), "GET /api/bots"),
+            ("g3-delete-folder-confirm", .deleteFolder("Clienti"), "GET /api/bots"),
         ]
-        for (name, start, awaited) in steps {
+        for (name, start, awaited) in photos {
             let from = served.count
-            try await shoot(name, SquaddServerHome(authManager: manager, server: studio, pendingThread: .constant(nil), start: start), dir: dir) {
-                served[from...].contains(awaited)
-            }
+            try await shoot(name, started(start), dir: dir) { served[from...].contains(awaited) }
         }
+        // SwiftUI shows no accessibility labels here, so these check what UIKit presents.
+        let rename = try await reaches(started(.act(.rename, threadTitle: "ciao zucchero"))) {
+            self.window?.rootViewController?.presentedViewController.map { !($0 is UIAlertController) } ?? false
+        }
+        XCTAssertTrue(rename, "Rename opens the rename sheet")
+        let folder = try await reaches(started(.newFolder)) {
+            (self.window?.rootViewController?.presentedViewController as? UIAlertController)?.title == String(localized: "New Folder")
+        }
+        XCTAssertTrue(folder, "New Folder asks for the name")
         XCTAssertFalse(served.contains { $0.hasPrefix("DELETE") || $0.hasPrefix("PATCH") }, "showing a confirmation or a sheet changes nothing")
 
-        // The share sheet draws in another process, so the photo shows only its dimming.
-        let from = served.count
-        try await shoot("f7-export-share", SquaddServerHome(authManager: manager, server: studio, pendingThread: .constant(nil), start: .act(.export, threadTitle: "ciao zucchero")),
-                        dir: dir) { served[from...].contains("GET /api/threads/efb8fa96-47ef-4968-bb13-ce9aacada117/export") }
-        XCTAssertTrue(Self.shows(UIActivityViewController.self, from: window?.rootViewController), "export opens the share sheet")
+        // The share sheet draws in another process: its presence is the proof, not a photo.
+        let shared = try await reaches(started(.act(.export, threadTitle: "ciao zucchero"))) {
+            Self.shows(UIActivityViewController.self, from: self.window?.rootViewController)
+        }
+        XCTAssertTrue(shared, "export opens the share sheet")
     }
 
     private static func shows<T: UIViewController>(_ type: T.Type, from controller: UIViewController?) -> Bool {
@@ -397,6 +505,23 @@ final class SquaddScreenPhotoTests: XCTestCase {
     /// Shows `view` in the test's one window on the app's scene (made on the first shot) and writes
     /// `<name>.png` once `ready` holds and the screen stops changing.
     private func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: @MainActor () -> Bool) async throws {
+        let window = try show(view)
+        try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
+    }
+
+    /// Shows `view` like `shoot` and waits until `holds` is true, without a photo; false after 3 s.
+    private func reaches<V: View>(_ view: V, _ holds: @MainActor () -> Bool) async throws -> Bool {
+        try show(view)
+        let end = ContinuousClock.now + .seconds(3)
+        while !holds(), ContinuousClock.now < end {
+            // test-wait: the home draws on its own run loop turns; checked every 50 ms, no photo to settle
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        return holds()
+    }
+
+    @discardableResult
+    private func show<V: View>(_ view: V) throws -> UIWindow {
         if window == nil {
             let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
             let window = UIWindow(windowScene: scene)
@@ -410,7 +535,7 @@ final class SquaddScreenPhotoTests: XCTestCase {
         // A confirmation or a sheet from the last shot leaves with its screen.
         window.rootViewController?.presentedViewController?.dismiss(animated: false)
         window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
-        try await readyPhoto(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
+        return window
     }
 
     private nonisolated static func fixture(_ name: String) throws -> Data {
