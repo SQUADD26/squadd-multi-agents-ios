@@ -113,8 +113,9 @@ final class SquaddThreadLinkTests: XCTestCase {
 
 /// Photographs a thread link opening in the real `ContentView`, through the same deep-link path
 /// Siri and Shortcuts take, with the companion played back from the recordings: a link to a thread
-/// on the inactive computer, one to a deleted thread, and one to a computer never paired, all in one window (runs only when
-/// `FOTO_DIR` is set, `TEST_RUNNER_FOTO_DIR`; the photo is the link opening the thread); and a link queued before the app appears.
+/// on the inactive computer (photographed), then in the same window one to a deleted thread and one
+/// to a computer never paired (their alerts checked); only when `FOTO_DIR` is set, `TEST_RUNNER_FOTO_DIR`.
+/// And a link queued before the app appears.
 @MainActor
 final class SquaddThreadLinkPhotoTests: XCTestCase {
     private let studio = URL(string: "http://mac-studio.tailnet.test:8810")!
@@ -135,7 +136,7 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         try XCTSkipIf(path == nil, "Only for photo runs")
         let dir = URL(fileURLWithPath: path!)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-        // The photos are of where each step ends; without animations the screen gets there at once.
+        // The photo and the alerts are where each step ends; without animations the screen gets there at once.
         UIView.setAnimationsEnabled(false)
         defer { UIView.setAnimationsEnabled(true) }
         let manager = try twoPairedComputers()
