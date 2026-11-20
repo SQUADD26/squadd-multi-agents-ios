@@ -83,6 +83,11 @@ struct SquaddCardInset: View {
     }
 
     private func sendSecret() {
+        Self.send(&secret, to: turn)
+    }
+
+    /// Takes the typed secret out of the field before it goes: a refusal leaves the field empty, to type again.
+    static func send(_ secret: inout String, to turn: SquaddChatTurnCoordinator) {
         let value = secret
         secret = ""
         guard !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }

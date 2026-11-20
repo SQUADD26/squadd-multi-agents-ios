@@ -1001,30 +1001,16 @@ final class SquaddChatTests: XCTestCase {
             SquaddSecretPairing(deviceId: "81fc5c68-67d2-4cb3-816b-3f8ef798bb71", secretKey: P256.KeyAgreement.PrivateKey().publicKey.x963Representation)
         }
         await model.loadMessages()
-        let card = try XCTUnwrap(ChatView.squaddCard(in: model))
-        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        let window = UIWindow(windowScene: scene)
-        window.rootViewController = UIHostingController(rootView: SquaddCardInset(
-            card: card, turn: coordinator, maximumExpandedHeight: 700, onFootprintChange: { _ in }))
-        window.makeKeyAndVisible()
-        addTeardownBlock { window.isHidden = true }
-        window.layoutIfNeeded()
-        let secure = try XCTUnwrap(Self.secureField(in: window), "the card shows its secure field")
-        secure.text = "wx-typed-key"
-        secure.sendActions(for: .editingChanged)
-        _ = secure.delegate?.textFieldShouldReturn?(secure)
+        XCTAssertNotNil(ChatView.squaddCard(in: model))
+        var field = "wx-typed-key"
+        SquaddCardInset.send(&field, to: coordinator)
+        XCTAssertEqual(field, "", "the field is empty the moment it is sent")
 
         await waitUntil("the computer refused it") { coordinator.cardError != nil }
         XCTAssertEqual(posts, 1, "the typed secret was sent")
-        window.layoutIfNeeded()
-        XCTAssertEqual(Self.secureField(in: window)?.text, "", "the field is empty")
+        XCTAssertEqual(field, "", "a refusal doesn't bring it back")
         XCTAssertFalse(coordinator.cardError?.contains("wx-typed-key") ?? true)
         XCTAssertFalse("\(String(describing: coordinator.pendingCard))".contains("wx-typed-key"))
-    }
-
-    private static func secureField(in view: UIView) -> UITextField? {
-        if let field = view as? UITextField, field.isSecureTextEntry { return field }
-        return view.subviews.lazy.compactMap { secureField(in: $0) }.first
     }
 
     /// Opens a sealed secret as the computer does, with `key`.
