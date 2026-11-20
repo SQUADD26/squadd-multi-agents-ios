@@ -18,16 +18,18 @@ final class HermesBackendsTests: XCTestCase {
         XCTAssertFalse(HermesBackends.built)
     }
 
-    /// Every saved server is webui or Hermes, so none opens, at launch, after a switch or from a link.
-    func testNoSavedServerOpensWithTheBackendsOff() throws {
+    /// A webui or Hermes server doesn't open, at launch, after a switch or from a link; a paired
+    /// Squadd computer does, so it never sees onboarding again (#10).
+    func testOnlyASquaddComputerOpensWithTheBackendsOff() throws {
         let server = try XCTUnwrap(URL(string: "https://hermes.example"))
-        XCTAssertEqual(AuthManager.State.loggedIn(server: server).openedServer, server)
-        XCTAssertEqual(AuthManager.State.loggedOut(server: server).openedServer, server)
+        XCTAssertEqual(AuthManager.State.loggedIn(server: server).openedServer { _ in .webui }, server)
 
         HermesBackends.isEnabled = false
 
-        XCTAssertNil(AuthManager.State.loggedIn(server: server).openedServer)
-        XCTAssertNil(AuthManager.State.loggedOut(server: server).openedServer)
+        XCTAssertNil(AuthManager.State.loggedIn(server: server).openedServer { _ in .webui })
+        XCTAssertNil(AuthManager.State.loggedOut(server: server).openedServer { _ in .hermes })
+        XCTAssertEqual(AuthManager.State.loggedIn(server: server).openedServer { _ in .squadd }, server)
+        XCTAssertEqual(AuthManager.State.loggedOut(server: server).openedServer { _ in .squadd }, server)
     }
 
     /// Rewind, checkpoints, workspaces and Thinking leave the `/` panel, in webui and Hermes chats.
