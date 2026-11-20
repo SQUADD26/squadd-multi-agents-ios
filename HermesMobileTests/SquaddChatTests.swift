@@ -106,6 +106,7 @@ final class SquaddChatTests: XCTestCase {
         let (model, _) = makeChat(bot: resumeBot, thread: resumeThread)
         await model.loadMessages()
         await fulfillment(of: [opened], timeout: 5)
+        await waitUntil("the thread shows before the turn's frames come") { !model.messages.isEmpty }
         SquaddChatFixture.stream(Data(cut.utf8))
         await waitUntil("the first 12 pieces show") { Self.streamedText(model) == String(reply.prefix(48)) }
 
@@ -157,6 +158,7 @@ final class SquaddChatTests: XCTestCase {
         let (model, coordinator) = makeChat(bot: resumeBot, thread: resumeThread, reconnectDelay: { _ in })
         await model.loadMessages()
         await fulfillment(of: [opened, reloaded], timeout: 5)
+        await waitUntil("the thread shows before the turn's frames come") { !model.messages.isEmpty }
         opened = expectation(description: "the stream reopens on its own")
         SquaddChatFixture.stream(Data(cut.utf8), finish: true)
         await fulfillment(of: [opened], timeout: 5)
