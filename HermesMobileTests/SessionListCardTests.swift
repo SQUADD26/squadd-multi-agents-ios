@@ -121,10 +121,10 @@ final class SessionListCardTests: XCTestCase {
 }
 
 /// Photographs real SwiftUI screens into `FOTO_DIR` (passed as `TEST_RUNNER_FOTO_DIR`) for a PR's
-/// evidence; skipped everywhere else. Add a `shoot` call per screen; `foto-simulatore.yml` runs it.
+/// evidence; skipped everywhere else. Add a `shoot` call per screen; `pr-ios.yml` runs it when the PR touches its screens.
 @MainActor
 final class ScreenPhotoTests: XCTestCase {
-    private func shoot<V: View>(_ name: String, _ view: V) throws {
+    private func shoot<V: View>(_ name: String, _ view: V) async throws {
         let dir = try XCTUnwrap(ProcessInfo.processInfo.environment["FOTO_DIR"], "FOTO_DIR not set")
         let controller = UIHostingController(rootView: view)
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.lazy.compactMap { $0 as? UIWindowScene }.first)
@@ -134,17 +134,11 @@ final class ScreenPhotoTests: XCTestCase {
         window.rootViewController = controller
         window.makeKeyAndVisible()
         defer { window.isHidden = true }
-        // test-wait: photo runs only (skipped without FOTO_DIR); lets SwiftUI lay out before the capture
-        RunLoop.main.run(until: Date().addingTimeInterval(2))
-        controller.view.layoutIfNeeded()
-        let image = UIGraphicsImageRenderer(bounds: window.bounds).image { _ in
-            window.drawHierarchy(in: window.bounds, afterScreenUpdates: true)
-        }
         try FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-        try XCTUnwrap(image.pngData()).write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))
+        try await readyPhoto(of: window).write(to: URL(fileURLWithPath: dir).appendingPathComponent("\(name).png"))
     }
 
-    func testPhotoSettingsAboutAndSessionListCardSlot() throws {
+    func testPhotoSettingsAboutAndSessionListCardSlot() async throws {
         try XCTSkipIf(ProcessInfo.processInfo.environment["FOTO_DIR"] == nil, "Only for photo runs")
         let defaults = UserDefaults.standard
         // A device that said yes to usage reports in the old version, with enough replies for any card.
@@ -154,7 +148,7 @@ final class ScreenPhotoTests: XCTestCase {
             defaults.removeObject(forKey: "usageReports.acceptedVersion")
             defaults.removeObject(forKey: TipJar.completedResponseCountKey)
         }
-        try shoot("1-settings-about", NavigationStack { SettingsAboutPage(server: nil) })
-        try shoot("2-session-list-card-slot", List { SessionListCardSlot(hasSharedImport: false) })
+        try await shoot("1-settings-about", NavigationStack { SettingsAboutPage(server: nil) })
+        try await shoot("2-session-list-card-slot", List { SessionListCardSlot(hasSharedImport: false) })
     }
 }
