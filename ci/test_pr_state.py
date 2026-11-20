@@ -62,6 +62,14 @@ class PRStateTests(unittest.TestCase):
         pr_state.main("foto/1-a", self.base)
         self.assertEqual(self.built(), "branch 1")
 
+    def test_a_clone_left_by_a_run_cancelled_mid_copy_does_not_stop_the_next_new_branch(self):
+        pr_state.main("foto/1-a", self.base)
+        self.built("branch 1")
+        pr_state.main("foto/2-b", self.base)
+        (self.work / "pr-states" / "foto-1-a" / "dd-clone").mkdir()
+        pr_state.main("foto/3-c", self.base)
+        self.assertEqual(self.built(), "branch 1")
+
     def test_a_derived_data_written_after_parking_does_not_stop_the_run(self):
         pr_state.main("foto/1-a", self.base)
         self.built("branch 1")
