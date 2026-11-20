@@ -105,15 +105,17 @@ final class SquaddLiveActivityTests: XCTestCase {
         let file = BotWidgetSnapshotFile(directory: directory)
         let kiwi = "f6b2d30c-6c88-403d-8ff8-4edc30531b55"
 
-        await loadSquaddBotWidget(file: file, server: server, configured: [kiwi])
+        let reloaded = expectation(description: "the roster, then the avatars, reload the widget")
+        reloaded.expectedFulfillmentCount = 2
+        await loadSquaddBotWidget(file: file, server: server, configured: [kiwi], reloaded: reloaded)
+        await fulfillment(of: [reloaded], timeout: 5)
 
         let shown = try XCTUnwrap(file.read().servers.first)
         let slot = try XCTUnwrap(shown.bots.first { $0.title == "Kiwi" })
         XCTAssertEqual(shown.serverKey, BotHistoryCache.Scope.key(server))
         XCTAssertEqual(slot.profile, kiwi, "a slot names the agent's own chat")
-        await waitUntil("the agent's avatar is drawn for the widget") {
-            [false, true].allSatisfy { FileManager.default.fileExists(atPath: file.avatarURL(slot.avatar, dark: $0).path) }
-        }
+        XCTAssertTrue([false, true].allSatisfy { FileManager.default.fileExists(atPath: file.avatarURL(slot.avatar, dark: $0).path) },
+                      "the agent's avatar is drawn for the widget")
     }
 
     private nonisolated static func fixture(_ name: String) -> Data {
@@ -123,8 +125,10 @@ final class SquaddLiveActivityTests: XCTestCase {
 }
 
 /// Reads `bots.json`, with Kiwi carrying the recorded avatar, through the home's model into `file`'s
-/// Bot widget snapshot, whose `configured` threads a widget shows.
-@MainActor func loadSquaddBotWidget(file: BotWidgetSnapshotFile, server: URL, configured: [String]) async {
+/// Bot widget snapshot, whose `configured` threads a widget shows. `reloaded` is fulfilled at each
+/// widget reload: once for the roster, once when the avatars are drawn.
+@MainActor func loadSquaddBotWidget(file: BotWidgetSnapshotFile, server: URL, configured: [String],
+                                    reloaded: XCTestExpectation) async {
     let fixtures = URL(fileURLWithPath: #filePath).deletingLastPathComponent().appendingPathComponent("Fixtures/Squadd")
     let avatarPath = "/api/attachments/89144ba5-f349-4d34-87df-24def160fa8f.png"
     var bots = try! String(contentsOf: fixtures.appendingPathComponent("bots.json"), encoding: .utf8)
@@ -140,7 +144,7 @@ final class SquaddLiveActivityTests: XCTestCase {
     let configuration = URLSessionConfiguration.ephemeral
     configuration.protocolClasses = [SquaddHTTPFixture.self]
     let key = BotHistoryCache.Scope.key(server)
-    let widgets = BotWidgetPublisher(file: file, serverTitle: { _ in "Studio" }, reloadWidget: {},
+    let widgets = BotWidgetPublisher(file: file, serverTitle: { _ in "Studio" }, reloadWidget: { reloaded.fulfill() },
                                      configuredBots: { configured.map { BotWidgetDestination(serverKey: key, profile: $0) } })
     let client = SquaddCompanionClient(server: server, token: "device-token", session: URLSession(configuration: configuration))
     await SquaddAgentListModel(client: client, widgets: widgets, onUnpaired: {}).load()
@@ -240,15 +244,13 @@ final class SquaddLiveActivityPhotoTests: XCTestCase {
         let server = URL(string: "http://192.0.2.10:8810")!
         let threads = ["f6b2d30c-6c88-403d-8ff8-4edc30531b55", "5e423427-5373-4b0b-b212-0eb4f5c39be0",
                        "4a16f61d-ddfe-4a9a-87b9-54c02dfe44d1"]
-        await loadSquaddBotWidget(file: file, server: server, configured: threads)
+        let reloaded = expectation(description: "the roster, then the avatars, reload the widget")
+        reloaded.expectedFulfillmentCount = 2
+        await loadSquaddBotWidget(file: file, server: server, configured: threads, reloaded: reloaded)
+        await fulfillment(of: [reloaded], timeout: 5)
         let entities = try XCTUnwrap(file.read().servers.first).bots.map {
             BotWidgetEntity(serverKey: BotHistoryCache.Scope.key(server), bot: $0)
         }
-        let rendered = { (entity: BotWidgetEntity) in
-            let slot = entity.destination.flatMap { file.read().bot(serverKey: $0.serverKey, profile: $0.profile) }
-            return slot.map { FileManager.default.fileExists(atPath: file.avatarURL($0.avatar, dark: false).path) } ?? false
-        }
-        await waitUntil("every agent's avatar is drawn") { entities.allSatisfy(rendered) }
         var small = BotWidgetConfigurationIntent(), medium = BotWidgetConfigurationIntent()
         small.bot = entities.first { $0.title == "Kiwi" }
         medium.bots = entities
