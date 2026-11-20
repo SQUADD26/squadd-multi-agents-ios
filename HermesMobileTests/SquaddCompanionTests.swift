@@ -401,7 +401,7 @@ final class SquaddScreenPhotoTests: XCTestCase {
             let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
             let window = UIWindow(windowScene: scene)
             window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
-            window.makeKeyAndVisible()
+            window.makeKeyAndVisible(); window.layer.speed = 100 // TEMP prova: animazioni finite subito
             self.window = window
         }
         let window = try XCTUnwrap(window)
