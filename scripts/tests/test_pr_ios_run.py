@@ -6,6 +6,8 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import re
+import subprocess
 import unittest
 from unittest.mock import patch
 
@@ -193,6 +195,97 @@ class WaitTests(unittest.TestCase):
         self.assertEqual(code, 1)
         self.assertIn("started and never ended: SquaddE2ETests.testHandshakeMatchesTheVectors\n", out)
         self.assertNotIn("SquaddRouteTests", out)  # a skipped case ends too (#122 run 44711340082)
+
+
+SERVEO_OUTPUT = ("Pseudo-terminal will not be allocated because stdin is not a terminal.\n"
+                 "To request a particular subdomain, see https://console.serveo.net/ssh-keys\n"
+                 "\x1b[32mForwarding HTTP traffic from https://23103f55678de5d3-51-83-1-9.serveousercontent.com\n\x1b[0m\n")
+
+
+class LiveTests(unittest.TestCase):
+    def test_the_tunnel_address_is_never_a_serveo_console_link(self):
+        # #112: a wider pattern wrote https://console.serveo.net/… into the gist (D-227).
+        self.assertEqual(tool.tunnel_address(SERVEO_OUTPUT), "https://23103f55678de5d3-51-83-1-9.serveousercontent.com")
+
+    def test_the_tunnel_has_a_key_of_its_own_on_port_443_with_a_connect_timeout(self):
+        # #109: no key, another session's address (D-226); #93: port 22 hung silently 4 min (D-207).
+        command = tool.tunnel_command("/w/tunnel-key", "/w/known_hosts", 18000)
+        self.assertEqual(command[command.index("-i") + 1], "/w/tunnel-key")
+        self.assertIn("IdentitiesOnly=yes", command)
+        self.assertEqual(command[command.index("-p") + 1], "443")
+        self.assertIn("ConnectTimeout=15", command)
+        self.assertEqual(command[-2:], ["80:127.0.0.1:18000", "serveo.net"])
+
+    def test_a_live_run_goes_to_a_free_branch_its_workflow_triggers_on(self):
+        # #115: foto/16-live-3 pushed with the trigger still on -2: no run (D-232).
+        branch = tool.live_branch("16", {"foto/16-live", "foto/16-live-2"})
+        self.assertEqual(branch, "foto/16-live-3")
+        workflow = tool.live_workflow("16", "SquaddChatLivePhotoTests", branch, "LIVE_16_A_LOOKUP", "LIVE_16_A_TOKEN")
+        self.assertIn("branches: ['foto/16-live-3']", workflow)
+        self.assertIn("-only-testing:HermesMobileTests/SquaddChatLivePhotoTests", workflow)
+        self.assertIn("${{ secrets.LIVE_16_A_TOKEN }}", workflow)
+        # #97: with parallel clones a failure has no line the grep keeps (D-216).
+        self.assertIn("-parallel-testing-enabled NO", workflow)
+
+    def test_openmausbot_gets_a_worktree_with_its_own_packages_and_the_fake_engine_server(self):
+        # #78: a linked node_modules missed packages, ERR_MODULE_NOT_FOUND (D-195); #94: node server/index.ts with
+        # FAKE_CLAUDE_MODE ran the real engine, «Not logged in» (D-214).
+        calls, spawned = [], []
+        run = tool.Live(REPO, "16")
+        self.addCleanup(tool.shutil.rmtree, run.work, True)
+
+        def sh(*cmd, cwd=None, **_):
+            calls.append((cmd, cwd))
+            return "/work/me/squadd-multi-agents-ios/.git\n" if "--git-common-dir" in cmd else ""
+
+        def spawn(cmd, cwd, env, log):
+            spawned.append((cmd, cwd))
+            Path(log).write_text('{\n  "ok": true,\n  "url": "http://127.0.0.1:19001"\n}\n')
+            return type("P", (), {"poll": lambda self: None})()
+        with patch.object(tool, "sh", sh), patch.object(tool.Path, "exists", lambda self: True), \
+                patch.object(run, "spawn", spawn):
+            omb = run.openmausbot()
+            info = run.server(omb)
+        self.assertEqual(omb, run.work / "openmausbot")
+        self.assertIn(((tuple("git -C /work/me/openmausbot worktree add -q --detach".split()) + (str(omb), "origin/dev")),
+                       None), calls)
+        self.assertIn((("pnpm", "install", "--frozen-lockfile", "--ignore-scripts"), omb), calls)
+        self.assertEqual(spawned, [(["node", "--experimental-strip-types", "scripts/control-omb.ts", "launch"], omb)])
+        self.assertEqual(info["url"], "http://127.0.0.1:19001")
+
+    def test_closing_removes_exactly_what_the_run_made(self):
+        run = tool.Live(REPO, "16")
+        run.branch, run.secrets, run.gist = "foto/16-live-2", ["LIVE_16_A_LOOKUP"], "abc123"
+        run.omb = (Path("/work/me/openmausbot"), run.work / "openmausbot")
+        calls = []
+        def run_(cmd, **_):
+            calls.append(cmd)
+            # A live run the launcher stopped waiting for still holds the Mac runner (20/11, run 44745771963).
+            return type("Done", (), {"stdout": "44745771963\n" if cmd[:3] == ["gh", "run", "list"] else ""})()
+        with patch.object(tool.subprocess, "run", run_):
+            run.close()
+        self.assertEqual([c for c in calls if c[:3] != ["gh", "run", "list"]], [
+            ["gh", "run", "cancel", "44745771963", "-R", REPO],
+            ["git", "-C", str(tool.ROOT), "push", "-q", "origin", "--delete", "refs/heads/foto/16-live-2"],
+            ["gh", "secret", "delete", "LIVE_16_A_LOOKUP", "-R", REPO],
+            ["gh", "gist", "delete", "abc123", "--yes"],
+            ["git", "-C", "/work/me/openmausbot", "worktree", "remove", "--force", str(run.work / "openmausbot")]])
+
+
+class PrIosWorkflowTests(unittest.TestCase):
+    WORKFLOW = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "pr-ios.yml").read_text()
+
+    def test_pr_ios_leaves_foto_branches_to_their_own_workflow(self):
+        # #47: a foto/ push built twice on the Mac runners, PR iOS and the branch's own workflow (D-184).
+        self.assertIn("branches-ignore: [dev, main, master, 'foto/**']", self.WORKFLOW)
+
+    def test_the_log_keeps_what_a_test_prints(self):
+        # #86: a timing printed by a test never reached the PR iOS log, one CI round lost (D-203).
+        keep = re.search(r"KEEP='(.*)'", self.WORKFLOW).group(1)
+        lines = ["Test Case '-[HermesMobileTests.A b]' started.", "photo 1: 312 ms",
+                 "Test Case '-[HermesMobileTests.A b]' passed (0.3 seconds).", "xcodebuild noise", "** TEST SUCCEEDED **"]
+        kept = subprocess.run(["awk", keep], input="\n".join(lines) + "\n", capture_output=True, text=True).stdout
+        self.assertEqual(kept.splitlines(), lines[:3] + lines[4:])
 
 
 if __name__ == "__main__":
