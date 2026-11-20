@@ -694,14 +694,12 @@ final class SquaddShareTests: XCTestCase {
         XCTAssertEqual(draft?.attachments.map(\.name), ["appunto.txt"])
     }
 
-    /// The whole app: a share the extension left in the app group reaches the active Squadd
-    /// server's home, which asks for the agent.
+    /// The whole app: a share the extension left in its inbox (the app group, a folder of the
+    /// test's here) reaches the active Squadd server's home, which asks for the agent.
     func testTheAppHandsAShareInTheAppGroupToTheSquaddHome() async throws {
-        let inbox = try XCTUnwrap(HermesShareDraft.containerURL(), "the app group")
-        // The simulator keeps the app group between runs: the test owns its share inbox.
-        let shares = inbox.appendingPathComponent(HermesShareDraft.inboxDirectoryName)
-        try? FileManager.default.removeItem(at: shares)
-        addTeardownBlock { try? FileManager.default.removeItem(at: shares) }
+        let inbox = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: inbox, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: inbox) }
         try HermesShareDraft.savePendingImport(draft: "Leggi questo appunto", attachments: [
             SharedAttachmentImport(filename: "appunto.txt", typeIdentifier: "public.plain-text", data: Data("ciao".utf8)),
         ], in: inbox)
@@ -715,7 +713,7 @@ final class SquaddShareTests: XCTestCase {
                                   hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
         try manager.addSquaddServer(address: studio, token: "token-share")
         let window = UIWindow(windowScene: try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first))
-        window.rootViewController = UIHostingController(rootView: ContentView(authManager: manager, intentRouter: AppIntentRouter())
+        window.rootViewController = UIHostingController(rootView: ContentView(authManager: manager, intentRouter: AppIntentRouter(), shareInbox: inbox)
             .modelContainer(try ModelContainer(for: CachedSession.self, CachedMessage.self,
                                                configurations: ModelConfiguration(isStoredInMemoryOnly: true))))
         window.makeKeyAndVisible()
