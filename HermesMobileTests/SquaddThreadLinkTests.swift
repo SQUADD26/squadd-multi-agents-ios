@@ -113,8 +113,8 @@ final class SquaddThreadLinkTests: XCTestCase {
 
 /// Photographs a thread link opening in the real `ContentView`, through the same deep-link path
 /// Siri and Shortcuts take, with the companion played back from the recordings: a link to a thread
-/// on the inactive computer, one to a deleted thread, and one to a computer never paired, all in one window (photos
-/// only when `FOTO_DIR` is set, `TEST_RUNNER_FOTO_DIR`); and a link queued before the app appears.
+/// on the inactive computer, one to a deleted thread, and one to a computer never paired, all in one window (runs only when
+/// `FOTO_DIR` is set, `TEST_RUNNER_FOTO_DIR`; the photo is the link opening the thread); and a link queued before the app appears.
 @MainActor
 final class SquaddThreadLinkPhotoTests: XCTestCase {
     private let studio = URL(string: "http://mac-studio.tailnet.test:8810")!
@@ -135,8 +135,13 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         try XCTSkipIf(path == nil, "Only for photo runs")
         let dir = URL(fileURLWithPath: path!)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let t0 = ContinuousClock.now
+        var times: [String] = []
+        func mark(_ what: String) { times.append("\(what) \(ContinuousClock.now - t0)") }
+        defer { try? times.joined(separator: "\n").write(to: dir.appendingPathComponent("timing.txt"), atomically: true, encoding: .utf8) }
         let manager = try twoPairedComputers()
         let router = try host(manager)
+        mark("host")
 
         // a. A link to Pesto's "hi" thread on the Mac Studio, with the MacBook active: the app
         // switches computer, reads its agents and marks the thread.
@@ -148,15 +153,20 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
             manager.state == .loggedIn(server: self.studio) && Self.served.contains("Bearer token-studio")
         }
         XCTAssertEqual(manager.state, .loggedIn(server: studio))
+        mark("f1")
 
-        // b. A thread deleted on the computer, in the same window: the link clears the mark.
+        // b. A thread deleted on the computer, in the same window: an alert says so.
         router.requestDeepLink(SquaddThreadLink(threadID: "deleted-thread", server: studio).url)
-        try await shoot("f2-thread-not-found", dir: dir) { self.window?.rootViewController?.presentedViewController != nil }
+        let missing = try await presentedAlert()
+        XCTAssertEqual(missing.title, String(localized: "Thread Not Found"))
+        mark("alert1")
 
         // c. A computer this iPhone never paired, once the alert above is gone.
-        await window?.rootViewController?.dismiss(animated: false)
+        await missing.dismiss(animated: false)
+        mark("dismissed")
         router.requestDeepLink(SquaddThreadLink(threadID: "t", server: URL(string: "http://other.tailnet.test:8810")!).url)
-        try await shoot("f3-computer-not-paired", dir: dir) { self.window?.rootViewController?.presentedViewController != nil }
+        XCTAssertEqual(try await presentedAlert().title, String(localized: "Computer Not Paired"))
+        mark("alert2")
         XCTAssertEqual(manager.state, .loggedIn(server: studio), "a link to an unpaired computer switches nothing")
     }
 
@@ -214,6 +224,17 @@ final class SquaddThreadLinkPhotoTests: XCTestCase {
         window.makeKeyAndVisible()
         self.window = window
         return router
+    }
+
+    /// The alert the window presents next, as soon as UIKit has it.
+    private func presentedAlert() async throws -> UIAlertController {
+        let end = ContinuousClock.now + .seconds(5)
+        while ContinuousClock.now < end {
+            if let alert = window?.rootViewController?.presentedViewController as? UIAlertController { return alert }
+            // test-wait: UIKit says nothing when SwiftUI presents an alert; checks each 20 ms.
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        return try XCTUnwrap(window?.rootViewController?.presentedViewController as? UIAlertController, "an alert")
     }
 
     /// Writes `<name>.png` once `ready` holds and the screen has settled (`readyPhoto`).
