@@ -360,45 +360,6 @@ final class SquaddCompanionTests: XCTestCase {
         return (try? JSONSerialization.jsonObject(with: data) as? [String: Any]) ?? [:]
     }
 
-    /// The whole app: a share the extension left in the app group reaches the active Squadd
-    /// server's home, which asks for the agent.
-    func testTheAppHandsAShareInTheAppGroupToTheSquaddHome() async throws {
-        let inbox = try XCTUnwrap(HermesShareDraft.containerURL(), "the app group")
-        // The simulator keeps the app group between runs: the test owns its share inbox.
-        let shares = inbox.appendingPathComponent(HermesShareDraft.inboxDirectoryName)
-        try? FileManager.default.removeItem(at: shares)
-        addTeardownBlock { try? FileManager.default.removeItem(at: shares) }
-        try HermesShareDraft.savePendingImport(draft: "Leggi questo appunto", attachments: [
-            SharedAttachmentImport(filename: "appunto.txt", typeIdentifier: "public.plain-text", data: Data("ciao".utf8)),
-        ], in: inbox)
-        let bots = try Self.fixture("bots.json")
-        SquaddHTTPFixture.handler = { request in request.url?.path == "/api/bots" ? (200, bots) : (404, Data()) }
-        URLProtocol.registerClass(SquaddHTTPFixture.self)
-        defer { URLProtocol.unregisterClass(SquaddHTTPFixture.self) }
-        let keychain = InMemoryKeychainStore()
-        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(),
-                                  serverRegistry: ServerRegistry.inMemory(keychain: keychain),
-                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
-        try manager.addSquaddServer(address: studio, token: "token-share")
-        let window = UIWindow(windowScene: try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first))
-        window.rootViewController = UIHostingController(rootView: ContentView(authManager: manager, intentRouter: AppIntentRouter())
-            .modelContainer(try ModelContainer(for: CachedSession.self, CachedMessage.self,
-                                               configurations: ModelConfiguration(isStoredInMemoryOnly: true))))
-        window.makeKeyAndVisible()
-        defer { window.isHidden = true }
-
-        var picker: UIAlertController?
-        let end = ContinuousClock.now + .seconds(5)
-        while ContinuousClock.now < end, picker == nil {
-            picker = window.rootViewController?.presentedViewController as? UIAlertController
-            // test-wait: UIKit says nothing when SwiftUI presents a dialog; checks each 20 ms.
-            try await Task.sleep(for: .milliseconds(20))
-        }
-
-        XCTAssertEqual(picker?.title, String(localized: "Send to an Agent"), "the share reached the Squadd home")
-        XCTAssertEqual(picker?.actions.map(\.title).contains("Pesto"), true)
-    }
-
     private nonisolated static func fixture(_ name: String) throws -> Data {
         try Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .appendingPathComponent("Fixtures/Squadd/\(name)"))
@@ -731,6 +692,45 @@ final class SquaddShareTests: XCTestCase {
         XCTAssertNil(window.rootViewController?.presentedViewController, "the agent picker stays closed over the opened thread")
         XCTAssertEqual(draft?.text, HermesShareDraft.composerDraft(from: "Leggi questo appunto"), "the words as a Hermes share puts them")
         XCTAssertEqual(draft?.attachments.map(\.name), ["appunto.txt"])
+    }
+
+    /// The whole app: a share the extension left in the app group reaches the active Squadd
+    /// server's home, which asks for the agent.
+    func testTheAppHandsAShareInTheAppGroupToTheSquaddHome() async throws {
+        let inbox = try XCTUnwrap(HermesShareDraft.containerURL(), "the app group")
+        // The simulator keeps the app group between runs: the test owns its share inbox.
+        let shares = inbox.appendingPathComponent(HermesShareDraft.inboxDirectoryName)
+        try? FileManager.default.removeItem(at: shares)
+        addTeardownBlock { try? FileManager.default.removeItem(at: shares) }
+        try HermesShareDraft.savePendingImport(draft: "Leggi questo appunto", attachments: [
+            SharedAttachmentImport(filename: "appunto.txt", typeIdentifier: "public.plain-text", data: Data("ciao".utf8)),
+        ], in: inbox)
+        let bots = try Self.fixture("bots.json")
+        SquaddHTTPFixture.handler = { request in request.url?.path == "/api/bots" ? (200, bots) : (404, Data()) }
+        URLProtocol.registerClass(SquaddHTTPFixture.self)
+        defer { URLProtocol.unregisterClass(SquaddHTTPFixture.self) }
+        let keychain = InMemoryKeychainStore()
+        let manager = AuthManager(keychain: keychain, headerStore: CustomHeaderStore(),
+                                  serverRegistry: ServerRegistry.inMemory(keychain: keychain),
+                                  hermesConnections: HermesConnections(), preferences: .ephemeral(), forgetPush: { _ in })
+        try manager.addSquaddServer(address: studio, token: "token-share")
+        let window = UIWindow(windowScene: try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first))
+        window.rootViewController = UIHostingController(rootView: ContentView(authManager: manager, intentRouter: AppIntentRouter())
+            .modelContainer(try ModelContainer(for: CachedSession.self, CachedMessage.self,
+                                               configurations: ModelConfiguration(isStoredInMemoryOnly: true))))
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true }
+
+        var picker: UIAlertController?
+        let end = ContinuousClock.now + .seconds(5)
+        while ContinuousClock.now < end, picker == nil {
+            picker = window.rootViewController?.presentedViewController as? UIAlertController
+            // test-wait: UIKit says nothing when SwiftUI presents a dialog; checks each 20 ms.
+            try await Task.sleep(for: .milliseconds(20))
+        }
+
+        XCTAssertEqual(picker?.title, String(localized: "Send to an Agent"), "the share reached the Squadd home")
+        XCTAssertEqual(picker?.actions.map(\.title).contains("Pesto"), true)
     }
 
     private nonisolated static func fixture(_ name: String) throws -> Data {
