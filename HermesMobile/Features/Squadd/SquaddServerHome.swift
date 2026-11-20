@@ -41,6 +41,8 @@ struct SquaddServerHome: View {
     @Environment(\.scenePhase) private var scenePhase
     /// Made once in `.task`, not in `init`, so a pass of the parent reads no Keychain.
     @State private var model: SquaddAgentListModel?
+    @State private var notifications: SquaddNotificationsModel?
+    @State private var isShowingNotifications = false
     @State private var client: SquaddCompanionClient?
     @State private var finder: SquaddRouteFinder?
     @State private var editingAgent: SquaddBot?
@@ -105,6 +107,7 @@ struct SquaddServerHome: View {
                 self.token = token
                 let client = SquaddCompanionClient(server: server, token: token)
                 self.client = client
+                notifications = SquaddNotificationsModel(client: client)
                 model = SquaddAgentListModel(
                     client: client,
                     onUnpaired: { [weak authManager, server] in authManager?.squaddUnpaired(server: server) }
@@ -135,6 +138,16 @@ struct SquaddServerHome: View {
             guard scenePhase == .active, let token = authManager.squaddToken(for: server) else { return }
             let client = SquaddCompanionClient(server: server, token: token)
             await SquaddPresence.keepAlive { try await client.presenceActive() }
+        }
+        // The bell follows the computer's notifications while the app is in front.
+        .task(id: scenePhase == .active && notifications != nil) {
+            guard scenePhase == .active, let notifications else { return }
+            await notifications.follow()
+        }
+        .sheet(isPresented: $isShowingNotifications) {
+            if let notifications {
+                SquaddNotificationsSheet(model: notifications) { open($0) }
+            }
         }
         .sheet(isPresented: $isShowingSettings) {
             NavigationStack {
@@ -233,9 +246,45 @@ struct SquaddServerHome: View {
             .font(AppFont.footnote())
             .foregroundStyle(.secondary)
             .accessibilityElement(children: .combine)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(alignment: .trailing) { notificationsButton }
             .padding(.horizontal, 24)
             .padding(.top, 8)
             .sessionsScreenListRow()
+        }
+    }
+
+    /// The computer's notifications, with how many are unread.
+    @ViewBuilder
+    private var notificationsButton: some View {
+        if let notifications {
+            let unread = notifications.unreadCount
+            Button { isShowingNotifications = true } label: {
+                Image(systemName: unread > 0 ? "bell.badge" : "bell")
+                    .symbolRenderingMode(unread > 0 ? .multicolor : .monochrome)
+                    .font(AppFont.subheadline())
+                    .frame(minWidth: 44, minHeight: 44)
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .accessibilityLabel("Notifications")
+            .accessibilityValue(unread > 0 ? Text("\(unread) unread") : Text(verbatim: ""))
+        }
+    }
+
+    /// A tapped notification: its conversation is marked read on the computer, as opening it on the
+    /// desktop does, then it opens like a thread link.
+    private func open(_ notification: SquaddNotification) {
+        guard let threadID = notification.threadId else { return }
+        // shortcut: a room's conversation is only marked read, the app has no rooms yet; open it once it does.
+        if notification.groupId == nil {
+            isShowingNotifications = false
+            pendingThread = SquaddThreadLink(threadID: threadID, botID: notification.botId, server: server)
+        }
+        Task {
+            do { try await notifications?.markRead(notification) } catch {
+                toast.show(.failure(String(localized: "Couldn’t mark this read on the computer.")))
+            }
         }
     }
 

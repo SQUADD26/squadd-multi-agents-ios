@@ -1,0 +1,8 @@
+data: {"kind":"hello","cursor":"7749f10b:88","resumed":false}
+
+id: 7749f10b:122
+data: {"kind":"notify","notification":{"kind":"done","botId":"267a03c8-e619-4a7c-9508-5a807144a211","botName":"Squadd","threadId":"23bd5649-af55-40aa-b713-b648f0c35097","title":"Squadd finished","body":"hello from fake claude","id":"e3ac743b-bb79-431c-996b-9b3eb1601e88","at":1795149376036,"read":false},"seq":122}
+
+id: 7749f10b:128
+data: {"kind":"notifications.read","threadId":"23bd5649-af55-40aa-b713-b648f0c35097","ids":["e3ac743b-bb79-431c-996b-9b3eb1601e88","8c21fcf9-2093-4cce-8c84-f989de36d620","8200c215-5606-48d0-bae9-b4c630741159"],"seq":128}
+
