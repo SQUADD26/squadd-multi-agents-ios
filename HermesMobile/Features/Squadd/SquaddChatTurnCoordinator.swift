@@ -13,6 +13,8 @@ import SwiftData
     func squaddConnectionDidChange(failure: String?)
     /// A turn began: the next reply opens a new assistant row (as a Hermes turn does).
     func hermesTurnDidStart(prompt: HermesQueuedPrompt?)
+    /// A queued send went in: its prompt joins the transcript as a sent row.
+    func squaddAppendPrompt(_ message: ChatMessage)
 }
 
 /// A Squadd agent thread the main chat opens: the companion, the device token, the agent and
@@ -23,11 +25,37 @@ struct SquaddThreadChat: Hashable, Identifiable {
     let botId: String
     let threadId: String
     let title: String?
+    /// The room the thread is a conversation of; nil for an agent's own thread.
+    var room: SquaddRoomChat?
 
     var id: String { threadId }
 
     /// The session the chat view keys the thread's draft and cache on.
     var session: SessionSummary { SessionSummary(sessionId: threadId, title: title) }
+}
+
+/// A room as its chat needs it: where sends go and who `@` reaches.
+struct SquaddRoomChat: Hashable {
+    struct Member: Hashable {
+        let id: String
+        let name: String
+    }
+
+    let id: String
+    let members: [Member]
+
+    /// The members the text names as the companion reads it (`room-mentions.ts`): `@` and the
+    /// whole name, in any case.
+    func mentionedIDs(in text: String) -> [String] {
+        members.filter { text.range(of: "@" + $0.name, options: .caseInsensitive) != nil }.map(\.id)
+    }
+
+    /// The members for the composer's `@` panel, which inserts each one's whole name.
+    var mentions: BotMentions {
+        BotMentions(roomMembers: members.compactMap {
+            BotProfile(.object(["name": .string($0.id), "display_name": .string($0.name)]))
+        })
+    }
 }
 
 extension SquaddThreadChat {
@@ -56,6 +84,15 @@ final class SquaddChatTurnCoordinator {
     private(set) var latestRunEnding: ChatRunEnding?
     private(set) var successfulResponseCompletion: ChatStreamCoordinator.SuccessfulResponseCompletion?
     private(set) var isReconnecting = false
+    /// Sends the busy room holds for the turns after this one, in order; each leaves once it goes in.
+    private(set) var queuedPrompts: [QueuedSend] = []
+    /// The room's members for the composer's `@` panel; nil for an agent's thread.
+    @ObservationIgnored let mentions: BotMentions?
+
+    struct QueuedSend: Equatable {
+        let sendId: String
+        let text: String
+    }
 
     @ObservationIgnored private weak var delegate: (any SquaddChatTurnDelegate)?
     @ObservationIgnored private let client: SquaddCompanionClient
@@ -90,6 +127,7 @@ final class SquaddChatTurnCoordinator {
              try await Task.sleep(for: .seconds(min(1 << min(attempt - 1, 4), 15)))
          }) {
         self.chat = chat
+        mentions = chat.room?.mentions
         client = SquaddCompanionClient(server: chat.server, token: chat.token, session: session)
         self.retryDelay = retryDelay
     }
@@ -102,16 +140,34 @@ final class SquaddChatTurnCoordinator {
     }
 
     /// Sends a typed message. Throws when the companion didn't take it, so the chat puts it back.
-    func send(_ text: String, sendId: String, localRowID: String) async throws {
+    /// Returns true when the agents were busy and the companion queued it: it is in
+    /// `queuedPrompts`, not yet in the transcript.
+    func send(_ text: String, sendId: String, localRowID: String) async throws -> Bool {
         ownSendIDs.insert(sendId)
+        let receipt: SquaddSendReceipt
         do {
-            let receipt = try await client.send(text, botId: chat.botId, threadId: chat.threadId, sendId: sendId)
-            if let stored = receipt.message?.id { rowIDs[stored] = localRowID; shownIDs.insert(stored) }
+            if let room = chat.room {
+                receipt = try await client.send(text, roomId: room.id, threadId: chat.threadId, sendId: sendId,
+                                                mentions: room.mentionedIDs(in: text))
+            } else {
+                receipt = try await client.send(text, botId: chat.botId, threadId: chat.threadId, sendId: sendId)
+            }
         } catch {
             ownSendIDs.remove(sendId)
             throw error
         }
+        if let stored = receipt.message?.id { rowIDs[stored] = localRowID; shownIDs.insert(stored) }
+        let queued = receipt.queued == true && receipt.message == nil
+        if queued { queuedPrompts.append(QueuedSend(sendId: sendId, text: text)) }
         if stream == nil { await activate() }
+        return queued
+    }
+
+    /// Stops the room's running turn; its `turn.completed` ends the reply here. Only a room
+    /// has Stop: an agent thread's is its own ticket.
+    func interrupt() async throws {
+        guard let room = chat.room else { return }
+        try await client.interrupt(roomId: room.id, threadId: chat.threadId, stopId: makeSendID())
     }
 
     func stop() {
@@ -128,10 +184,12 @@ final class SquaddChatTurnCoordinator {
             guard activeStreamID == nil else { return }
             hasLoaded = true
             shownIDs = Set(page.messages.map(\.id))
+            let stored = Set(page.messages.compactMap(\.sendId))
+            queuedPrompts.removeAll { stored.contains($0.sendId) }
             let rows = page.messages.compactMap { message -> ChatMessage? in
-                guard let row = message.chatMessage else { return nil }
+                guard let row = message.chatMessage(namesAuthor: chat.room != nil) else { return nil }
                 guard let shown = rowIDs[message.id] else { return row }
-                return ChatMessage(role: row.role, content: row.content, timestamp: row.timestamp, messageId: shown)
+                return ChatMessage(role: row.role, content: row.content, timestamp: row.timestamp, messageId: shown, name: row.name)
             }
             // Older pages stay while the new page still reaches back to where the last one began;
             // past a gap they'd sit out of order, so paging starts again from this page.
@@ -156,7 +214,7 @@ final class SquaddChatTurnCoordinator {
             while hasOlder, let before = oldestID {
                 let page = try await client.messages(threadId: chat.threadId, before: before)
                 guard oldestID == before else { return false }
-                let rows = page.messages.compactMap(\.chatMessage)
+                let rows = page.messages.compactMap { $0.chatMessage(namesAuthor: chat.room != nil) }
                 olderRows = rows + olderRows
                 oldestID = page.messages.first?.id ?? before
                 hasOlder = page.hasMore && !page.messages.isEmpty
@@ -225,7 +283,15 @@ final class SquaddChatTurnCoordinator {
             streamingItemID = itemId ?? streamingItemID
             delegate?.streamCoordinatorAppendToken(text)
         case .message(let threadId, let message) where threadId == chat.threadId:
-            if message.role == "bot", message.itemId != nil, message.itemId == streamingItemID,
+            if let sendId = message.sendId, let index = queuedPrompts.firstIndex(where: { $0.sendId == sendId }) {
+                // A queued send went in: it shows as sent, and the stored copy replaces it in place.
+                let queued = queuedPrompts.remove(at: index)
+                let rowID = "local-\(sendId)"
+                rowIDs[message.id] = rowID
+                shownIDs.insert(message.id)
+                delegate?.squaddAppendPrompt(ChatMessage(role: "user", content: queued.text,
+                                                         timestamp: message.at.map { $0 / 1000 }, messageId: rowID))
+            } else if message.role == "bot", message.itemId != nil, message.itemId == streamingItemID,
                let row = delegate?.streamCoordinatorStreamingAssistantMessageID {
                 rowIDs[message.id] = row
                 shownIDs.insert(message.id)

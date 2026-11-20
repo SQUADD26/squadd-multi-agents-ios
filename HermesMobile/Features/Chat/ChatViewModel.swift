@@ -636,8 +636,20 @@ final class ChatViewModel {
     /// discards it. Their reference lines are chips, as on a sent row, and so are the photos a
     /// canonical send carried (#1644).
     var queuedPromptMessages: [ChatMessage] {
-        (hermesTurn?.queuedPrompts ?? []).map { Self.hermesPromptRow($0, id: "hermes-queued-prompt-\($0.id)", timestamp: nil) }
+        if let squaddTurn {
+            // A busy Squadd room's queue (#21), each until its send goes in.
+            return squaddTurn.queuedPrompts.map {
+                ChatMessage(role: "user", content: $0.text, timestamp: nil, messageId: "squadd-queued-\($0.sendId)")
+            }
+        }
+        return (hermesTurn?.queuedPrompts ?? []).map { Self.hermesPromptRow($0, id: "hermes-queued-prompt-\($0.id)", timestamp: nil) }
     }
+
+    /// A Squadd room's members for the composer's `@` panel; nil elsewhere.
+    var squaddRoomMentions: BotMentions? { squaddTurn?.mentions }
+
+    /// A Squadd room has Stop, and a send while it works waits in the room's queue.
+    var isSquaddRoom: Bool { squaddTurn?.chat.room != nil }
 
     /// A turn a canonical host lost across its restart (#1602), as its row shows it: with its
     /// prompt's bubble only when the transcript doesn't already end on that prompt.
@@ -4272,6 +4284,12 @@ final class ChatViewModel {
         if let hermesTurn {
             return await submitHermesStreamingMessage(draft, behavior: behavior, to: hermesTurn)
         }
+        if let squaddTurn {
+            // A Squadd room queues a send while it works; the companion runs it after the turn.
+            return await submitSquaddPrompt(draft, to: squaddTurn) == .started
+                ? .executed(message: nil)
+                : .unsupported(friendlyMessage: sendErrorMessage ?? String(localized: "Can't reach the computer."))
+        }
         switch behavior {
         case .steer:
             return await steerResponseFromSlashCommand(draft)
@@ -6801,13 +6819,24 @@ final class ChatViewModel {
 
     @discardableResult
     func cancelActiveStream() async -> Bool {
-        // Stop on Squadd (`POST /api/bots/:id/interrupt`) is its own ticket.
-        guard activeStreamID != nil, squaddTurn == nil else { return false }
+        // Stop on an agent's Squadd thread (`POST /api/bots/:id/interrupt`) is its own ticket; a room has it.
+        guard activeStreamID != nil, squaddTurn == nil || isSquaddRoom else { return false }
 
         isCancellingStream = true
         sendErrorMessage = nil
         lastError = nil
         defer { isCancellingStream = false }
+
+        if let squaddTurn {
+            // Accepted is not idle: the turn's `turn.completed` ends the reply.
+            do {
+                try await squaddTurn.interrupt()
+                return true
+            } catch {
+                sendErrorMessage = SquaddChatTurnCoordinator.failureMessage(error)
+                return false
+            }
+        }
 
         if let hermesTurn {
             // Accepted is not idle: the turn's own ending frames settle it.
@@ -9937,6 +9966,10 @@ extension ChatViewModel: SquaddChatTurnDelegate {
         hasOlderMessages = hasOlder
     }
 
+    func squaddAppendPrompt(_ message: ChatMessage) {
+        messages.append(message)
+    }
+
     func squaddConnectionDidChange(failure: String?) {
         guard errorMessage != failure else { return }
         errorMessage = failure
@@ -9957,7 +9990,10 @@ extension ChatViewModel: SquaddChatTurnDelegate {
         sendErrorMessage = nil
         messages.append(ChatMessage(role: "user", content: text, timestamp: Date().timeIntervalSince1970, messageId: rowID))
         do {
-            try await squadd.send(text, sendId: sendId, localRowID: rowID)
+            // A queued send shows in the queue until it goes in, not as a sent row.
+            if try await squadd.send(text, sendId: sendId, localRowID: rowID) {
+                messages.removeAll { $0.messageId == rowID }
+            }
             return .started
         } catch {
             messages.removeAll { $0.messageId == rowID }

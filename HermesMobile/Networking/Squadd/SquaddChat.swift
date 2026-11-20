@@ -14,11 +14,18 @@ struct SquaddMessage: Decodable, Equatable {
     let itemId: String?
     /// The client's own id for a send, echoed on the stored user row.
     let sendId: String?
+    /// A bot row's author: in a room, the member that wrote it.
+    let from: Author?
 
-    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId }
+    struct Author: Decodable, Equatable {
+        let botId: String?
+        let name: String?
+    }
+
+    private enum CodingKeys: String, CodingKey { case id, role, kind, text, at, itemId, sendId, from }
 
     init(id: String, role: String?, kind: String? = "text", text: String?, at: Double? = nil,
-         itemId: String? = nil, sendId: String? = nil) {
+         itemId: String? = nil, sendId: String? = nil, from: Author? = nil) {
         self.id = id
         self.role = role
         self.kind = kind
@@ -26,6 +33,7 @@ struct SquaddMessage: Decodable, Equatable {
         self.at = at
         self.itemId = itemId
         self.sendId = sendId
+        self.from = from
     }
 
     init(from decoder: Decoder) throws {
@@ -37,16 +45,22 @@ struct SquaddMessage: Decodable, Equatable {
         at = try? container.decodeIfPresent(Double.self, forKey: .at)
         itemId = try? container.decodeIfPresent(String.self, forKey: .itemId)
         sendId = try? container.decodeIfPresent(String.self, forKey: .sendId)
+        from = try? container.decodeIfPresent(Author.self, forKey: .from)
     }
 
     /// The transcript row the chat draws, or nil for rows the v1 chat doesn't show: tool steps,
     /// turn digests, screens, compaction markers and the other cards their own tickets bring.
     /// `options` (a question card) shows its words until the card has its own view.
-    var chatMessage: ChatMessage? {
+    var chatMessage: ChatMessage? { chatMessage(namesAuthor: false) }
+
+    /// `namesAuthor`: a room's reply carries the member that wrote it as its `name`, which the
+    /// bubble shows over it.
+    func chatMessage(namesAuthor: Bool) -> ChatMessage? {
         guard kind == nil || kind == "text" || kind == "options",
               let text, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-        return ChatMessage(role: role == "bot" ? "assistant" : "user", content: text,
-                           timestamp: at.map { $0 / 1000 }, messageId: id)
+        let isBot = role == "bot"
+        return ChatMessage(role: isBot ? "assistant" : "user", content: text, timestamp: at.map { $0 / 1000 },
+                           messageId: id, name: namesAuthor && isBot ? from?.name : nil)
     }
 }
 
@@ -66,10 +80,12 @@ struct SquaddMessagePage: Decodable, Equatable {
 }
 
 /// `POST /api/bots/:id/messages`'s 202: the stored user row, or a queue slot when the bot was busy.
+/// A room's send (`POST /api/groups/:id/messages`) answers the same way.
 struct SquaddSendReceipt: Decodable {
     let threadId: String?
     let message: SquaddMessage?
     let queued: Bool?
+    let queueId: String?
 }
 
 /// The frames of `/api/events` the chat acts on (`ServerFrame` in `wire.ts`). Every other kind,
