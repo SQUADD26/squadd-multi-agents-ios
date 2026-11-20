@@ -300,6 +300,9 @@ final class SquaddRoomHomePhotoTests: SquaddRoomPhotoTestCase {
 /// The room's rename alert (`FOTO_DIR`) in SquaddServerHome.
 final class SquaddRoomRenamePhotoTests: SquaddRoomPhotoTestCase {
     func testPhotoRoomRename() async throws {
+        // The field's blinking cursor never lets two frames match, so the photo would wait out readyPhoto's limit.
+        UITextField.appearance().tintColor = .clear
+        defer { UITextField.appearance().tintColor = nil }
         try await shootHome("r2-room-rename", start: .renameRoom)
     }
 }
