@@ -36,7 +36,7 @@ Colonne: **Chi** = solo Hermex (H), solo Squadd (S), entrambi (H+S). **Dove** = 
 | Export della conversazione | H+S | HermesMobile/Features/SessionList/SessionListViewModel.swift:1361 | server/routes/threads.ts:544; companion/src/routes.ts:187 | `GET /api/threads/:id/export` | app | B |
 | Modifica di un messaggio e versioni | H+S | HermesMobile/Features/Chat/ChatViewModel.swift:6273 | server/routes/bot-messages.ts:497, :549; companion/src/routes.ts:112, :119 | Edit più scelta del ramo attivo. Hermex non mostra versioni alternative (non trovata): serve un selettore di versione nuovo | app | M |
 | Fork in un nuovo thread | H+S | HermesMobile/Features/Chat/ChatViewModel.swift (`forkSquaddThread`) | server/routes/tasks.ts:166; src/components/ForkPanel.tsx:10 | Fatto (#20): Fork From Here sui messaggi di testo e `/branch` o `/fork` chiamano `/tasks/:t/forks` e aprono il thread nuovo | — | B |
-| Undo dell'ultimo scambio | H+S | HermesMobile/Features/Chat/HermesChatTurnCoordinator.swift:1061 | server/routes/undo.ts:13 | Il companion non apre `/api/threads/:id/undo`: va aggiunto | companion + app | B |
+| Undo dell'ultimo scambio | H+S | HermesMobile/Features/Squadd/SquaddChatTurnCoordinator.swift (`undoLastExchange`) | server/routes/bot-messages.ts (`undo-exchange`, openmausbot #113) | Fatto (#20): il menu dell'ultimo scambio e `/undo` chiamano `POST /api/bots/:bot/undo-exchange`; spento quando il messaggio della persona apre il thread. `/api/threads/:id/undo` annulla le card applicate, non lo scambio | — | B |
 | Rigenera risposta | H | HermesMobile/Features/Chat/ChatViewModel.swift:6390 | non trovata | Esiste solo l'edit con nuovo ramo: si rigenera rimandando il messaggio come edit, oppure serve una route nuova | server + app | M |
 | Rewind a un punto | H | HermesMobile/Features/Chat/HermesChatTurnCoordinator.swift:1003 | non trovata | Senza equivalente: da nascondere nella v1 | app | B |
 | Checkpoint dei file (rollback) | H | HermesMobile/Features/Chat/HermesChatTurnCoordinator.swift:1093 | non trovata | Senza equivalente: da nascondere | app | B |
@@ -136,7 +136,7 @@ Per ogni chiamata di rete di `HermesMobile/Networking`, la route del companion c
 | POST /api/session/duplicate | HermesMobile/Networking/APIClient+Sessions.swift:129 | manca | — |
 | POST /api/session/compress | HermesMobile/Networking/APIClient+Sessions.swift:137 | POST /api/bots/:id/compact | routes.ts:120 |
 | POST /api/session/clear | HermesMobile/Networking/APIClient+Sessions.swift:148 | manca | — |
-| POST /api/session/undo | HermesMobile/Networking/APIClient+Sessions.swift:156 | manca (`/api/threads/:id/undo` non è aperta) | — |
+| POST /api/session/undo | HermesMobile/Networking/APIClient+Sessions.swift:156 | `POST /api/bots/:bot/undo-exchange` (#20, openmausbot #113) | — |
 | POST /api/session/retry | HermesMobile/Networking/APIClient+Sessions.swift:164 | manca | — |
 | POST /api/session/truncate | HermesMobile/Networking/APIClient+Sessions.swift:172 | POST /api/bots/:id/messages/:m/edit | routes.ts:112 |
 | POST /api/session/update | HermesMobile/Networking/APIClient+Sessions.swift:185 | PATCH /api/bots/:id/model | routes.ts:153 |
@@ -270,7 +270,7 @@ Per ogni chiamata di rete di `HermesMobile/Networking`, la route del companion c
 | session.resume, .events.since, .detach | HermesMobile/Networking/Hermes/HermesCall.swift:562-564 | SSE /api/events con `Last-Event-ID` | routes.ts:85 |
 | session.steer, .redirect | HermesMobile/Networking/Hermes/HermesCall.swift:575-576 | POST /api/bots/:id/queue/:q/steer | routes.ts:109 |
 | session.interrupt | HermesMobile/Networking/Hermes/HermesCall.swift:577 | POST /api/bots/:id/interrupt | routes.ts:108 |
-| session.mutate, .undo | HermesMobile/Networking/Hermes/HermesCall.swift:581-582 | edit e active-branch; undo manca | routes.ts:112, :119 |
+| session.mutate, .undo | HermesMobile/Networking/Hermes/HermesCall.swift:581-582 | edit, active-branch e undo-exchange | routes.ts:112, :119 |
 | session.compress | HermesMobile/Networking/Hermes/HermesCall.swift:583 | POST /api/bots/:id/compact | routes.ts:120 |
 | session.control.read, .control | HermesMobile/Networking/Hermes/HermesCall.swift:597-598 | manca | — |
 | projects.tree, .create, .update, .delete | HermesMobile/Networking/Hermes/HermesCall.swift:558-561 | solo POST /api/sidebar-sections | routes.ts:103 |

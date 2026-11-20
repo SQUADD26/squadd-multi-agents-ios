@@ -358,6 +358,13 @@ extension SquaddCompanionClient {
         return reply.task
     }
 
+    /// Puts the thread back to before this person's last typed message (`undo-exchange`, openmausbot
+    /// #113), which stays a version away. The companion refuses (409 `nothing_to_undo`) when that
+    /// message is the thread's first.
+    func undoExchange(botId: String, threadId: String) async throws {
+        let _: SquaddActiveBranch = try await post("api/bots/\(botId)/undo-exchange", ["threadId": threadId])
+    }
+
     /// Puts this person's `emoji` on a message (`on`) or takes it off. Returns the message as saved.
     func react(_ emoji: String, on: Bool, messageId: String, threadId: String) async throws -> SquaddMessage {
         var request = authorized("api/threads/\(threadId)/messages/\(messageId)/reactions")
