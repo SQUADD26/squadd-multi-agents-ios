@@ -8,6 +8,18 @@ the map. bots.md owns the protocol detail:
 see [Push provisioning](bots.md#push-provisioning) and
 [Push previews and taps](bots.md#push-previews-and-taps).
 
+## Squadd computers
+
+A Squadd computer doesn't use hermex-push (ADR 0004); the rest of this page is
+Hermex's path. `SquaddPushRegistrar` registers the APNs token on each paired
+computer with `PUT /api/push/device`, tagged with `SquaddPush.pairingTag`, and
+removes it with `DELETE`: the companion is the only record that push is on.
+The computer sends a content-free push through Squadd's relay: a title, a
+`kind` (`approval`, `question`, `sign-in`, `done`) and opaque ids in `omb`. A
+tap goes through `SquaddPush.openTapped` to the `SquaddThreadLink` of the
+computer that sent it, carrying the `kind` for the card. A real push in the
+simulator, for a photo: last section.
+
 ## Components
 
 - **Plugin.** `hermex-push` runs on the user's Hermes host (installed from
@@ -131,3 +143,29 @@ move record, which outlives the webui entry and goes with the destination
   move could own one, it opens only where every candidate agrees, counting
   unmoved webui servers, and otherwise opens nothing: the active server never
   breaks the tie.
+
+## A real push in the simulator (photo)
+
+The XCTests open a tapped payload directly. A photo of a banner delivered by
+`simctl push`, and of the thread a real tap opens, needs the simulator itself.
+#30 found the way in six 30-minute runs on the hosted `xcode-27` runner. The
+working job is `.github/workflows/foto-simulatore.yml` with `ci/foto/` on the
+never-merged branch `foto/30-push-3` (run 44681321290): copy it to
+`foto/<issue>-push` and push it once per PR, as for a live run
+(`live-companion.md`).
+
+- **Permission.** `SquaddPushPhotoTests/testPrepareTheSimulatorForARealPush`
+  (`TEST_RUNNER_PUSH_REAL=1`) asks for notification permission and pairs the
+  sender. `ci/foto/tap_allow.py` taps Allow on the system alert, found by its
+  label in `idb ui describe-all`. Start it before `xcodebuild` and let it wait
+  longer than the build: a 5-minute wait lost a 60-minute run whose build took
+  12.
+- **Pairing.** `TestHostStateGuard` restores the Keychain when the test bundle
+  ends, so a server the test paired is gone when the app relaunches. On dev it
+  doesn't skip; the photo branch adds the `PUSH_REAL` early return to
+  `testBundleDidFinish`.
+- **Tap.** `idb ui tap` opens the banner only while it slides in, about 2.5 s
+  after `simctl push` (201,70 on an iPhone 17). A tap on the settled banner
+  does nothing, and the banner isn't in the accessibility tree.
+- **Failures.** Record the run with `simctl io recordVideo` and watch the
+  video first: in #30 it showed the real cause every time.
