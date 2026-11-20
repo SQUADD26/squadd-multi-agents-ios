@@ -1,0 +1,35 @@
+data: {"kind":"hello","cursor":"dacb845f:2","resumed":false}
+
+id: dacb845f:41
+data: {"kind":"message","threadId":"0c77ddcf-6ac3-4f84-8d53-1cd9d9d4a0e8","message":{"id":"e417e900-09e6-4a5b-a9f8-d0a5b408e8a9","at":1795159536565,"parentId":"a1d8c53a-ac29-4358-b047-006707dce489","role":"bot","kind":"secret","text":"Securely provide the Weather API key from Squadd Multi-Agents on your phone or computer. It is never added to chat.","secret":{"target":"customSecret","label":"Weather API key","description":"Check tomorrow's forecast Secret agent gets a one-use reference for Squadd Multi-Agents' own tools and never sees it. Squadd Multi-Agents keeps it safely, so Secret agent can use it again without asking you.","reason":"Check tomorrow's forecast","placeholder":"","helpUrl":"","delivery":"ref","requestKey":"2fa51a76-decc-487e-85cb-ac6a60795d8c"}},"seq":41}
+
+id: dacb845f:85
+data: {"kind":"message","threadId":"840581f8-b264-4233-821b-d75528813250","message":{"id":"39a91dfd-09a4-4280-9608-1e1e759eac1d","at":1795159536979,"parentId":"c5a1fc8e-2462-4a27-b085-faeddd543aac","role":"bot","kind":"signin","text":"Sign-in agent needs you to sign in to example.com. Open this conversation in Squadd Multi-Agents to sign in, then press Done.","signIn":{"url":"https://www.example.com/dashboard","site":"example.com","place":"browser","reason":"The dashboard is behind a login."}},"seq":85}
+
+id: dacb845f:131
+data: {"kind":"message","threadId":"c9b197de-4cf9-4332-8401-de64297a1efa","message":{"id":"f48243be-58ec-4e88-b07d-308124a9c167","at":1795159537342,"parentId":"f5725723-5cc4-4901-9445-d9e8f011bcb0","role":"bot","kind":"connector","text":"Connect Gmail to continue.","connector":{"slug":"gmail","label":"Gmail","description":"Read and send email","status":"required","resumeKey":"3d8f7136-b569-4adb-8c63-dd662e452f75"}},"seq":131}
+
+id: dacb845f:155
+data: {"kind":"message.patch","threadId":"0c77ddcf-6ac3-4f84-8d53-1cd9d9d4a0e8","message":{"id":"e417e900-09e6-4a5b-a9f8-d0a5b408e8a9","at":1795159536565,"parentId":"a1d8c53a-ac29-4358-b047-006707dce489","role":"bot","kind":"secret","text":"Securely provide the Weather API key from Squadd Multi-Agents on your phone or computer. It is never added to chat.","secret":{"target":"customSecret","label":"Weather API key","description":"Check tomorrow's forecast Secret agent gets a one-use reference for Squadd Multi-Agents' own tools and never sees it. Squadd Multi-Agents keeps it safely, so Secret agent can use it again without asking you.","reason":"Check tomorrow's forecast","placeholder":"","helpUrl":"","delivery":"ref","requestKey":"2fa51a76-decc-487e-85cb-ac6a60795d8c","savedAt":1795159538929}},"seq":155}
+
+id: dacb845f:156
+data: {"kind":"message.patch","threadId":"0c77ddcf-6ac3-4f84-8d53-1cd9d9d4a0e8","message":{"id":"e417e900-09e6-4a5b-a9f8-d0a5b408e8a9","at":1795159536565,"parentId":"a1d8c53a-ac29-4358-b047-006707dce489","role":"bot","kind":"secret","text":"Securely provide the Weather API key from Squadd Multi-Agents on your phone or computer. It is never added to chat.","secret":{"target":"customSecret","label":"Weather API key","description":"Check tomorrow's forecast Secret agent gets a one-use reference for Squadd Multi-Agents' own tools and never sees it. Squadd Multi-Agents keeps it safely, so Secret agent can use it again without asking you.","reason":"Check tomorrow's forecast","placeholder":"","helpUrl":"","delivery":"ref","requestKey":"2fa51a76-decc-487e-85cb-ac6a60795d8c","savedAt":1795159538929,"phoneOperationId":"gg3XirSTeXPZY07e7VGeVuIY92DeoO65UElVOF6JzfA"}},"seq":156}
+
+id: dacb845f:159
+data: {"kind":"message.patch","threadId":"0c77ddcf-6ac3-4f84-8d53-1cd9d9d4a0e8","message":{"id":"e417e900-09e6-4a5b-a9f8-d0a5b408e8a9","at":1795159536565,"parentId":"a1d8c53a-ac29-4358-b047-006707dce489","role":"bot","kind":"secret","text":"Securely provide the Weather API key from Squadd Multi-Agents on your phone or computer. It is never added to chat.","secret":{"target":"customSecret","label":"Weather API key","description":"Check tomorrow's forecast Secret agent gets a one-use reference for Squadd Multi-Agents' own tools and never sees it. Squadd Multi-Agents keeps it safely, so Secret agent can use it again without asking you.","reason":"Check tomorrow's forecast","placeholder":"","helpUrl":"","delivery":"ref","requestKey":"2fa51a76-decc-487e-85cb-ac6a60795d8c","savedAt":1795159538929,"phoneOperationId":"gg3XirSTeXPZY07e7VGeVuIY92DeoO65UElVOF6JzfA","provided":true,"resumed":true}},"seq":159}
+
+id: dacb845f:172
+data: {"kind":"message.patch","threadId":"840581f8-b264-4233-821b-d75528813250","message":{"id":"39a91dfd-09a4-4280-9608-1e1e759eac1d","at":1795159536979,"parentId":"c5a1fc8e-2462-4a27-b085-faeddd543aac","role":"bot","kind":"signin","text":"Sign-in agent needs you to sign in to example.com. Open this conversation in Squadd Multi-Agents to sign in, then press Done.","signIn":{"url":"https://www.example.com/dashboard","site":"example.com","place":"browser","reason":"The dashboard is behind a login.","done":true,"resumed":true}},"seq":172}
+
+id: dacb845f:175
+data: {"kind":"message.patch","threadId":"c9b197de-4cf9-4332-8401-de64297a1efa","message":{"id":"f48243be-58ec-4e88-b07d-308124a9c167","at":1795159537342,"parentId":"f5725723-5cc4-4901-9445-d9e8f011bcb0","role":"bot","kind":"connector","text":"Connect Gmail to continue.","connector":{"slug":"gmail","label":"Gmail","description":"Read and send email","status":"authorizing","resumeKey":"3d8f7136-b569-4adb-8c63-dd662e452f75","dismissed":false}},"seq":175}
+
+id: dacb845f:177
+data: {"kind":"message.patch","threadId":"c9b197de-4cf9-4332-8401-de64297a1efa","message":{"id":"f48243be-58ec-4e88-b07d-308124a9c167","at":1795159537342,"parentId":"f5725723-5cc4-4901-9445-d9e8f011bcb0","role":"bot","kind":"connector","text":"Connect Gmail to continue.","connector":{"slug":"gmail","label":"Gmail","description":"Read and send email","status":"connected","resumeKey":"3d8f7136-b569-4adb-8c63-dd662e452f75","dismissed":false}},"seq":177}
+
+id: dacb845f:182
+data: {"kind":"message.patch","threadId":"c9b197de-4cf9-4332-8401-de64297a1efa","message":{"id":"f48243be-58ec-4e88-b07d-308124a9c167","at":1795159537342,"parentId":"f5725723-5cc4-4901-9445-d9e8f011bcb0","role":"bot","kind":"connector","text":"Connect Gmail to continue.","connector":{"slug":"gmail","label":"Gmail","description":"Read and send email","status":"connected","resumeKey":"3d8f7136-b569-4adb-8c63-dd662e452f75","dismissed":false,"resumed":true}},"seq":182}
+
+id: dacb845f:244
+data: {"kind":"message","threadId":"c9b197de-4cf9-4332-8401-de64297a1efa","message":{"id":"8940f042-b154-4d7c-85f6-750260ee00a3","at":1795159539319,"parentId":"76dc4f29-beeb-4f9a-86de-6643fad41572","role":"bot","kind":"connector","text":"Connect Gmail to continue.","connector":{"slug":"gmail","label":"Gmail","description":"Read and send email","status":"connected","resumeKey":"2fa02901-adc5-4691-b055-ed85ed7441ef","resumed":true}},"seq":244}
+

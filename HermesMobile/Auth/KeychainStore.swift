@@ -37,6 +37,8 @@ struct KeychainStore: KeychainStoring {
         case squaddDeviceToken = "squadd_device_token"
         // Per-server JSON of a Squadd computer's routes and name (`SquaddRouteBook`), from its pairing.
         case squaddRoutes = "squadd_routes"
+        // Per-server JSON of the device id and the computer's public HPKE key a QR pairing gave (`SquaddSecretPairing`).
+        case squaddSecretPairing = "squadd_secret_pairing"
     }
 
     private let keychain: Keychain

@@ -347,8 +347,11 @@ struct SquaddPairResponse: Decodable {
     let serverName: String?
     /// The computer's routes, best first (#9); a companion without them sends none.
     let endpoints: [SquaddEndpoint]
+    /// `device.id`: the id the computer gave this iPhone, which a secret's envelope names.
+    let deviceId: String?
 
-    private enum CodingKeys: String, CodingKey { case token, serverName, endpoints }
+    private enum CodingKeys: String, CodingKey { case token, serverName, endpoints, device }
+    private struct Device: Decodable { let id: String }
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
@@ -356,6 +359,7 @@ struct SquaddPairResponse: Decodable {
         serverName = try container.decodeIfPresent(String.self, forKey: .serverName)
         endpoints = ((try? container.decodeIfPresent([SquaddLossy<SquaddEndpoint>].self, forKey: .endpoints)) ?? nil)?
             .compactMap(\.value) ?? []
+        deviceId = (try? container.decodeIfPresent(Device.self, forKey: .device))?.id
     }
 }
 

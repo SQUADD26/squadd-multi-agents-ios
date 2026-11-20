@@ -1,8 +1,10 @@
+import AuthenticationServices
 import SwiftUI
 import SwiftData
 import XCTest
 import UIKit
 import AVFoundation
+import CryptoKit
 @testable import HermesMobile
 
 /// A Squadd agent's chat (#11) against one turn recorded from a real `openmausbot` companion
@@ -763,6 +765,300 @@ final class SquaddChatTests: XCTestCase {
         await waitUntil("the desktop's answer takes the question away") { coordinator.pendingQuestion == nil }
     }
 
+    // MARK: Secret, sign-in and connector cards (#16), recorded from a real companion (origin/dev 961cb8133)
+
+    /// The fixed vector of `server/phone-secret.test.ts` (CryptoKit sealed it, Node opens it), opened here with this
+    /// app's AAD, and an envelope this app seals opened the same way: the suite, info, AAD and encodings are the computer's.
+    func testSecretEnvelopeIsTheOneTheComputerOpens() throws {
+        let key = try P256.KeyAgreement.PrivateKey(rawRepresentation: XCTUnwrap(Data(base64URL: "5B-SwYLGXc04u4v7YLpzFrwj2JjysBFaJevOPl3h3Zg")))
+        let publicKey = key.publicKey.x963Representation
+        XCTAssertEqual(SquaddSecretEnvelope.keyId(publicKey), "taWSR_nZ7ojlH_0Z3tar6Q", "the vector's keyId")
+        let context = SquaddSecretEnvelope.Context(deviceId: "paired-device-1", botId: "bot-1", threadId: "thread-1",
+                                                   messageId: "message-1", target: "ttsKey", requestKey: "credential-request-1")
+        XCTAssertEqual(try Self.open(encapsulatedKey: "BDhy_5hMSvVIy3zGSmBwBECAedYBAwwFLvbWoXCGTJyLRH1cItoQXo9NBcEG0cTQV_VwaEf5judXcsJlh2jfW7Q",
+                                     ciphertext: "CjM0CnBT8NYd_BHAXJRKFrbYrSw6OgMIlJLAKs8VUPSSCsa2", with: key, context),
+                       "swift-to-node-secret")
+
+        let body = try SquaddSecretEnvelope.seal("  sk-fixture \n", to: publicKey, context)
+        XCTAssertEqual(body["version"] as? Int, 1)
+        XCTAssertEqual(body["keyId"] as? String, "taWSR_nZ7ojlH_0Z3tar6Q")
+        XCTAssertEqual((body["encapsulatedKey"] as? String)?.count, 87)
+        XCTAssertEqual(try Self.open(encapsulatedKey: XCTUnwrap(body["encapsulatedKey"] as? String),
+                                     ciphertext: XCTUnwrap(body["ciphertext"] as? String), with: key, context),
+                       "sk-fixture", "trimmed, as the computer trims it")
+    }
+
+    private let secretBot = "4e9fe664-9e3b-45ed-9c8f-9366369317d4"
+    private let secretThread = "0c77ddcf-6ac3-4f84-8d53-1cd9d9d4a0e8"
+    private let secretMessage = "e417e900-09e6-4a5b-a9f8-d0a5b408e8a9"
+    /// A hosted route: the only kind besides the tailnet a secret goes over.
+    private let hosted = URL(string: "https://computer.example.com")!
+
+    /// The recorded secret card reaches the request slot; the typed secret goes sealed to the computer's key, bound to
+    /// this card, and the card leaves once the computer took it.
+    func testSecretCardSealsTheTypedSecretForTheComputerAndLeaves() async throws {
+        let thread = secretThread, path = "/api/bots/\(secretBot)/secret-cards/\(secretMessage)/provide"
+        var sent: [String: Any] = [:]
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, try! Self.fixture("thread-secret-open.json"))
+            case ("GET", _): return .hold
+            case ("POST", path):
+                sent = (try? Self.json(request)) ?? [:]
+                return .reply(200, Data(#"{"provided":true,"resumed":true}"#.utf8))
+            default: return .reply(404, Data())
+            }
+        }
+        let key = P256.KeyAgreement.PrivateKey()
+        let (model, coordinator) = makeChat(server: hosted, bot: secretBot, thread: thread)
+        coordinator.secretPairing = { SquaddSecretPairing(deviceId: "81fc5c68-67d2-4cb3-816b-3f8ef798bb71", secretKey: key.publicKey.x963Representation) }
+        await model.loadMessages()
+        let card = try XCTUnwrap(ChatView.squaddCard(in: model), "the recorded secret card waits in the chat's request slot")
+        guard case .secret(let secret) = card.kind else { return XCTFail("\(card.kind)") }
+        XCTAssertNil(coordinator.secretBlock)
+
+        let provided = await coordinator.provideSecret("wx-fixture-key")
+        XCTAssertTrue(provided)
+        XCTAssertEqual(sent["threadId"] as? String, thread)
+        XCTAssertEqual(sent["deviceId"] as? String, "81fc5c68-67d2-4cb3-816b-3f8ef798bb71")
+        XCTAssertEqual(sent["target"] as? String, "customSecret")
+        XCTAssertEqual(sent["requestKey"] as? String, secret.requestKey)
+        XCTAssertEqual(try Self.open(encapsulatedKey: XCTUnwrap(sent["encapsulatedKey"] as? String), ciphertext: XCTUnwrap(sent["ciphertext"] as? String),
+                                     with: key, .init(deviceId: "81fc5c68-67d2-4cb3-816b-3f8ef798bb71", botId: secretBot, threadId: thread,
+                                                      messageId: secretMessage, target: "customSecret", requestKey: secret.requestKey)),
+                       "wx-fixture-key")
+        XCTAssertNil(ChatView.squaddCard(in: model), "the card leaves once the computer took the secret")
+    }
+
+    /// On a LAN route, or without the key a QR pairing gives, the card says why and nothing leaves the phone.
+    func testASecretIsNotSentOnTheLocalNetworkOrWithoutAQRPairing() async throws {
+        let thread = secretThread
+        var posts = 0
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, try! Self.fixture("thread-secret-open.json"))
+            case ("GET", _): return .hold
+            default: posts += 1; return .reply(200, Data("{}".utf8))
+            }
+        }
+        let pairing = SquaddSecretPairing(deviceId: "81fc5c68-67d2-4cb3-816b-3f8ef798bb71",
+                                          secretKey: P256.KeyAgreement.PrivateKey().publicKey.x963Representation)
+        let (lanModel, lan) = makeChat(bot: secretBot, thread: thread)
+        lan.secretPairing = { pairing }
+        await lanModel.loadMessages()
+        XCTAssertEqual(lan.secretBlock, .localNetwork)
+        let sentOnLAN = await lan.provideSecret("wx-fixture-key")
+        XCTAssertFalse(sentOnLAN)
+
+        let (typedModel, typed) = makeChat(server: hosted, bot: secretBot, thread: thread)
+        typed.secretPairing = { SquaddSecretPairing(deviceId: pairing.deviceId, secretKey: nil) }
+        await typedModel.loadMessages()
+        XCTAssertEqual(typed.secretBlock, .notPairedByQR)
+        let sentUnkeyed = await typed.provideSecret("wx-fixture-key")
+        XCTAssertFalse(sentUnkeyed)
+        XCTAssertEqual(posts, 0, "nothing left the phone")
+        XCTAssertNotNil(ChatView.squaddCard(in: typedModel), "the card stays, saying why")
+    }
+
+    /// Provided on the desktop, the secret card leaves the phone when its patch arrives.
+    func testSecretProvidedOnTheDesktopLeavesThePhone() async throws {
+        let events = try Self.text("events-cards.sse")
+        let thread = secretThread
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, Data(#"{"messages":[],"hasMore":false}"#.utf8))
+            case ("GET", _): return .hold
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, coordinator) = makeChat(server: hosted, bot: secretBot, thread: thread)
+        await model.loadMessages()
+        let provided = try XCTUnwrap(events.range(of: "id: dacb845f:159")).lowerBound
+        SquaddChatFixture.stream(Data(events[..<provided].utf8))
+        await waitUntil("the secret card shows") { coordinator.pendingCard != nil }
+        SquaddChatFixture.stream(Data(events[provided...].utf8))
+        await waitUntil("the desktop's answer takes the card away") { coordinator.pendingCard == nil }
+    }
+
+    /// The recorded sign-in card reaches the slot; Done tells the computer, and the card leaves.
+    func testSignInDoneReachesTheComputerAndTheCardLeaves() async throws {
+        let bot = "4c7eb107-be20-4b52-a732-c81792b4cd0a", thread = "840581f8-b264-4233-821b-d75528813250"
+        let path = "/api/bots/\(bot)/sign-in-cards/39a91dfd-09a4-4280-9608-1e1e759eac1d/done"
+        var sent: [String: Any]?
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, try! Self.fixture("thread-signin-open.json"))
+            case ("GET", _): return .hold
+            case ("POST", path):
+                sent = try? Self.json(request)
+                return .reply(200, Data(#"{"done":true,"resumed":true}"#.utf8))
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, coordinator) = makeChat(bot: bot, thread: thread)
+        await model.loadMessages()
+        let card = try XCTUnwrap(ChatView.squaddCard(in: model), "the recorded sign-in card waits in the chat's request slot")
+        guard case .signIn(let signIn) = card.kind else { return XCTFail("\(card.kind)") }
+        XCTAssertEqual(signIn.site, "example.com")
+
+        let done = await coordinator.finishSignIn()
+        XCTAssertTrue(done)
+        XCTAssertEqual(sent?["threadId"] as? String, thread)
+        XCTAssertNil(ChatView.squaddCard(in: model))
+    }
+
+    /// The recorded connector card opens the service's sign-in link the computer gives; once the sheet closes the
+    /// computer is asked, and its patches (connected, then resumed) take the card away. Not now puts it away.
+    func testConnectorOpensTheServicesSignInAndLeavesOnceConnected() async throws {
+        let events = try Self.text("events-cards.sse")
+        let bot = "f6231aa0-f288-48a7-80b6-c9e5567f21a2", thread = "c9b197de-4cf9-4332-8401-de64297a1efa"
+        let card = "/api/bots/\(bot)/connector-cards/f48243be-58ec-4e88-b07d-308124a9c167"
+        var asked: [String] = []
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, try! Self.fixture("thread-connector-open.json"))
+            case ("POST", card + "/authorize"):
+                asked.append("authorize")
+                return .reply(200, Data(#"{"url":"https://connect.composio.dev/link/fixture-gmail"}"#.utf8))
+            case ("GET", card + "/status"):
+                asked.append("status " + (request.url?.query ?? ""))
+                return .reply(200, Data(#"{"connected":true,"pending":false,"status":"ACTIVE"}"#.utf8))
+            case ("POST", card + "/dismiss"):
+                asked.append("dismiss")
+                return .reply(200, Data(#"{"dismissed":true}"#.utf8))
+            case ("GET", _): return .hold
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, coordinator) = makeChat(bot: bot, thread: thread)
+        await model.loadMessages()
+        XCTAssertNotNil(ChatView.squaddCard(in: model), "the recorded connector card waits in the chat's request slot")
+
+        // The person closes the sheet: the link never comes back to the app.
+        await coordinator.connect { link in
+            asked.append("sheet \(link)")
+            throw ASWebAuthenticationSessionError(.canceledLogin)
+        }
+        XCTAssertEqual(asked, ["authorize", "sheet https://connect.composio.dev/link/fixture-gmail", "status threadId=\(thread)"])
+        XCTAssertNil(coordinator.cardError)
+        let resumed = try XCTUnwrap(events.range(of: "id: dacb845f:182")).lowerBound
+        SquaddChatFixture.stream(Data(events[..<resumed].utf8))
+        await waitUntil("connected, the card offers Continue") {
+            if case .connector(let connector) = coordinator.pendingCard?.kind { return connector.status == "connected" }
+            return false
+        }
+        SquaddChatFixture.stream(Data(events[resumed...].utf8))
+        await waitUntil("resumed, the card leaves") { coordinator.pendingCard == nil }
+
+        let (otherModel, other) = makeChat(bot: bot, thread: thread)
+        await otherModel.loadMessages()
+        let dismissed = await other.dismissCard()
+        XCTAssertTrue(dismissed)
+        XCTAssertEqual(asked.last, "dismiss")
+        XCTAssertNil(ChatView.squaddCard(in: otherModel))
+    }
+
+    /// Connect opens the system's sign-in sheet on the service's link, and waits on the person there.
+    func testConnectOpensTheSystemSignInSheet() async throws {
+        let bot = "f6231aa0-f288-48a7-80b6-c9e5567f21a2", thread = "c9b197de-4cf9-4332-8401-de64297a1efa"
+        let card = "/api/bots/\(bot)/connector-cards/f48243be-58ec-4e88-b07d-308124a9c167"
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, try! Self.fixture("thread-connector-open.json"))
+            case ("POST", card + "/authorize"): return .reply(200, Data(#"{"url":"https://connect.composio.dev/link/fixture-gmail"}"#.utf8))
+            case ("GET", card + "/status"): return .reply(200, Data(#"{"connected":false}"#.utf8))
+            case ("GET", _): return .hold
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, coordinator) = makeChat(bot: bot, thread: thread)
+        await model.loadMessages()
+        let (window, session) = try WebAuthenticationProbe.open()
+        addTeardownBlock { window.isHidden = true }
+
+        let closed = expectation(description: "the sheet closed by itself")
+        closed.isInverted = true
+        var opened: URL?
+        let sheet = Task {
+            await coordinator.connect { link in
+                opened = link
+                try await SquaddCardInset.openSignInPage(link, in: session)
+            }
+            closed.fulfill()
+        }
+        await fulfillment(of: [closed], timeout: 3)
+        XCTAssertEqual(opened, URL(string: "https://connect.composio.dev/link/fixture-gmail"))
+        XCTAssertNil(coordinator.cardError, "the sheet opened and waits on the person")
+        // Closed here, so its status check can't reach the next test's fixture.
+        sheet.cancel()
+        await sheet.value
+    }
+
+    /// A sheet that can't open says so on the card, and nothing asks the computer about a sign-in that never showed.
+    func testAConnectorSheetThatFailsToOpenSaysSo() async throws {
+        let bot = "f6231aa0-f288-48a7-80b6-c9e5567f21a2", thread = "c9b197de-4cf9-4332-8401-de64297a1efa"
+        let card = "/api/bots/\(bot)/connector-cards/f48243be-58ec-4e88-b07d-308124a9c167"
+        var asked: [String] = []
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, try! Self.fixture("thread-connector-open.json"))
+            case ("POST", card + "/authorize"): return .reply(200, Data(#"{"url":"https://connect.composio.dev/link/fixture-gmail"}"#.utf8))
+            case ("GET", card + "/status"):
+                asked.append("status")
+                return .reply(200, Data(#"{"connected":true}"#.utf8))
+            case ("GET", _): return .hold
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, coordinator) = makeChat(bot: bot, thread: thread)
+        await model.loadMessages()
+        await coordinator.connect { _ in throw ASWebAuthenticationSessionError(.presentationContextInvalid) }
+        XCTAssertNotNil(coordinator.cardError)
+        XCTAssertEqual(asked, [])
+        XCTAssertNotNil(ChatView.squaddCard(in: model), "the card stays to try again")
+    }
+
+    /// The typed secret leaves the field the moment it is sent, and a refusal doesn't bring it back or keep it.
+    func testTheTypedSecretLeavesTheFieldOnSendEvenWhenRefused() async throws {
+        let thread = secretThread, path = "/api/bots/\(secretBot)/secret-cards/\(secretMessage)/provide"
+        var posts = 0
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, try! Self.fixture("thread-secret-open.json"))
+            case ("GET", _): return .hold
+            case ("POST", path):
+                posts += 1
+                return .reply(409, Data(#"{"error":"The computer could not save it."}"#.utf8))
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, coordinator) = makeChat(server: hosted, bot: secretBot, thread: thread)
+        coordinator.secretPairing = {
+            SquaddSecretPairing(deviceId: "81fc5c68-67d2-4cb3-816b-3f8ef798bb71", secretKey: P256.KeyAgreement.PrivateKey().publicKey.x963Representation)
+        }
+        await model.loadMessages()
+        XCTAssertNotNil(ChatView.squaddCard(in: model))
+        var field = "wx-typed-key"
+        SquaddCardInset.send(&field, to: coordinator)
+        XCTAssertEqual(field, "", "the field is empty the moment it is sent")
+
+        await waitUntil("the computer refused it") { coordinator.cardError != nil }
+        XCTAssertEqual(posts, 1, "the typed secret was sent")
+        XCTAssertEqual(field, "", "a refusal doesn't bring it back")
+        XCTAssertFalse(coordinator.cardError?.contains("wx-typed-key") ?? true)
+        XCTAssertFalse("\(String(describing: coordinator.pendingCard))".contains("wx-typed-key"))
+    }
+
+    /// Opens a sealed secret as the computer does, with `key`.
+    private nonisolated static func open(encapsulatedKey: String, ciphertext: String, with key: P256.KeyAgreement.PrivateKey,
+                                         _ context: SquaddSecretEnvelope.Context) throws -> String {
+        var recipient = try HPKE.Recipient(privateKey: key, ciphersuite: SquaddSecretEnvelope.suite, info: SquaddSecretEnvelope.info,
+                                           encapsulatedKey: XCTUnwrap(Data(base64URL: encapsulatedKey)))
+        let keyId = SquaddSecretEnvelope.keyId(key.publicKey.x963Representation)
+        let opened = try recipient.open(XCTUnwrap(Data(base64URL: ciphertext)), authenticating: SquaddSecretEnvelope.aad(keyId: keyId, context))
+        return String(decoding: opened, as: UTF8.self)
+    }
+
     private nonisolated static func json(_ request: URLRequest) throws -> [String: Any] {
         let body = try XCTUnwrap(request.httpBody ?? request.httpBodyStream.map(read))
         return try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
@@ -1227,5 +1523,87 @@ final class SquaddQuestionPhotoTests: XCTestCase {
         }
         XCTAssertNotNil(continuity.model?.squaddTurn?.pendingQuestion)
         try await readyPhoto(of: window).write(to: dir.appendingPathComponent("15-a-question-card.png"))
+    }
+}
+
+/// Photographs the secret, sign-in and connector cards (#16) from the recorded threads into `FOTO_DIR`.
+@MainActor
+final class SquaddCardPhotoTests: XCTestCase {
+    override func tearDown() {
+        URLProtocol.unregisterClass(SquaddChatFixture.self)
+        SquaddChatFixture.reset()
+        super.tearDown()
+    }
+
+    func testPhotoCards() async throws {
+        let path = ProcessInfo.processInfo.environment["FOTO_DIR"]
+        try XCTSkipIf(path == nil, "Only for photo runs")
+        let dir = URL(fileURLWithPath: path!)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let hosted = URL(string: "https://computer.example.com")!, lan = URL(string: "http://192.0.2.10:8810")!
+        // A QR pairing's key, as the hosted computer's card needs to offer the field.
+        let pairing = SquaddSecretPairing(deviceId: "81fc5c68-67d2-4cb3-816b-3f8ef798bb71",
+                                          secretKey: P256.KeyAgreement.PrivateKey().publicKey.x963Representation)
+        let shots: [(String, URL, String, String, String)] = [
+            ("16-a-secret-card.png", hosted, "thread-secret-open.json", "4e9fe664-9e3b-45ed-9c8f-9366369317d4", "0c77ddcf-6ac3-4f84-8d53-1cd9d9d4a0e8"),
+            ("16-b-secret-on-lan.png", lan, "thread-secret-open.json", "4e9fe664-9e3b-45ed-9c8f-9366369317d4", "0c77ddcf-6ac3-4f84-8d53-1cd9d9d4a0e8"),
+            ("16-c-sign-in-card.png", lan, "thread-signin-open.json", "4c7eb107-be20-4b52-a732-c81792b4cd0a", "840581f8-b264-4233-821b-d75528813250"),
+            ("16-d-connector-card.png", lan, "thread-connector-open.json", "f6231aa0-f288-48a7-80b6-c9e5567f21a2", "c9b197de-4cf9-4332-8401-de64297a1efa"),
+        ]
+        URLProtocol.registerClass(SquaddChatFixture.self)
+        for (name, server, fixture, bot, thread) in shots {
+            let page = try Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+                .appendingPathComponent("Fixtures/Squadd/\(fixture)"))
+            SquaddChatFixture.handler = { request in
+                request.url?.path.hasSuffix("/messages") == true ? .reply(200, page) : .hold
+            }
+            let chat = SquaddThreadChat(server: server, token: "device-token", botId: bot, threadId: thread, title: "Card fixture")
+            let continuity = ChatContinuity()
+            let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+            let window = UIWindow(windowScene: scene)
+            window.rootViewController = UIHostingController(rootView: NavigationStack {
+                ChatView(session: chat.session, server: chat.server, onAPIError: { _ in }, continuity: continuity, squaddThread: chat)
+            })
+            window.makeKeyAndVisible()
+            let deadline = Date().addingTimeInterval(10)
+            while Date() < deadline, continuity.model?.squaddTurn?.pendingCard == nil {
+                // test-wait: a photo, not a check; `ChatContinuity` isn't observable.
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            XCTAssertNotNil(continuity.model?.squaddTurn?.pendingCard, name)
+            continuity.model?.squaddTurn?.secretPairing = { pairing }
+            // The first chat opens with the composer focused; the photo is of the card, not the keyboard.
+            window.endEditing(true)
+            try await readyPhoto(of: window).write(to: dir.appendingPathComponent(name))
+            continuity.model?.squaddTurn?.stop()
+            window.isHidden = true
+            SquaddChatFixture.reset()
+        }
+    }
+}
+
+/// The `WebAuthenticationSession` a view in a real window gets, for a test to open the system sheet with.
+@MainActor
+final class WebAuthenticationProbe {
+    var session: WebAuthenticationSession?
+
+    private struct Reader: View {
+        let probe: WebAuthenticationProbe
+        @Environment(\.webAuthenticationSession) private var session
+
+        var body: some View {
+            probe.session = session
+            return Color.clear
+        }
+    }
+
+    static func open() throws -> (UIWindow, WebAuthenticationSession) {
+        let probe = WebAuthenticationProbe()
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.rootViewController = UIHostingController(rootView: Reader(probe: probe))
+        window.makeKeyAndVisible()
+        window.layoutIfNeeded()
+        return (window, try XCTUnwrap(probe.session, "the window's view read its session"))
     }
 }

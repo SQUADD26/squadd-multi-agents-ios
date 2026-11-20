@@ -278,8 +278,93 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         XCTAssertEqual(finished, true, "the run went on after the answer")
     }
 
-    /// Finds the companion through the tunnel, pushes the first agent thread's chat, and waits for it to load.
-    private func openLiveChat(_ environment: [String: String], token: String, folder: URL,
+    /// #16: the companion's secret, sign-in and connector cards, each opened in its agent's chat over the tunnel's
+    /// HTTPS route. The secret goes sealed to the computer's key, with the device id and key a QR pairing would have
+    /// saved (`SQUADD_LIVE_PAIRING`; the simulator has no camera); Done answers the sign-in; the connector's sign-in
+    /// link comes from the computer and the card leaves once it says the service is connected. Log `squadd-cards-log.txt`.
+    func testPhotographLiveSecretSignInAndConnectorCards() async throws {
+        let environment = ProcessInfo.processInfo.environment
+        guard let directory = environment["BRAND_PHOTOS_DIR"],
+              let token = environment["SQUADD_LIVE_TOKEN"], !token.isEmpty,
+              let pairingJSON = environment["SQUADD_LIVE_PAIRING"],
+              environment["SQUADD_LIVE_URL"] != nil || environment["SQUADD_LIVE_LOOKUP"] != nil else {
+            throw XCTSkip("Live photos only: a photo branch's workflow with a companion in the secrets.")
+        }
+        struct Pairing: Decodable { let deviceId: String; let secretKey: String }
+        let pairing = try JSONDecoder().decode(Pairing.self, from: Data(pairingJSON.utf8))
+        let folder = URL(fileURLWithPath: directory, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var log: [String] = []
+        let started = Date()
+        func note(_ line: String) { log.append(String(format: "%6.2fs  ", Date().timeIntervalSince(started)) + line) }
+        defer { try? log.joined(separator: "\n").write(to: folder.appendingPathComponent("squadd-cards-log.txt"), atomically: true, encoding: .utf8) }
+
+        let (secretWindow, secretModel, secretChat) = try await openLiveChat(environment, token: token, folder: folder, agent: "Secret agent", note: note)
+        let secretTurn = try XCTUnwrap(secretModel.squaddTurn)
+        secretTurn.secretPairing = { SquaddSecretPairing(deviceId: pairing.deviceId, secretKey: Data(base64URL: pairing.secretKey)) }
+        let secretCard = try await settle(seconds: 30) { ChatView.squaddCard(in: secretModel) }
+        note("route: \(SquaddRoutes.shared.route(for: secretChat.server)?.kind.rawValue ?? SquaddRouteBook.kind(of: secretChat.server).rawValue), block: \(String(describing: secretTurn.secretBlock))")
+        note("secret card: \(secretCard.map { "\($0.kind)" } ?? "none")")
+        try await readyPhoto(of: secretWindow).write(to: folder.appendingPathComponent("16-e-live-secret-card.png"))
+        let provided = await secretTurn.provideSecret("live-weather-key-0001")
+        note("provided: \(provided), error: \(secretTurn.cardError ?? "none"), card after: \(secretTurn.pendingCard == nil ? "gone" : "still there")")
+        secretWindow.isHidden = true
+
+        let (signInWindow, signInModel, _) = try await openLiveChat(environment, token: token, folder: folder, agent: "Sign-in agent", note: note)
+        let signInTurn = try XCTUnwrap(signInModel.squaddTurn)
+        let signInCard = try await settle(seconds: 30) { ChatView.squaddCard(in: signInModel) }
+        note("sign-in card: \(signInCard.map { "\($0.kind)" } ?? "none")")
+        try await readyPhoto(of: signInWindow).write(to: folder.appendingPathComponent("16-f-live-sign-in-card.png"))
+        let done = await signInTurn.finishSignIn()
+        note("done: \(done), error: \(signInTurn.cardError ?? "none"), card after: \(signInTurn.pendingCard == nil ? "gone" : "still there")")
+        signInWindow.isHidden = true
+
+        let (connectorWindow, connectorModel, _) = try await openLiveChat(environment, token: token, folder: folder, agent: "Connector agent", note: note)
+        let connectorTurn = try XCTUnwrap(connectorModel.squaddTurn)
+        let connectorCard = try await settle(seconds: 30) { ChatView.squaddCard(in: connectorModel) }
+        note("connector card: \(connectorCard.map { "\($0.kind)" } ?? "none")")
+        try await readyPhoto(of: connectorWindow).write(to: folder.appendingPathComponent("16-g-live-connector-card.png"))
+        // The system sheet Connect opens, on the companion's real link: the workflow photographs the simulator's screen
+        // (the sheet is the system's, outside the app's windows) once `sheet-open` appears, and answers `sheet-shot`.
+        let (probeWindow, session) = try WebAuthenticationProbe.open()
+        var sheetFinished = false
+        let sheet = Task {
+            await connectorTurn.connect { try await SquaddCardInset.openSignInPage($0, in: session) }
+            sheetFinished = true
+        }
+        _ = try await settle(seconds: 3) { sheetFinished ? true : nil }
+        note("sheet: \(sheetFinished ? "closed by itself" : "open"), error: \(connectorTurn.cardError ?? "none")")
+        let sheetOpen = !sheetFinished && connectorTurn.cardError == nil
+        try Data().write(to: folder.appendingPathComponent("sheet-open"))
+        let shot = try await settle(seconds: 20) {
+            FileManager.default.fileExists(atPath: folder.appendingPathComponent("sheet-shot").path) ? true : nil
+        }
+        note("screen photographed: \(shot == true)")
+        sheet.cancel()
+        _ = try await settle(seconds: 5) { sheetFinished ? true : nil }
+        probeWindow.isHidden = true
+
+        // The person signing in on the sheet is what the companion's broker stands for.
+        var link: URL?
+        await connectorTurn.connect { link = $0 }
+        note("sign-in link: \(link?.absoluteString ?? "none"), error: \(connectorTurn.cardError ?? "none")")
+        let left = try await settle(seconds: 30) { connectorTurn.pendingCard == nil ? true : nil }
+        note("after the check: error \(connectorTurn.cardError ?? "none"), card \(left == true ? "gone" : "still there")")
+        try await readyPhoto(of: connectorWindow).write(to: folder.appendingPathComponent("16-h-live-after-connect.png"))
+        connectorWindow.isHidden = true
+
+        XCTAssertNotNil(secretCard)
+        XCTAssertTrue(provided, "the computer opened and saved the phone's envelope")
+        XCTAssertNotNil(signInCard)
+        XCTAssertTrue(done)
+        XCTAssertTrue(sheetOpen, "the system sheet opened on the companion's link and waited")
+        XCTAssertEqual(link?.host, "connect.composio.dev")
+        XCTAssertEqual(left, true, "connected, the card left")
+    }
+
+    /// Finds the companion through the tunnel, pushes the first agent thread's chat (of the agent named `agent`, if
+    /// given), and waits for it to load.
+    private func openLiveChat(_ environment: [String: String], token: String, folder: URL, agent: String? = nil,
                               note: (String) -> Void) async throws -> (UIWindow, ChatViewModel, SquaddThreadChat) {
         // A free tunnel's address changes every few minutes: read it again until the companion answers.
         var address: URL?
@@ -296,7 +381,7 @@ final class SquaddChatLivePhotoTests: XCTestCase {
             }
         }
         let server = try XCTUnwrap(address, "the companion answered")
-        let bot = try XCTUnwrap(bots.first { !$0.tasks.isEmpty }, "the companion has an agent with a thread")
+        let bot = try XCTUnwrap(bots.first { !$0.tasks.isEmpty && (agent == nil || $0.name == agent) }, "the companion has an agent with a thread")
         let thread = try XCTUnwrap(bot.tasks.first)
         note("agent \(bot.name ?? bot.id), thread \(thread.threadId)")
         let chat = SquaddThreadChat(server: server, token: token, botId: bot.id, threadId: thread.threadId,
