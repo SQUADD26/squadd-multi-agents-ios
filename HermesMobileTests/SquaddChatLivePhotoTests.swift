@@ -11,9 +11,9 @@ final class SquaddChatLivePhotoTests: XCTestCase {
     func testPhotographALiveConversation() async throws {
         let environment = ProcessInfo.processInfo.environment
         guard let directory = environment["BRAND_PHOTOS_DIR"],
-              let address = environment["SQUADD_LIVE_URL"].flatMap(URL.init(string:)),
-              let token = environment["SQUADD_LIVE_TOKEN"], !token.isEmpty else {
-            throw XCTSkip("Live photos only: foto-simulatore.yml with a companion in the secrets.")
+              let token = environment["SQUADD_LIVE_TOKEN"], !token.isEmpty,
+              environment["SQUADD_LIVE_URL"] != nil || environment["SQUADD_LIVE_LOOKUP"] != nil else {
+            throw XCTSkip("Live photos only: a photo branch's workflow with a companion in the secrets.")
         }
         let folder = URL(fileURLWithPath: directory, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -22,21 +22,31 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         func note(_ line: String) { log.append(String(format: "%6.2fs  ", Date().timeIntervalSince(started)) + line) }
         defer { try? log.joined(separator: "\n").write(to: folder.appendingPathComponent("squadd-live-log.txt"), atomically: true, encoding: .utf8) }
 
-        let bots: [SquaddBot]
-        do { bots = try await SquaddCompanionClient(server: address, token: token).bots() } catch {
-            note("agents: \(error)")
-            throw error
+        // A free tunnel's address changes every few minutes: read it again until the companion answers.
+        var address: URL?
+        var bots: [SquaddBot] = []
+        for attempt in 1...8 where address == nil {
+            guard let candidate = try await Self.liveAddress(environment) else { continue }
+            do {
+                bots = try await SquaddCompanionClient(server: candidate, token: token).bots()
+                address = candidate
+            } catch {
+                note("agents, attempt \(attempt): \(error)")
+                // test-wait: a live tunnel moving to its next address, not a check.
+                try await Task.sleep(for: .seconds(15))
+            }
         }
+        let server = try XCTUnwrap(address, "the companion answered")
         let bot = try XCTUnwrap(bots.first { !$0.tasks.isEmpty }, "the companion has an agent with a thread")
         let thread = try XCTUnwrap(bot.tasks.first)
         note("agent \(bot.name ?? bot.id), thread \(thread.threadId)")
-        let chat = SquaddThreadChat(server: address, token: token, botId: bot.id, threadId: thread.threadId,
+        let chat = SquaddThreadChat(server: server, token: token, botId: bot.id, threadId: thread.threadId,
                                     title: thread.title ?? bot.name)
         let continuity = ChatContinuity()
         // Pushed, as `SquaddServerHome` opens it: the chat loads once its navigation appearance completes.
         let window = try show(NavigationStack(path: .constant([chat])) {
             Color.clear.navigationDestination(for: SquaddThreadChat.self) { chat in
-                ChatView(session: SessionSummary(sessionId: chat.threadId, title: chat.title), server: address,
+                ChatView(session: SessionSummary(sessionId: chat.threadId, title: chat.title), server: server,
                          onAPIError: { _ in }, continuity: continuity, squaddThread: chat)
             }
         })
@@ -81,6 +91,16 @@ final class SquaddChatLivePhotoTests: XCTestCase {
         let final = try XCTUnwrap(reply)
         let piece = try XCTUnwrap(partial)
         XCTAssertTrue(piece.count < final.count, "the reply arrived in pieces")
+    }
+
+    /// `SQUADD_LIVE_URL`, or the address the gist at `SQUADD_LIVE_LOOKUP` (GitHub's gist API) holds now.
+    private static func liveAddress(_ environment: [String: String]) async throws -> URL? {
+        if let fixed = environment["SQUADD_LIVE_URL"] { return URL(string: fixed) }
+        guard let lookup = environment["SQUADD_LIVE_LOOKUP"].flatMap(URL.init(string:)) else { return nil }
+        let (data, _) = try await URLSession.shared.data(from: lookup)
+        struct Gist: Decodable { let files: [String: File]; struct File: Decodable { let content: String } }
+        let text = try JSONDecoder().decode(Gist.self, from: data).files.values.first?.content
+        return text.flatMap { URL(string: $0.trimmingCharacters(in: .whitespacesAndNewlines)) }
     }
 
     private func show(_ view: some View) throws -> UIWindow {
