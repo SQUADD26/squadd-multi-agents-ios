@@ -20,14 +20,14 @@ final class SquaddRouteTests: XCTestCase {
     func testPairingKeepsTheRoutesAndTheBestOneThatAnswersCarriesRequests() async throws {
         let manager = makeManager()
         let pair = try SquaddPairingTests.fixture("pair-routes.json")
-        // The hosted tunnel answers with its own 502 page (the computer behind it sleeps) and the first LAN
-        // address is another network's (404 stands for any reply that isn't the companion's): the second LAN
-        // address is this Wi-Fi.
+        // The hosted tunnel answers with its own 502 page (the computer behind it sleeps), the first LAN address
+        // is a hotel Wi-Fi's sign-in page answering 200: the second LAN address is this computer.
         var botsHost: String?
         SquaddHTTPFixture.handler = { request in
             switch (request.url?.host, request.url?.path) {
             case (_, "/api/pair"): return (201, pair)
             case ("mac-di-prova.example.net", "/api/health"): return (502, Data("<html>Bad gateway</html>".utf8))
+            case ("10.0.7.2", "/api/health"): return (200, Data("<html>Sign in to the Wi-Fi</html>".utf8))
             case ("10.0.2.10", "/api/health"): return (200, try! SquaddPairingTests.fixture("health.json"))
             case (let host, "/api/bots"): botsHost = host; return (200, Data(#"{"bots":[]}"#.utf8))
             default: return (404, Data())
@@ -66,7 +66,7 @@ final class SquaddRouteTests: XCTestCase {
         let following = Task { await finder.follow(changes: changes, bonjour: AsyncStream { _ in }) { moved.fulfill() } }
         answering = "mac-di-prova.example.net"
         change.yield()
-        await fulfillment(of: [moved])
+        await fulfillment(of: [moved], timeout: 5)
         following.cancel()
         XCTAssertEqual(finder.route?.url, URL(string: "https://mac-di-prova.example.net"))
         XCTAssertEqual(finder.route?.isLocal, false, "off the LAN: a feature kept to the LAN stops")
@@ -90,7 +90,7 @@ final class SquaddRouteTests: XCTestCase {
         let moved = expectation(description: "the route moved")
         let following = Task { await finder.follow(changes: AsyncStream { _ in }, bonjour: bonjour) { moved.fulfill() } }
         advert.yield(found)
-        await fulfillment(of: [moved])
+        await fulfillment(of: [moved], timeout: 5)
         following.cancel()
         XCTAssertEqual(finder.route, found)
         XCTAssertEqual(finder.route?.kind, .bonjour)
