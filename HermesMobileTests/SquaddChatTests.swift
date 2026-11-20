@@ -232,7 +232,7 @@ final class SquaddChatTests: XCTestCase {
     func testSlashPanelOffersTheDesktopsCommandsAndTheThreadsEnabledSkills() async throws {
         let (commands, skills, query) = try await slashCatalog(bots: "slash-bots.json", config: "slash-config.json")
 
-        XCTAssertEqual(commands, ["goal", "learn", "setup", "burst", "branch", "fork"])
+        XCTAssertEqual(commands, ["goal", "learn", "setup", "burst", "branch", "fork", "compact"])
         XCTAssertEqual(skills, ["meeting-notes", "weekly-report"], "neither a turned-off skill nor one named like a built-in")
         XCTAssertEqual(query, "threadId=\(threadId)", "the skills this thread's turn sees")
     }
@@ -240,13 +240,13 @@ final class SquaddChatTests: XCTestCase {
     func testAnAgentWithNoEngineIsOfferedOnlyTheGoalAndFork() async throws {
         let (commands, _, _) = try await slashCatalog(bots: "slash-bots-no-engine.json", config: "slash-config.json")
 
-        XCTAssertEqual(commands, ["goal", "branch", "fork"])
+        XCTAssertEqual(commands, ["goal", "branch", "fork", "compact"])
     }
 
     func testLearnLeavesThePanelWhenTheComputerTurnsSkillDraftingOff() async throws {
         let (commands, _, _) = try await slashCatalog(bots: "slash-bots.json", config: "slash-config-no-learn.json")
 
-        XCTAssertEqual(commands, ["goal", "setup", "burst", "branch", "fork"])
+        XCTAssertEqual(commands, ["goal", "setup", "burst", "branch", "fork", "compact"])
     }
 
     func testGoalGoesWithoutItsPrefixInGoalModeAndOtherCommandsAsTyped() async throws {
@@ -330,6 +330,196 @@ final class SquaddChatTests: XCTestCase {
         XCTAssertEqual(reopened?.text, "half a thought")
     }
 
+    // MARK: Stop, queue, compaction (#13): one session recorded from a real companion (origin/dev
+    // 9e05e3a04, `control-*`). A long turn; two messages queued behind it; the second deleted, the
+    // first steered in; Stop; then Compact. `: app <step>` comment lines mark where each of the
+    // app's requests went in the stream; the thread before is the one after, cut before this session's rows.
+
+    private let queuedFirst = "99a210df-bbcd-4b38-8128-f8d3f517c532", queuedSecond = "0512ba82-be3c-4a77-8582-ca6dfcdbf24b"
+
+    func testQueuedMessagesSteerAndDeleteThroughTheCompanionAndLeaveWhenItSays() async throws {
+        let events = try Self.text("control-events.sse")
+        let bot = resumeBot, thread = resumeThread, first = queuedFirst, second = queuedSecond
+        var asked: [URLRequest] = []
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, try! Self.fixture("control-thread-before.json"))
+            case ("GET", _): return .hold
+            case ("POST", "/api/bots/\(bot)/messages"): asked.append(request); return .reply(202, try! Self.fixture("control-send-queued.json"))
+            case ("DELETE", "/api/bots/\(bot)/queue/\(second)"): asked.append(request); return .reply(200, Data(#"{"ok":true}"#.utf8))
+            case ("POST", "/api/bots/\(bot)/queue/\(first)/steer"): asked.append(request); return .reply(200, try! Self.fixture("control-steer.json"))
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, _) = makeChat(bot: resumeBot, thread: resumeThread)
+        await model.loadMessages()
+        let firstQueued = try XCTUnwrap(events.range(of: #"data: {"kind":"bot.queued""#)).lowerBound
+        SquaddChatFixture.stream(Data(events[..<firstQueued].utf8))
+        await waitUntil("the turn runs") { model.activeStreamID != nil }
+        let rows = model.messages.count
+
+        // Queue, from the send choices a working agent offers.
+        _ = await model.submitStreamingMessage("Poi dimmi solo ok", behavior: .queue)
+        XCTAssertEqual(try Self.fields(asked.last)["followUp"], "queue")
+        XCTAssertEqual(model.messages.count, rows, "a queued message waits in the queue's rows, not the transcript")
+        SquaddChatFixture.stream(Data(events[firstQueued..<events.range(of: ": app send-c ")!.lowerBound].utf8))
+        await waitUntil("both queued messages show") { model.queuedPromptMessages.count == 2 }
+        XCTAssertEqual(model.queuedPromptMessages.map(\.content), ["Poi dimmi solo ok", "Questo lo cancello"])
+
+        await model.deleteQueuedPrompt(try XCTUnwrap(model.queuedPromptMessages.last?.messageId))
+        XCTAssertEqual(asked.last?.url?.path, "/api/bots/\(bot)/queue/\(second)")
+        XCTAssertEqual(try Self.fields(asked.last)["threadId"], thread)
+        XCTAssertEqual(model.queuedPromptMessages.count, 2, "the row leaves when the companion's queue says so")
+        SquaddChatFixture.stream(Data(Self.frames(events, from: "send-c", to: "delete-c").utf8))
+        await waitUntil("the deleted message leaves") { model.queuedPromptMessages.count == 1 }
+
+        await model.steerQueuedPrompt(try XCTUnwrap(model.queuedPromptMessages.first?.messageId))
+        XCTAssertEqual(asked.last?.url?.path, "/api/bots/\(bot)/queue/\(first)/steer")
+        SquaddChatFixture.stream(Data(Self.frames(events, from: "delete-c", to: "steer-b").utf8))
+        await waitUntil("the steered message joins the running turn") {
+            model.queuedPromptMessages.isEmpty && model.messages.last { $0.role == "user" }?.content == "Poi dimmi solo ok"
+        }
+        XCTAssertNil(model.sendErrorMessage)
+    }
+
+    func testStopAsksTheCompanionAndTheTurnEndsStoppedWhenTheStreamSays() async throws {
+        let events = try Self.text("control-events.sse")
+        let bot = resumeBot, thread = resumeThread
+        var asked: URLRequest?
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, try! Self.fixture("control-thread-before.json"))
+            case ("GET", _): return .hold
+            case ("POST", "/api/bots/\(bot)/interrupt"): asked = request; return .reply(200, Data(#"{"ok":true}"#.utf8))
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, coordinator) = makeChat(bot: resumeBot, thread: resumeThread, reconnectDelay: { _ in })
+        await model.loadMessages()
+        SquaddChatFixture.stream(Data(Self.frames(events, to: "interrupt").utf8))
+        await waitUntil("the turn runs") { model.activeStreamID != nil }
+
+        let replyID = try XCTUnwrap(model.streamingAssistantMessageID)
+        let accepted = await model.cancelActiveStream()
+        XCTAssertTrue(accepted)
+        XCTAssertEqual(try Self.fields(asked)["turnId"], "5f3b225a-222f-4034-aefd-73028e608bad", "Stop names the running turn")
+        XCTAssertEqual(try Self.fields(asked)["threadId"], thread)
+        XCTAssertNotNil(model.activeStreamID, "accepted is not stopped")
+
+        // The stream ends after these frames; its reconnect comes once every one of them is applied.
+        let reopened = expectation(description: "the stream reopens after the stop's frames")
+        SquaddChatFixture.didHold = { if $0.url?.path == "/api/events" { reopened.fulfill() } }
+        SquaddChatFixture.stream(Data(Self.frames(events, from: "interrupt", to: "compact").utf8), finish: true)
+        await fulfillment(of: [reopened], timeout: 5)
+        XCTAssertNil(model.activeStreamID, "the stream ended the turn")
+        XCTAssertEqual(coordinator.latestRunEnding?.ending, .cancelled, "a stopped turn is not a failed one")
+        XCTAssertEqual(model.messages.first { $0.messageId == replyID }?.content?.isEmpty, false,
+                       "the words written before Stop stay, though the companion stores none")
+    }
+
+    /// Opened while the agent already writes, the chat never saw `turn.started`: Stop names no
+    /// turn, as the desktop does, and the companion stops the one running (recorded the same way).
+    func testStopOnATurnJoinedMidReplyNamesNoTurnAndEndsWhenTheStreamSays() async throws {
+        let events = try Self.text("control-stop-unnamed-events.sse")
+        let blocks = events.components(separatedBy: "\n\n").filter { !$0.isEmpty }
+        let firstDelta = try XCTUnwrap(blocks.firstIndex { $0.contains(#""type":"content.delta""#) })
+        let stopAt = try XCTUnwrap(blocks.firstIndex { $0.hasPrefix(": app interrupt") })
+        func stream(_ part: ArraySlice<String>) -> Data { Data(part.map { $0 + "\n\n" }.joined().utf8) }
+        let bot = resumeBot, thread = resumeThread
+        var asked: URLRequest?
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, try! Self.fixture("control-thread-before.json"))
+            case ("GET", _): return .hold
+            case ("POST", "/api/bots/\(bot)/interrupt"): asked = request; return .reply(200, Data(#"{"ok":true}"#.utf8))
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, coordinator) = makeChat(bot: resumeBot, thread: resumeThread, reconnectDelay: { _ in })
+        await model.loadMessages()
+        SquaddChatFixture.stream(stream(blocks[..<1]) + stream(blocks[firstDelta..<stopAt]))
+        await waitUntil("the turn shows as running") { model.activeStreamID != nil }
+
+        let accepted = await model.cancelActiveStream()
+        XCTAssertTrue(accepted)
+        XCTAssertEqual(try Self.fields(asked), ["threadId": thread], "no turn to name")
+        XCTAssertNotNil(model.activeStreamID, "accepted is not stopped")
+
+        let reopened = expectation(description: "the stream reopens after the stop's frames")
+        SquaddChatFixture.didHold = { if $0.url?.path == "/api/events" { reopened.fulfill() } }
+        SquaddChatFixture.stream(stream(blocks[stopAt...]), finish: true)
+        await fulfillment(of: [reopened], timeout: 5)
+        XCTAssertNil(model.activeStreamID, "the stream ended the turn")
+        XCTAssertEqual(coordinator.latestRunEnding?.ending, .cancelled)
+    }
+
+    func testCompactAsksTheCompanionAndTheMarkerShowsWhenItLands() async throws {
+        let events = try Self.text("control-events.sse")
+        let bot = resumeBot, thread = resumeThread
+        var asked: URLRequest?
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"):
+                return .reply(200, try! Self.fixture(asked == nil ? "control-thread-before.json" : "control-thread-after.json"))
+            case ("GET", _): return .hold
+            case ("POST", "/api/bots/\(bot)/compact"): asked = request; return .reply(202, try! Self.fixture("control-compact.json"))
+            default: XCTFail("only the compaction is asked for, \(request.url?.path ?? "")"); return .reply(404, Data())
+            }
+        }
+        let (model, _) = makeChat(bot: resumeBot, thread: resumeThread)
+        await model.loadMessages()
+        func markers() -> Int { model.messages.filter { ChatMarkerMessageClassifier.classify($0) == .contextCompaction }.count }
+        XCTAssertEqual(markers(), 1)
+
+        let outcome = await model.send("/compact")
+        XCTAssertEqual(outcome, .started)
+        XCTAssertEqual(try Self.fields(asked)["threadId"], thread)
+        XCTAssertEqual(markers(), 1, "the marker comes with the stream, not the request")
+
+        let hello = String(events[..<events.range(of: "\n\n")!.upperBound])
+        SquaddChatFixture.stream(Data((hello + Self.frames(events, from: "compact")).utf8))
+        await waitUntil("the marker shows") { markers() == 2 }
+    }
+
+    func testARefusedActionKeepsWhatWasShownAndSaysWhy() async throws {
+        let events = try Self.text("control-events.sse")
+        let bot = resumeBot, thread = resumeThread, second = queuedSecond
+        SquaddChatFixture.handler = { request in
+            switch (request.httpMethod, request.url?.path) {
+            case ("GET", "/api/threads/\(thread)/messages"): return .reply(200, try! Self.fixture("control-thread-before.json"))
+            case ("GET", _): return .hold
+            case ("POST", "/api/bots/\(bot)/interrupt"):
+                return .reply(409, Data(#"{"error":"the bot switched tasks before it could be interrupted"}"#.utf8))
+            case ("DELETE", "/api/bots/\(bot)/queue/\(second)"): return .reply(404, Data(#"{"error":"no such queued message"}"#.utf8))
+            case ("POST", "/api/bots/\(bot)/compact"): return .reply(409, Data(#"{"error":"the bot is busy"}"#.utf8))
+            default: return .reply(404, Data())
+            }
+        }
+        let (model, _) = makeChat(bot: resumeBot, thread: resumeThread)
+        await model.loadMessages()
+        SquaddChatFixture.stream(Data(Self.frames(events, to: "send-c").utf8))
+        await waitUntil("the queue shows") { model.queuedPromptMessages.count == 2 }
+
+        let stopped = await model.cancelActiveStream()
+        XCTAssertFalse(stopped)
+        XCTAssertNotNil(model.activeStreamID)
+        XCTAssertEqual(model.sendErrorMessage, "the bot switched tasks before it could be interrupted")
+
+        await model.deleteQueuedPrompt(try XCTUnwrap(model.queuedPromptMessages.last?.messageId))
+        XCTAssertEqual(model.queuedPromptMessages.count, 2)
+        XCTAssertEqual(model.sendErrorMessage, "no such queued message")
+
+        let shown = model.messages.map(\.messageId)
+        let compacted = await model.submitStreamingMessage("/compact", behavior: .queue)
+        XCTAssertEqual(compacted, .notDelivered, "the draft stays in the composer")
+        XCTAssertEqual(model.messages.map(\.messageId), shown)
+        XCTAssertEqual(model.sendErrorMessage, "the bot is busy")
+        let typed = await model.send("/compact")
+        XCTAssertEqual(typed, .kept, "typed outside a running turn too, the draft stays")
+        XCTAssertEqual(model.messages.map(\.messageId), shown)
+        XCTAssertEqual(model.sendErrorMessage, "the bot is busy")
+    }
+
     func testOfflineThreadShowsItsServersCachedTranscriptAndRefreshesWhenTheNetworkReturns() async throws {
         let cache = try ModelContext(ModelContainer(for: CachedSession.self, CachedMessage.self,
                                                     configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
@@ -368,6 +558,18 @@ final class SquaddChatTests: XCTestCase {
     }
 
     // MARK: - Helpers
+
+    /// The recorded frames between two `: app <step>` lines (from the start, or to the end, without one).
+    private static func frames(_ events: String, from: String? = nil, to: String? = nil) -> String {
+        func at(_ step: String) -> String.Index { events.range(of: ": app \(step) ")!.lowerBound }
+        return String(events[(from.map(at) ?? events.startIndex)..<(to.map(at) ?? events.endIndex)])
+    }
+
+    /// A captured request's JSON body.
+    private static func fields(_ request: URLRequest?) throws -> [String: String] {
+        let body = try XCTUnwrap(request.flatMap { $0.httpBody ?? $0.httpBodyStream.map(read) })
+        return try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
+    }
 
     // MARK: Files (#23), against uploads recorded from a real companion (origin/dev 9e05e3a04)
 

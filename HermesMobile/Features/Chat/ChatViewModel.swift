@@ -637,9 +637,15 @@ final class ChatViewModel {
     /// canonical send carried (#1644).
     var queuedPromptMessages: [ChatMessage] {
         if let squaddTurn {
-            // A busy Squadd room's queue (#21), each until its send goes in.
-            return squaddTurn.queuedPrompts.map {
-                ChatMessage(role: "user", content: $0.text, timestamp: nil, messageId: "squadd-queued-\($0.sendId)")
+            // A busy Squadd room's queue (#21), each until its send goes in, with Remove.
+            if isSquaddRoom {
+                return squaddTurn.queuedPrompts.map {
+                    ChatMessage(role: "user", content: $0.text, timestamp: nil, messageId: "squadd-queued-\($0.sendId)")
+                }
+            }
+            // A Squadd thread's queue (#13), each row with Steer and Delete.
+            return squaddTurn.queued.map {
+                ChatMessage(role: "user", content: $0.text, timestamp: nil, messageId: Self.squaddQueuedRowPrefix + $0.queueId)
             }
         }
         return (hermesTurn?.queuedPrompts ?? []).map { Self.hermesPromptRow($0, id: "hermes-queued-prompt-\($0.id)", timestamp: nil) }
@@ -782,6 +788,7 @@ final class ChatViewModel {
     /// A Squadd thread's turns (#11). Nothing in such a chat reaches the webui API. Its rows'
     /// versions and reactions (#19) are read from here.
     let squaddTurn: SquaddChatTurnCoordinator?
+    var isSquaddThread: Bool { squaddTurn != nil }
     private let drafts: ChatDraftStore
     private let pendingActionCoordinator: ChatPendingActionCoordinator
     private let attachmentCoordinator: ChatAttachmentCoordinator
@@ -4314,10 +4321,14 @@ final class ChatViewModel {
             return await submitHermesStreamingMessage(draft, behavior: behavior, to: hermesTurn)
         }
         if let squaddTurn {
-            // A Squadd room queues a send while it works; the companion runs it after the turn.
-            return await submitSquaddPrompt(draft, to: squaddTurn) == .started
-                ? .executed(message: nil)
-                : .unsupported(friendlyMessage: sendErrorMessage ?? String(localized: "Can't reach the computer."))
+            let followUp: SquaddFollowUp = switch behavior {
+            case .steer: .steer
+            case .queue: .queue
+            case .interrupt: .restart
+            }
+            // A room queues a send while it works on its own; the follow-up choice is an agent thread's.
+            let outcome = await submitSquaddPrompt(draft, to: squaddTurn, followUp: isSquaddRoom ? nil : followUp)
+            return outcome == .kept ? .notDelivered : .executed(message: nil)
         }
         switch behavior {
         case .steer:
@@ -4530,7 +4541,6 @@ final class ChatViewModel {
         if let hermesTurn {
             return await askHermesBtw(question, sideTasks: hermesTurn.sideTasks)
         }
-
         guard let sessionID else {
             return .unsupported(friendlyMessage: String(localized: "The server did not provide a session ID."))
         }
@@ -5706,6 +5716,7 @@ final class ChatViewModel {
 
     private func compressSessionFromSlashCommand(_ args: String) async -> SlashCommandExecutionResult {
         if let hermesTurn { return await compressHermesSession(focus: args, on: hermesTurn) }
+        if let squaddTurn { return await compactSquaddThread(squaddTurn) }
 
         guard !isViewingCachedData else {
             return .unsupported(friendlyMessage: String(localized: "Reconnect to the server to compress context."))
@@ -6910,8 +6921,7 @@ final class ChatViewModel {
 
     @discardableResult
     func cancelActiveStream() async -> Bool {
-        // Stop on an agent's Squadd thread (`POST /api/bots/:id/interrupt`) is its own ticket; a room has it.
-        guard activeStreamID != nil, squaddTurn == nil || isSquaddRoom else { return false }
+        guard activeStreamID != nil else { return false }
 
         isCancellingStream = true
         sendErrorMessage = nil
@@ -6919,7 +6929,7 @@ final class ChatViewModel {
         defer { isCancellingStream = false }
 
         if let squaddTurn {
-            // Accepted is not idle: the turn's `turn.completed` ends the reply.
+            // Accepted is not stopped: the turn's `turn.completed` ends it.
             do {
                 try await squaddTurn.interrupt()
                 return true
@@ -10075,10 +10085,6 @@ extension ChatViewModel: SquaddChatTurnDelegate {
         hasOlderMessages = hasOlder
     }
 
-    func squaddAppendPrompt(_ message: ChatMessage) {
-        messages.append(message)
-    }
-
     func squaddActionDidFail(_ message: String) {
         messageActionErrorMessage = message
     }
@@ -10086,6 +10092,47 @@ extension ChatViewModel: SquaddChatTurnDelegate {
     func squaddConnectionDidChange(failure: String?) {
         guard errorMessage != failure else { return }
         errorMessage = failure
+    }
+
+    func squaddAppendRow(_ message: ChatMessage) {
+        messages.append(message)
+        transcriptRevision &+= 1
+    }
+
+    fileprivate static let squaddQueuedRowPrefix = "squadd-queued-"
+
+    /// Steer on a queued row: the companion sends it (and the rest of the queue) into the
+    /// running turn. The row leaves when the companion's queue says so; a refusal leaves it.
+    func steerQueuedPrompt(_ rowID: String) async {
+        await runSquaddQueueAction(on: rowID) { try await $0.steerQueued($1) }
+    }
+
+    /// Delete on a queued row: the companion drops it before it is sent.
+    func deleteQueuedPrompt(_ rowID: String) async {
+        await runSquaddQueueAction(on: rowID) { try await $0.deleteQueued($1) }
+    }
+
+    private func runSquaddQueueAction(on rowID: String,
+                                      _ action: (SquaddChatTurnCoordinator, String) async throws -> Void) async {
+        guard let squaddTurn, rowID.hasPrefix(Self.squaddQueuedRowPrefix) else { return }
+        sendErrorMessage = nil
+        do {
+            try await action(squaddTurn, String(rowID.dropFirst(Self.squaddQueuedRowPrefix.count)))
+        } catch {
+            sendErrorMessage = SquaddChatTurnCoordinator.failureMessage(error)
+        }
+    }
+
+    /// `/compact` (or `/compress`) on a Squadd thread: the marker row comes over the stream.
+    fileprivate func compactSquaddThread(_ squadd: SquaddChatTurnCoordinator) async -> SlashCommandExecutionResult {
+        isCompressingSession = true
+        defer { isCompressingSession = false }
+        do {
+            try await squadd.compact()
+            return .executed(message: nil)
+        } catch {
+            return .unsupported(friendlyMessage: SquaddChatTurnCoordinator.failureMessage(error))
+        }
     }
 
     /// A Squadd voice note (#23): the recording as WAV, the audio the computer stores and plays,
@@ -10107,8 +10154,23 @@ extension ChatViewModel: SquaddChatTurnDelegate {
     /// didn't take leaves the transcript and goes back to the composer (`.kept`) with the reason; its
     /// files stay staged, so Send again retries them, and an upload already stored lands once.
     fileprivate func submitSquaddPrompt(_ draft: String, to squadd: SquaddChatTurnCoordinator,
-                                        files: [PendingAttachment]? = nil) async -> ChatSendOutcome {
+                                        files: [PendingAttachment]? = nil,
+                                        followUp: SquaddFollowUp? = nil) async -> ChatSendOutcome {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
+        // The app's own commands on the computer: compaction asks the companion, `/btw` has no
+        // equivalent there. Either leaves the draft in the composer when it doesn't go.
+        switch text.lowercased() {
+        case "/compact", "/compress":
+            if case .unsupported(let reason) = await compactSquaddThread(squadd) {
+                sendErrorMessage = reason
+                return .kept
+            }
+            return .started
+        case let typed where typed == "/btw" || typed.hasPrefix("/btw "):
+            sendErrorMessage = String(localized: "Agents on the computer take side questions as a queued message: send it while the agent works and choose Queue.")
+            return .kept
+        default: break
+        }
         let files = files ?? attachmentCoordinator.pendingAttachments
         guard !text.isEmpty || !files.isEmpty, !isStartingChat else { return .kept }
         // The companion refuses an empty goal; say so instead of a server error.
@@ -10130,11 +10192,9 @@ extension ChatViewModel: SquaddChatTurnDelegate {
         let outgoing = attachmentCoordinator.outgoingAttachments(files).enumerated().map { index, file in
             SquaddChatTurnCoordinator.OutgoingFile(id: files[index].id, name: file.name, mime: file.mime, data: file.data)
         }
+        let queued: Bool
         do {
-            // A queued send shows in the queue until it goes in, not as a sent row.
-            if try await squadd.send(text, files: outgoing, sendId: sendId, localRowID: rowID) {
-                messages.removeAll { $0.messageId == rowID }
-            }
+            queued = try await squadd.send(text, files: outgoing, sendId: sendId, localRowID: rowID, followUp: followUp)
         } catch let failure as SquaddChatTurnCoordinator.UploadFailed {
             rollbackOptimisticMessage(id: rowID)
             sendErrorMessage = String(localized: "Couldn't upload \(failure.name). Your message and files are still here: send again to retry.")
@@ -10144,6 +10204,8 @@ extension ChatViewModel: SquaddChatTurnDelegate {
             sendErrorMessage = SquaddChatTurnCoordinator.failureMessage(error)
             return .kept
         }
+        // A queued one shows in the queue's rows instead.
+        if queued { messages.removeAll { $0.messageId == rowID } }
         await attachmentCoordinator.consumeSentAttachments(files)
         return .started
     }
