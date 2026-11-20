@@ -80,6 +80,108 @@ final class SquaddChatTests: XCTestCase {
         XCTAssertNil(model.sendErrorMessage)
     }
 
+    // MARK: Resuming (#12): a turn recorded from a real companion (origin/dev 9e05e3a04, `resume-*`),
+    // cut after its 12th piece and resumed with `Last-Event-ID: 5c85f42b:32`.
+
+    private let resumeBot = "eef7d399-17ac-42e8-80f1-74818aa54d0f"
+    private let resumeThread = "ae0770b2-1152-45a7-9d17-4053d27ea3a6"
+
+    func testBackgroundAndNetworkChangeResumeAfterTheLastFrameWithoutRepeats() async throws {
+        let cut = try Self.text("resume-cut.sse"), resumed = try Self.text("resume-resumed.sse")
+        let reply = try Self.storedReply()
+        let thread = resumeThread
+        var cursors: [String?] = [], turnEnded = false
+        var opened = expectation(description: "the stream opens")
+        SquaddChatFixture.handler = { request in
+            switch request.url?.path {
+            case "/api/threads/\(thread)/messages":
+                return .reply(200, try! Self.fixture(turnEnded ? "resume-thread-after.json" : "resume-thread-before.json"))
+            case "/api/events":
+                cursors.append(request.value(forHTTPHeaderField: "Last-Event-ID"))
+                return .hold
+            default: return .reply(404, Data())
+            }
+        }
+        SquaddChatFixture.didHold = { if $0.url?.path == "/api/events" { opened.fulfill() } }
+        let (model, _) = makeChat(bot: resumeBot, thread: resumeThread)
+        await model.loadMessages()
+        await fulfillment(of: [opened], timeout: 5)
+        await waitUntil("the thread shows before the turn's frames come") { !model.messages.isEmpty }
+        SquaddChatFixture.stream(Data(cut.utf8))
+        await waitUntil("the first 12 pieces show") { Self.streamedText(model) == String(reply.prefix(48)) }
+
+        model.suspendStreamForBackground()
+        opened = expectation(description: "the stream reopens after the app comes back")
+        await model.reconnectStreamIfNeeded()
+        await fulfillment(of: [opened], timeout: 5)
+        XCTAssertEqual(cursors.last, "5c85f42b:32", "it resumes after the last frame seen")
+
+        // The resumed frames up to the 40th piece, then the first ones again, as a proxy may resend them.
+        let middle = Self.end(ofDelta: 40, in: resumed)
+        let firstFrames = resumed[..<Self.end(ofDelta: 3, in: resumed)]
+        SquaddChatFixture.stream(Data((resumed[..<middle] + firstFrames).utf8))
+        await waitUntil("each piece shows once") { Self.streamedText(model) == String(reply.prefix(48 + 40 * 4)) }
+
+        opened = expectation(description: "a network change reopens the stream")
+        await model.networkPathDidChange()
+        await fulfillment(of: [opened], timeout: 5)
+        XCTAssertEqual(cursors.last, Self.lastID(in: resumed[..<middle]))
+        turnEnded = true
+        SquaddChatFixture.stream(Data(resumed[middle...].utf8))
+        await waitUntil("the turn ends on the stored reply") { model.activeStreamID == nil && model.messages.last?.content == reply }
+        XCTAssertEqual(model.messages.filter { $0.content == reply }.count, 1)
+    }
+
+    func testALostResumeReloadsTheThreadAndTheRestOfTheReplyShowsAsWorking() async throws {
+        let cut = try Self.text("resume-cut.sse"), resumed = try Self.text("resume-resumed.sse")
+        // The hello a stale cursor gets (`resume-stale.sse`), with the cursor the companion had at the cut.
+        let stale = try Self.text("resume-stale.sse").replacingOccurrences(of: "5c85f42b:189", with: "5c85f42b:54")
+        let reply = try Self.storedReply()
+        let thread = resumeThread
+        var turnEnded = false
+        // A row stored before the turn starts reloads the thread too, so a read may come more than once.
+        func reads(_ description: String) -> XCTestExpectation {
+            let read = expectation(description: description)
+            read.assertForOverFulfill = false
+            return read
+        }
+        var opened = expectation(description: "the stream opens"), reloaded = reads("the thread loads")
+        SquaddChatFixture.handler = { request in
+            switch request.url?.path {
+            case "/api/threads/\(thread)/messages":
+                reloaded.fulfill()
+                return .reply(200, try! Self.fixture(turnEnded ? "resume-thread-after.json" : "resume-thread-before.json"))
+            default: return .hold
+            }
+        }
+        SquaddChatFixture.didHold = { if $0.url?.path == "/api/events" { opened.fulfill() } }
+        let (model, coordinator) = makeChat(bot: resumeBot, thread: resumeThread, reconnectDelay: { _ in })
+        await model.loadMessages()
+        await fulfillment(of: [opened, reloaded], timeout: 5)
+        await waitUntil("the thread shows before the turn's frames come") { !model.messages.isEmpty }
+        opened = expectation(description: "the stream reopens on its own")
+        SquaddChatFixture.stream(Data(cut.utf8), finish: true)
+        await fulfillment(of: [opened], timeout: 5)
+
+        reloaded = reads("the companion's lost frames reload the thread")
+        SquaddChatFixture.stream(Data(stale.utf8))
+        await fulfillment(of: [reloaded], timeout: 5)
+        // The live frames after the hello; those up to its cursor were already sent and are dropped.
+        let frames = resumed[resumed.range(of: "id: ")!.lowerBound...]
+        let ending = frames[..<frames.range(of: "turn.completed")!.lowerBound].lastIndex(of: "\n")!
+        SquaddChatFixture.stream(Data(frames[..<ending].utf8))
+        await waitUntil("the reply goes on as working") { model.activeStreamID != nil }
+        XCTAssertNil(coordinator.latestRunEnding, "a lost resume is not a failed turn")
+        XCTAssertEqual(Self.streamedText(model) ?? "", "", "no reply with its beginning missing")
+
+        turnEnded = true
+        reloaded = reads("the turn's end reloads the thread")
+        SquaddChatFixture.stream(Data(frames[ending...].utf8))
+        await fulfillment(of: [reloaded], timeout: 5)
+        await waitUntil("the stored reply comes when the turn ends") { model.activeStreamID == nil && model.messages.last?.content == reply }
+        XCTAssertEqual(model.messages.filter { $0.content == reply }.count, 1)
+    }
+
     func testRefusedSendGoesBackToTheComposerWithTheReason() async throws {
         let threadId = threadId
         SquaddChatFixture.handler = { request in
@@ -241,7 +343,7 @@ final class SquaddChatTests: XCTestCase {
             default: return .hold
             }
         }
-        let (model, _) = makeChat(botId: botId)
+        let (model, _) = makeChat(bot: botId)
 
         await model.loadSkillSlashSuggestions()
 
@@ -250,12 +352,15 @@ final class SquaddChatTests: XCTestCase {
         return (scope.offeredBuiltins.map(\.name), model.composerSkillSuggestions.map(\.name), query)
     }
 
-    private func makeChat(botId: String? = nil) -> (ChatViewModel, SquaddChatTurnCoordinator) {
+    private func makeChat(bot: String? = nil, thread: String? = nil,
+                          reconnectDelay: @escaping ChatStreamReconnectDelay = { _ in try await Task.sleep(for: .seconds(3600)) })
+        -> (ChatViewModel, SquaddChatTurnCoordinator) {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [SquaddChatFixture.self]
-        let chat = SquaddThreadChat(server: server, token: "device-token", botId: botId ?? self.botId, threadId: threadId, title: "Prova")
+        let threadId = thread ?? threadId
+        let chat = SquaddThreadChat(server: server, token: "device-token", botId: bot ?? botId, threadId: threadId, title: "Prova")
         let coordinator = SquaddChatTurnCoordinator(chat, session: URLSession(configuration: configuration),
-                                                    retryDelay: { _ in try await Task.sleep(for: .seconds(3600)) })
+                                                    reconnectDelay: reconnectDelay)
         addTeardownBlock { coordinator.stop() }
         let model = ChatViewModel(session: SessionSummary(sessionId: threadId, title: "Prova"), server: server,
                                   streamingRevealTick: {}, backend: .squadd(coordinator))
@@ -275,6 +380,30 @@ final class SquaddChatTests: XCTestCase {
         return data
     }
 
+    private nonisolated static func text(_ name: String) throws -> String {
+        String(decoding: try fixture(name), as: UTF8.self)
+    }
+
+    /// The reply the recorded turn stored.
+    private static func storedReply() throws -> String {
+        let page = try JSONDecoder().decode(SquaddMessagePage.self, from: fixture("resume-thread-after.json"))
+        return try XCTUnwrap(page.messages.last { $0.role == "bot" && $0.kind == "text" }?.text)
+    }
+
+    /// Where the frame carrying the `n`th reply piece ends.
+    private static func end(ofDelta n: Int, in frames: String) -> String.Index {
+        let piece = frames.ranges(of: "\"content.delta\"")[n - 1]
+        return frames[piece.upperBound...].range(of: "\n\n")!.upperBound
+    }
+
+    private static func lastID(in frames: Substring) -> String? {
+        frames.components(separatedBy: "\n").last { $0.hasPrefix("id: ") }.map { String($0.dropFirst(4)) }
+    }
+
+    private static func streamedText(_ model: ChatViewModel) -> String? {
+        model.streamingAssistantMessageID.flatMap { id in model.messages.first { $0.messageId == id } }?.content
+    }
+
     private nonisolated static func fixture(_ name: String) throws -> Data {
         try Data(contentsOf: URL(fileURLWithPath: #filePath).deletingLastPathComponent()
             .appendingPathComponent("Fixtures/Squadd/\(name)"))
@@ -290,9 +419,13 @@ final class SquaddChatFixture: URLProtocol {
     nonisolated(unsafe) private static var held: [SquaddChatFixture] = []
     private static let lock = NSLock()
 
+    /// Called once a held request can take `stream` or `answer`.
+    nonisolated(unsafe) static var didHold: ((URLRequest) -> Void)?
+
     static func reset() {
         lock.withLock { held = [] }
         handler = nil
+        didHold = nil
     }
 
     /// Answers the held request with `method`.
@@ -306,7 +439,8 @@ final class SquaddChatFixture: URLProtocol {
 
     /// Sends `data` down the held event stream, and ends it with `finish`.
     static func stream(_ data: Data, finish: Bool = false) {
-        guard let events = lock.withLock({ held.first { $0.request.url?.path == "/api/events" } }) else { return XCTFail("no stream held") }
+        // The newest: a reopened stream's old connection may not have stopped yet.
+        guard let events = lock.withLock({ held.last { $0.request.url?.path == "/api/events" } }) else { return XCTFail("no stream held") }
         events.client?.urlProtocol(events, didLoad: data)
         if finish {
             events.client?.urlProtocolDidFinishLoading(events)
@@ -326,6 +460,7 @@ final class SquaddChatFixture: URLProtocol {
         case .hold:
             if request.url?.path == "/api/events" { respond(status: 200) }
             Self.lock.withLock { Self.held.append(self) }
+            Self.didHold?(request)
         }
     }
 
@@ -334,7 +469,9 @@ final class SquaddChatFixture: URLProtocol {
     }
 
     private func respond(status: Int) {
-        let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: nil)!
+        // Without a Content-Type URLSession holds the first 512 bytes to sniff one, so a lone small frame never arrives.
+        let type = request.url?.path == "/api/events" ? "text/event-stream" : "application/json"
+        let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: nil, headerFields: ["Content-Type": type])!
         client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
     }
 }
