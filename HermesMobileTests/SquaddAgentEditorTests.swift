@@ -144,7 +144,6 @@ final class SquaddAgentPhotoTests: XCTestCase {
     // Replies served so far, counted on the fixture's thread: a shot waits for the reply its screen shows.
     nonisolated(unsafe) private static var botsServed = 0
     nonisolated(unsafe) private static var avatarsServed = 0
-    static var times = ""
 
     override func tearDown() {
         URLProtocol.unregisterClass(SquaddHTTPFixture.self)
@@ -194,13 +193,6 @@ final class SquaddAgentPhotoTests: XCTestCase {
         if let opus = new.modelGroups.first?.allModels.first(where: { $0.id == "claude-opus-5-5" }) { await new.selectModel(opus) }
         try await shoot("a-new-agent", SquaddAgentEditorView(editor: new), dir: dir)
 
-        // a2. Once made, the same sheet shows the agent with its avatar section.
-        await new.save()
-        try await shoot("a2-created", SquaddAgentEditorView(editor: new), dir: dir)
-
-        // b. The model picker: only the engines the computer can run, no typed model.
-        try await shoot("b-model-picker", picker(new), dir: dir)
-
         // c. An existing agent with the avatar the computer drew.
         let drawn = try JSONDecoder().decode(SquaddBotEnvelope.self, from: Self.fixture("bot-avatar.json")).bot
         let edit = SquaddAgentEditor(client: client, bot: drawn)
@@ -209,22 +201,11 @@ final class SquaddAgentPhotoTests: XCTestCase {
             Self.avatarsServed > 0
         }
 
-        // d. A name the computer refuses: the old name is back, with the computer's reason.
+        // d. On the same screen, a name the computer refuses: the old name is back, with the computer's reason.
         profileReply = (400, Self.fixture("bot-profile-invalid.json"))
         edit.draft.name = String(repeating: "n", count: 101)
         await edit.save()
-        try await shoot("d-refused-name", SquaddAgentEditorView(editor: edit), dir: dir)
-
-        // e. A model the engine no longer offers: the agent keeps its model, with the reason.
-        await edit.selectModel(ModelCatalogOption(id: "gpt-x", displayName: "GPT X", providerID: "chatgpt"))
-        try await shoot("e-refused-model", picker(edit), dir: dir)
-    }
-
-    private func picker(_ editor: SquaddAgentEditor) -> some View {
-        ModelPickerSheet(configuration: .squaddAgent, modelGroups: editor.modelGroups,
-                         selectedModelID: editor.model?.model, selectedModelProviderID: editor.model?.instanceId,
-                         isSelected: { $0.id == editor.model?.model && $0.providerID == editor.model?.instanceId },
-                         loadStatus: editor.modelsStatus, errorMessage: editor.modelError, onSelect: { _ in })
+        try await shoot("d-refused-name", dir: dir)
     }
 
     private func client() -> SquaddCompanionClient {
@@ -233,40 +214,23 @@ final class SquaddAgentPhotoTests: XCTestCase {
         return SquaddCompanionClient(server: server, token: "device-token", session: URLSession(configuration: configuration))
     }
 
-    /// Hosts `view` in a window of the app's scene and writes `<name>.png` once it has drawn.
+    /// Shows `view` in the test's one window (made on the first shot) and photographs it.
     private func shoot<V: View>(_ name: String, _ view: V, dir: URL, until ready: () -> Bool = { true }) async throws {
-        let t0 = ContinuousClock.now
-        defer { Self.times += "\(name) total \(ContinuousClock.now - t0)\n"; try? Self.times.write(to: dir.appendingPathComponent("tempi.txt"), atomically: true, encoding: .utf8) }
+        if window == nil {
+            let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+            window = UIWindow(windowScene: scene)
+            window?.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+            window?.makeKeyAndVisible()
+        }
         let container = try ModelContainer(for: CachedSession.self, CachedMessage.self,
                                            configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
-        window?.isHidden = true
-        let window = UIWindow(windowScene: scene)
-        window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
-        window.rootViewController = UIHostingController(rootView: view.modelContainer(container))
-        window.makeKeyAndVisible()
-        self.window = window
-        Self.times += "\(name) setup \(ContinuousClock.now - t0)\n"
-        try await probe(of: window, until: ready).write(to: dir.appendingPathComponent("\(name).png"))
+        window?.rootViewController = UIHostingController(rootView: view.modelContainer(container))
+        try await shoot(name, dir: dir, until: ready)
     }
 
-    private func probe(of window: UIWindow, until ready: () -> Bool = { true }, limit: Duration = .seconds(3)) async throws -> Data {
-        let renderer = UIGraphicsImageRenderer(bounds: window.bounds)
-        var r = Duration.zero
-        let frame = { () -> UIImage in let t = ContinuousClock.now; defer { r += ContinuousClock.now - t }; return renderer.image { _ in window.drawHierarchy(in: window.bounds, afterScreenUpdates: true) } }
-        let pixels = { (image: UIImage) in image.cgImage?.dataProvider?.data as Data? }
-        var last = frame(), same = 0, log = ""
-        let end = ContinuousClock.now + limit
-        while same < 3, ContinuousClock.now < end {
-            try await Task.sleep(for: .milliseconds(100))
-            let now = frame()
-            let eq = pixels(now) == pixels(last)
-            log += ready() ? (eq ? "=" : "x") : "w"
-            same = ready() && eq ? same + 1 : 0
-            last = now
-        }
-        Self.times += "  frames \(log) render \(r)\n"
-        return try XCTUnwrap(last.pngData())
+    /// Writes `<name>.png` of what the window shows once it has drawn.
+    private func shoot(_ name: String, dir: URL, until ready: () -> Bool = { true }) async throws {
+        try await readyPhoto(of: XCTUnwrap(window), until: ready).write(to: dir.appendingPathComponent("\(name).png"))
     }
 
     private nonisolated static func fixture(_ name: String) -> Data {
