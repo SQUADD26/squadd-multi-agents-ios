@@ -83,5 +83,12 @@ class PRStateTests(unittest.TestCase):
             pr_state.main("foto/2-b", self.base)
         self.assertEqual(self.built(), "branch 1")  # the closest state, not the stray
 
+    def test_a_wiped_derived_data_rebuilds_instead_of_crashing(self):
+        import shutil
+        shutil.rmtree(self.work / "DerivedData")
+        pr_state.main("foto/1-a", self.base)
+        self.assertTrue((self.workspace / ".git").is_dir())
+        self.assertTrue((self.work / "DerivedData").is_dir())
+
 if __name__ == "__main__":
     unittest.main()
