@@ -2,4 +2,5 @@
 # does not list its label yet.
 self-hosted-runner:
   labels:
-    - xcode-27
+    - squadd-multi-ios-pr
+    - squadd-multi-ios-senza-pr
