@@ -31,11 +31,11 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # A hosted runner asks GitHub whether this branch has an open PR to dev and picks the Mac runners' label.
+  # Either Mac runner asks GitHub whether this branch has an open PR to dev and picks the label for the build.
   instrada:
     name: Runner
     if: ${{ !github.event.deleted }}
-    runs-on: ubuntu-latest
+    runs-on: squadd-multi-ios-pr
     timeout-minutes: 1
     permissions:
       pull-requests: read

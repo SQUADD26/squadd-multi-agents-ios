@@ -1,5 +1,5 @@
-# GitHub's preview Xcode 27 image (actions/runner-images#14404); actionlint
-# does not list its label yet.
+# The labels of Roberto's Mac runners: every job runs there, never on GitHub's runners.
 self-hosted-runner:
   labels:
-    - xcode-27
+    - squadd-multi-ios-pr
+    - squadd-multi-ios-senza-pr
