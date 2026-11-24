@@ -40,7 +40,7 @@ concurrency:
 jobs:
   changes:
     name: Detect changed paths
-    runs-on: ubuntu-latest
+    runs-on: squadd-multi-ios-senza-pr  # Roberto's Mac, never GitHub's runners
     timeout-minutes: 5
     outputs:
       run_ios: ${{ steps.filter.outputs.run_ios }}
@@ -79,7 +79,7 @@ jobs:
     name: Build and Test
     needs: changes
     if: needs.changes.outputs.run_ios == 'true'
-    runs-on: xcode-27
+    runs-on: squadd-multi-ios-senza-pr  # Roberto's Mac, never GitHub's runners
     timeout-minutes: 90
 
     env:
@@ -90,9 +90,9 @@ jobs:
       # The Xcode used locally and for release builds (DEVELOPMENT.md
       # § Xcode version); update these pins deliberately. iOS 27 is the
       # image's only runtime: CI skips iOS 26 rather than download one.
-      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
-      SIMULATOR_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-27-0
-      SIMULATOR_NAME: iPhone 17
+      DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+      SIMULATOR_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-27-2
+      SIMULATOR_NAME: Squadd multi CI 3
       CI_LOG_DIR: ci-logs
       TEST_WORKER_COUNT: 1
       # xcodebuild hands TEST_RUNNER_-prefixed variables to the tests without
@@ -214,7 +214,7 @@ jobs:
 
   tooling:
     name: Tooling Tests
-    runs-on: ubuntu-latest
+    runs-on: squadd-multi-ios-senza-pr  # Roberto's Mac, never GitHub's runners
     timeout-minutes: 5
     steps:
       - name: Check out
@@ -232,7 +232,7 @@ jobs:
     name: CI Gate
     needs: [changes, test, tooling]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: squadd-multi-ios-senza-pr  # Roberto's Mac, never GitHub's runners
     timeout-minutes: 5
     steps:
       - name: Check results
