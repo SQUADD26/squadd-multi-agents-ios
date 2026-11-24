@@ -93,7 +93,7 @@ launchctl kickstart -k gui/$(id -u)/com.hermes.webui
 
 Local work, PR CI, and release builds all use **Xcode 27.1 (27A9275)**, so a
 change that compiles on this Mac compiles on CI. CI and release builds run on
-GitHub's `xcode-27` runner image with `DEVELOPER_DIR` pinned in
+Roberto's Mac (runner 2, `squadd-multi-ios-senza-pr`), never on GitHub's runners, with `DEVELOPER_DIR` pinned in
 `.github/workflows/pr-ci.yml` and `.github/workflows/release-candidate-testflight.yml`.
 Check yours with `xcodebuild -version`. With several Xcodes installed, select
 27.1 for one shell with `export DEVELOPER_DIR=<path to Xcode 27.1>.app/Contents/Developer`,
@@ -265,11 +265,11 @@ bar on the trailing edge, and 951x669 open, regular width, in the split.
 
 ## PR CI
 
-`.github/workflows/pr-ci.yml` pins the hosted Xcode path, iOS runtime, and phone
-model. Update these together after checking the runner's installed software;
+`.github/workflows/pr-ci.yml` pins the Mac's Xcode path, iOS runtime, and
+simulator. Update these together after checking the Mac's installed software;
 a missing pin fails setup rather than selecting another toolchain or runtime.
-CI tests on the iOS 27 simulator only. The `xcode-27` image ships no iOS 26
-runtime, and downloading one would add minutes to every run, so iOS 26 is
+CI tests on the iOS 27 simulator only. The Mac's CI simulators have no iOS 26
+runtime, and adding one would add minutes to every run, so iOS 26 is
 deliberately not covered on CI to keep it fast. Run the affected tests on a
 local iOS 26 simulator when a change depends on OS behavior.
 CI resolves the device UDID and runs the complete suite with one test worker.
@@ -305,7 +305,7 @@ scripts/test-sim <simulator-udid> --only HermesMobileTests/ChatViewModelSendTest
 The Actions summary records phase timings, the failed phase, assertion messages,
 and slow tests. Failure artifacts include setup/build/test logs and any result
 bundle. Tests run with `-collect-test-diagnostics never`, as locally: on the
-`xcode-27` image a failure otherwise spends 10 minutes timing out a
+CI a failure otherwise can spend 10 minutes timing out a
 simulator sysdiagnose. A missing bundle does not establish an infrastructure flake; inspect the
 failed phase before rerunning. The reporter cannot turn a failed build or test
 green. Validate workflow changes with `actionlint .github/workflows/pr-ci.yml`

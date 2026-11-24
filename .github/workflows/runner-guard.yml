@@ -12,7 +12,7 @@ permissions:
 jobs:
   guard:
     if: ${{ !github.event.deleted }}
-    runs-on: ubuntu-latest
+    runs-on: squadd-multi-ios-pr  # either Mac runner: nothing runs on GitHub's runners
     timeout-minutes: 1
     steps:
       - env:

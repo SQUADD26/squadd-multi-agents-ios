@@ -29,13 +29,13 @@ concurrency:
 jobs:
   upload:
     name: Archive and Upload
-    runs-on: xcode-27
+    runs-on: squadd-multi-ios-senza-pr  # Roberto's Mac (runner 2), never GitHub's runners
     environment: external-testflight
     timeout-minutes: 60
 
     env:
-      # The same Xcode as PR CI and local work (DEVELOPMENT.md § Xcode version).
-      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
+      # The Mac's Xcode, as in PR CI and local work (DEVELOPMENT.md § Xcode version).
+      DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
       APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
       APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
       APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}

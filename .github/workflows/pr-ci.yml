@@ -4,8 +4,8 @@
 # full suite too: PRs need not be up to date to merge, so two green PRs can
 # still break main or dev together. PRs limited to docs
 # (markdown, docs/, community files) and local tooling (scripts/) skip the
-# macOS runner entirely. The tooling tests (scripts/tests, ci/) run on Linux for
-# every PR and push, so a tooling-only change still gets tested.
+# iOS build entirely. Every job runs on Roberto's Mac (runner 2, label
+# squadd-multi-ios-senza-pr, its own simulator), never on GitHub's runners.
 #
 # The required branch-protection check is "CI Gate", not "Build and Test":
 # a skipped required check would block merges forever, so the gate always
@@ -41,7 +41,7 @@ concurrency:
 jobs:
   changes:
     name: Detect changed paths
-    runs-on: ubuntu-latest
+    runs-on: squadd-multi-ios-senza-pr
     timeout-minutes: 5
     outputs:
       run_ios: ${{ steps.filter.outputs.run_ios }}
@@ -80,7 +80,7 @@ jobs:
     name: Build and Test
     needs: changes
     if: needs.changes.outputs.run_ios == 'true'
-    runs-on: xcode-27
+    runs-on: squadd-multi-ios-senza-pr
     timeout-minutes: 90
 
     env:
@@ -88,14 +88,12 @@ jobs:
       SCHEME: HermesMobile
       DERIVED_DATA_PATH: DerivedData
       RESULT_BUNDLE_PATH: TestResults.xcresult
-      # The Xcode used locally and for release builds (DEVELOPMENT.md
-      # § Xcode version); update these pins deliberately. iOS 27 is the
-      # image's only runtime: CI skips iOS 26 rather than download one.
-      # `xcode-27` is GitHub's hosted Xcode 27 image (actions/runner-images,
-      # images/macos/xcode-27-arm64-Readme.md), free for this public repo.
-      DEVELOPER_DIR: /Applications/Xcode_27.1.app/Contents/Developer
-      SIMULATOR_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-27-0
-      SIMULATOR_NAME: iPhone 17
+      # The Mac's Xcode and runtime (DEVELOPMENT.md § Xcode version); update
+      # these pins when the Mac's Xcode changes. Runner 2's own simulator, the
+      # one pr-ios.yml gives it: at night nothing else uses it.
+      DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+      SIMULATOR_RUNTIME: com.apple.CoreSimulator.SimRuntime.iOS-27-2
+      SIMULATOR_NAME: Squadd multi CI 3
       CI_LOG_DIR: ci-logs
       TEST_WORKER_COUNT: 1
       # xcodebuild hands TEST_RUNNER_-prefixed variables to the tests without
@@ -249,7 +247,7 @@ jobs:
 
   tooling:
     name: Tooling Tests
-    runs-on: ubuntu-latest
+    runs-on: squadd-multi-ios-senza-pr
     timeout-minutes: 5
     steps:
       - name: Check out
@@ -269,7 +267,7 @@ jobs:
     name: CI Gate
     needs: [changes, test, tooling]
     if: always()
-    runs-on: ubuntu-latest
+    runs-on: squadd-multi-ios-senza-pr
     timeout-minutes: 5
     steps:
       - name: Check results

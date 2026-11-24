@@ -81,6 +81,7 @@ def main(branch, head):
     derived, states = work / "DerivedData", work / "pr-states"
     marker = states / "current"
     states.mkdir(exist_ok=True)
+    derived.mkdir(exist_ok=True)  # wiped by a disk cleanup (22/11, both Mac runners): an empty one is a full rebuild, not a crash
     pr_group.stop_leftovers(work)  # a cancelled job's xcodebuild would write into what is parked next
     current = marker.read_text().strip() if marker.exists() else "start"
     mine = re.sub(r"[^A-Za-z0-9._-]", "-", branch)
